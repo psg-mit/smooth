@@ -1,3 +1,5 @@
+module MM where
+
 type Q = Rational
 
 data R = R { approx :: Q -> Q }
@@ -34,7 +36,7 @@ rsign (R x) = go 1 where
         else go (eps / 2)
 
 rsignum :: R -> R
-rsignum x = if rsign x then q_to_R 1 else q_to_R (-1)
+rsignum x = q_to_R (if rsign x then 1 else -1)
 
 instance Num R where
     (+) = rplus
