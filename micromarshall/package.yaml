@@ -34,4 +34,9 @@ dependencies:
 library:
   source-dirs: src
 
-ghc-options:      -O2
+executables:
+  runtest:
+    main:             test/RunTest.hs
+    source-dirs:      src
+
+ghc-options:      -O

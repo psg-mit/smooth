@@ -61,8 +61,14 @@ rfuncI f a = RFunc f a initPrecision
 econst :: Approx a => a -> RFunc g a
 econst x = rfuncI (\_ () -> constant x) (constant x)
 
+eRealOp2 :: (Prec -> Interval MPFR -> Interval MPFR -> Interval MPFR) -> RFunc (MPFR, MPFR) MPFR
+eRealOp2 op = rfuncI (\(CompactPair (CompactMPFR ix) (CompactMPFR iy)) p -> CompactMPFR (op p ix iy)) (CompactMPFR realLine)
+
 eplus :: RFunc (MPFR, MPFR) MPFR
-eplus = rfuncI (\(CompactPair (CompactMPFR ix) (CompactMPFR iy)) p -> CompactMPFR (iadd p ix iy)) (CompactMPFR realLine)
+eplus = eRealOp2 iadd
+
+emul :: RFunc (MPFR, MPFR) MPFR
+emul = eRealOp2 imul
 
 ecompose :: RFunc a b -> RFunc b c -> RFunc a c
 ecompose (RFunc f1 a1 p1) (RFunc f2 a2 p2) =
@@ -98,7 +104,11 @@ econstD :: Double -> RFunc g MPFR
 econstD i = econst (fromDouble Data.Number.MPFR.Down 10 i)
 
 test :: [(MPFR, MPFR)]
-test = f <$> runRFunc (ap2 eplus (econstD 1.3) (econstD 2)) where
+test = runRFuncMPFR (ap2 eplus (econstD 1.3) (econstD 2))
+
+runRFuncMPFR :: RFunc () MPFR -> [(MPFR, MPFR)]
+runRFuncMPFR = fmap f . runRFunc
+  where
   f (CompactMPFR (Interval a b)) = (a, b)
 
 ap2 :: RFunc (a, b) c -> RFunc g a -> RFunc g b -> RFunc g c

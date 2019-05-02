@@ -15,6 +15,9 @@ iadd :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
 iadd p (Interval l1 u1) (Interval l2 u2) =
   Interval (R.add p Down l1 l2) (R.add p Up u1 u2)
 
+inegate :: Rounded a => Prec -> Interval a -> Interval a
+inegate p (Interval l u) = Interval (R.neg p Down u) (R.neg p Up l)
+
 -- Kaucher multiplication
 imul :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
 imul p (Interval a b) (Interval c d) = Interval l u
