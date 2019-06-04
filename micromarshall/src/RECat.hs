@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -fplugin=ConCat.Plugin #-}
-{-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:trace #-}
+--  {-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:trace #-}
 {-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:showResiduals #-}
 {-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:showCcc #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses #-}
 
 module RECat where
@@ -48,13 +48,23 @@ instance NumCat RFunc MPFR where
   mulC = emul
   negateC = RFunc (\(CompactMPFR i) p -> CompactMPFR (I.inegate p i)) RealExpr.bottom 1
 
+class RealCat k where
+  rplus :: (MPFR, MPFR) `k` MPFR
+  rmul :: (MPFR, MPFR) `k` MPFR
+  rnegate :: MPFR `k` MPFR
 
-test1 :: Num a => () -> a
-test1 () = 1 + 2
+instance RealCat (->) where
 
-instance Num MPFR where
-  fromInteger i = M.fromInt M.Down 10 (fromInteger i)
-  a + b = M.add M.Down 10 a b
+instance RealCat RFunc where
+  rplus = eplus
+  rmul = emul
+  rnegate = RFunc (\(CompactMPFR i) p -> CompactMPFR (I.inegate p i)) RealExpr.bottom 1
+
+
+test1 :: () -> MPFR
+test1 () = rplus (k 1, k 2)
+  where
+  k = M.fromDouble M.Down 10
 
 test :: RFunc () MPFR
 test = toCcc test1

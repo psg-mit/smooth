@@ -50,11 +50,6 @@ data RFunc a b = forall p. Precision p =>  RFunc
   , currPrec :: p
   }
 
-data RealExpr a =
-    Constant a
-  | Plus (RealExpr a) (RealExpr a)
-  | Mul (RealExpr a) (RealExpr a)
-
 rfuncI :: Precision p => (Compact a -> p -> Compact b) -> Compact b -> RFunc a b
 rfuncI f a = RFunc f a initPrecision
 
