@@ -5,6 +5,7 @@ module Differentiable where
 
 import Lib
 import Control.Category
+import Control.Arrow
 import Prelude hiding (id, (.))
 
 import Unsafe.Coerce (unsafeCoerce)
@@ -36,15 +37,15 @@ instance Cartesian k => Category (RDiff k) where
   RDiff g gd . RDiff f fd = RDiff (g . f)
     (prod (proj1 . proj2) (proj2 . fd . prod proj1 (proj2 . proj2)) . prod proj1 (gd . prod (f . proj1) proj2))
 
--- instance Cartesian k => Cartesian (RDiff k) where
---   dup = RDiff dup (prod (dup . proj1) (plusC . proj2))
---   proj1 = RDiff proj1 (prod (proj1 . proj1) (prod id (zeroC . unit) . proj2))
---   proj2 = RDiff proj2 (prod (proj2 . proj1) (prod (zeroC . unit) id . proj2))
---   prod (RDiff f fd) (RDiff g gd) = RDiff (prod f g)
---     (prod (prod (proj1 . proj1) (proj1 . proj2)) (lift2' plusC (proj2 . proj1) (proj2 . proj2)) .
---      prod (lift2' fd proj1 (proj1 . proj2)) (lift2' gd proj1 (proj2 . proj2))
---     )
---   unit = RDiff unit (prod unit (zeroC . unit))
+instance (Additive k, Cartesian k) => Cartesian (RDiff k) where
+  dup = RDiff dup (prod (dup . proj1) (plusC . proj2))
+  proj1 = RDiff proj1 (prod (proj1 . proj1) (prod id (zeroC . unit) . proj2))
+  proj2 = RDiff proj2 (prod (proj2 . proj1) (prod (zeroC . unit) id . proj2))
+  prod (RDiff f fd) (RDiff g gd) = RDiff (prod f g)
+    (prod (prod (proj1 . proj1) (proj1 . proj2)) (lift2' plusC (proj2 . proj1) (proj2 . proj2)) .
+     prod (lift2' fd proj1 (proj1 . proj2)) (lift2' gd proj1 (proj2 . proj2))
+    )
+  unit = RDiff unit (prod unit (zeroC . unit))
 
 instance NumCat k a => NumCat (FDiff k) a where
   addC = FDiff (prod (addC . proj1) (addC . proj2))
@@ -52,12 +53,12 @@ instance NumCat k a => NumCat (FDiff k) a where
   negateC = FDiff (prod (negateC . proj1) (negateC . proj2))
   subC = lift2' addC proj1 (negateC . proj2)
 
--- instance (Additive k a, NumCat k a) => NumCat (RDiff k) a where
---   addC = RDiff addC (prod (addC . proj1) (dup . proj2))
---   mulC = RDiff mulC (prod (mulC . proj1)
---     (prod (lift2' mulC (proj2 . proj1) proj2)
---           (lift2' mulC (proj1 . proj1) proj2)))
---   negateC = RDiff negateC (prod (negateC . proj1) (negateC . proj2))
+instance (Additive k, NumCat k a) => NumCat (RDiff k) a where
+  addC = RDiff addC (prod (addC . proj1) (dup . proj2))
+  mulC = RDiff mulC (prod (mulC . proj1)
+    (prod (lift2' mulC (proj2 . proj1) proj2)
+          (lift2' mulC (proj1 . proj1) proj2)))
+  negateC = RDiff negateC (prod (negateC . proj1) (negateC . proj2))
 
 
 instance Cartesian (->) where
@@ -76,15 +77,35 @@ instance Num a => NumCat (->) a where
   signumC = signum
   fromIntegerC = fromInteger
 
+instance Monad m => Cartesian (Kleisli m) where
+  dup = arr $ \x -> (x, x)
+  proj1 = arr fst
+  proj2 = arr snd
+  prod = \f g -> dup >>> f *** g
+  unit = arr $ \_ -> ()
 
-reverseDiff :: (Additive k a, Cartesian k, NumCat k (Del a)) => RDiff k a a -> a `k` (a, Del a)
+instance (Monad m, Num a) => NumCat (Kleisli m) a where
+  addC = arr $ uncurry (+)
+  mulC = arr $ uncurry (*)
+  negateC = arr $ negate
+  subC = arr $ uncurry (-)
+  absC = arr abs
+  signumC = arr signum
+  fromIntegerC n = arr (\_ -> fromInteger n)
+
+
+reverseDiff :: (Additive k, Cartesian k, NumCat k (Del a)) => RDiff k a a -> a `k` (a, Del a)
 reverseDiff (RDiff f fd) = fd . prod id (fromIntegerC 1)
 
 forwardDiff :: (forall a k. NumCat k a => k a a) -> Double -> (Double, Double)
 forwardDiff (FDiff f) x = f (x, 1)
 
--- reverseDiff' :: RDiff (->) Double Double -> Double -> (Double, Double)
--- reverseDiff' e = reverseDiff e
+reverseDiff' :: RDiff (Kleisli []) Double Double -> Double -> (Double, Del Double)
+reverseDiff' e x = (fst (head xs), sum (map snd xs))
+  where xs = runKleisli (reverseDiff e) x
 
--- reverseDiff'' :: (forall a k. NumCat k a => k a a) -> Double -> (Double, Double)
--- reverseDiff'' e = reverseDiff e
+reverseDiff'' :: (forall a k. NumCat k a => k a a) -> Double -> (Double, Double)
+reverseDiff'' e = reverseDiff' e
+
+test :: [(Double, Double)]
+test = runKleisli (arr (\x -> (x, x)) >>> Control.Category.id *** fromIntegerC 1) 3
