@@ -2,6 +2,7 @@
 --  {-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:trace #-}
 {-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:showResiduals #-}
 {-# OPTIONS_GHC -fplugin-opt=ConCat.Plugin:showCcc #-}
+{-# OPTIONS_GHC -fsimpl-tick-factor=1000 #-}
 {-# LANGUAGE TypeFamilies, TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses #-}
 
@@ -18,6 +19,7 @@ import ConCat.Rebox ()
 import ConCat.Category
 import ConCat.Misc hiding ((<~),(~>),type (&&))
 import qualified Interval as I
+import qualified Rounded as R
 
 import GHC.Generics
 
@@ -60,9 +62,11 @@ instance RealCat RFunc where
   rmul = emul
   rnegate = RFunc (\(CompactMPFR i) p -> CompactMPFR (I.inegate p i)) RealExpr.bottom 1
 
+instance Num MPFR where
+  (+) = R.add 10 R.Down
 
 test1 :: () -> MPFR
-test1 () = rplus (k 1, k 2)
+test1 () = addC (k 1, k 2)
   where
   k = M.fromDouble M.Down 10
 
