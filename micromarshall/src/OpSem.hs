@@ -154,7 +154,7 @@ pairtex :: (a -> String) -> (b -> String) -> (a, b) -> String
 pairtex pl pr (l, r) = "(" ++ pl l ++ ", " ++ pr r ++ ")"
 
 rtex :: R -> String
-rtex (R l u) = "$" ++ pairtex lrtex urtex (l, u) ++ "$"
+rtex (R l u) = "$[" ++ lrtex l ++ ", " ++ urtex u ++ "]$"
 
 proptex :: Bool -> String
 proptex True = "\\texttt{True}"
@@ -199,9 +199,9 @@ example1 = outputTable (map Result [const two, sqrt2, const one, sqrt2plus1]) wh
 example2 :: String
 example2 = outputTable [Result sqrt2, Result sqrt2gt1, Result sqrt2lt3, Result conj] where
   sqrt2 = OpSem.sqrt (fromRat 2)
-  sqrt2gt1 = rltb (fromRat 1) <$> sqrt2
-  sqrt2lt3 = rltb <$> sqrt2 <*> pure (fromRat 3)
-  conj = andb <$> sqrt2gt1 <*> sqrt2lt3
+  sqrt2gt1 = rlt (fromRat 1) <$> sqrt2
+  sqrt2lt3 = rlt <$> sqrt2 <*> pure (fromRat 3)
+  conj = (&&) <$> sqrt2gt1 <*> sqrt2lt3
 
 test :: [R]
 test = toStream mycomp

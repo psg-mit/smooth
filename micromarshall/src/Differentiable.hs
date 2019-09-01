@@ -42,23 +42,35 @@ instance (Additive k, Cartesian k) => Cartesian (RDiff k) where
   proj1 = RDiff proj1 (prod (proj1 . proj1) (prod id (zeroC . unit) . proj2))
   proj2 = RDiff proj2 (prod (proj2 . proj1) (prod (zeroC . unit) id . proj2))
   prod (RDiff f fd) (RDiff g gd) = RDiff (prod f g)
-    (prod (prod (proj1 . proj1) (proj1 . proj2)) (lift2' plusC (proj2 . proj1) (proj2 . proj2)) .
-     prod (lift2' fd proj1 (proj1 . proj2)) (lift2' gd proj1 (proj2 . proj2))
+    (prod (prod (proj1 . proj1) (proj1 . proj2)) (lift2 plusC (proj2 . proj1) (proj2 . proj2)) .
+     prod (lift2 fd proj1 (proj1 . proj2)) (lift2 gd proj1 (proj2 . proj2))
     )
   unit = RDiff unit (prod unit (zeroC . unit))
 
 instance NumCat k a => NumCat (FDiff k) a where
   addC = FDiff (prod (addC . proj1) (addC . proj2))
-  mulC = FDiff (prod (mulC . proj1) (lift2' addC (lift2' mulC (proj1 . proj1) (proj2 . proj2)) (lift2' mulC (proj2 . proj1) (proj1 . proj2))))
+  mulC = FDiff (prod (mulC . proj1) (lift2 addC (lift2 mulC (proj1 . proj1) (proj2 . proj2)) (lift2 mulC (proj2 . proj1) (proj1 . proj2))))
   negateC = FDiff (prod (negateC . proj1) (negateC . proj2))
-  subC = lift2' addC proj1 (negateC . proj2)
+  subC = lift2 addC proj1 (negateC . proj2)
+  fromIntegerC n = FDiff (prod (fromIntegerC n) (fromIntegerC 0))
 
 instance (Additive k, NumCat k a) => NumCat (RDiff k) a where
   addC = RDiff addC (prod (addC . proj1) (dup . proj2))
   mulC = RDiff mulC (prod (mulC . proj1)
-    (prod (lift2' mulC (proj2 . proj1) proj2)
-          (lift2' mulC (proj1 . proj1) proj2)))
+    (prod (lift2 mulC (proj2 . proj1) proj2)
+          (lift2 mulC (proj1 . proj1) proj2)))
   negateC = RDiff negateC (prod (negateC . proj1) (negateC . proj2))
+  fromIntegerC n = RDiff (fromIntegerC n) (prod (fromIntegerC n) (zeroC . unit))
+
+-- is this suspect?
+instance (Cartesian k, Additive k) => Additive (RDiff k) where
+  zeroC = RDiff zeroC (zeroC . unit)
+  plusC = RDiff plusC $ prod (plusC . proj1) (dup . proj2)
+
+instance (Cartesian k, Additive k) => Additive (FDiff k) where
+  zeroC = FDiff (zeroC . unit)
+  plusC = FDiff (prod (plusC . proj1) (plusC . proj2))
+
 
 
 instance Cartesian (->) where
@@ -95,17 +107,30 @@ instance (Monad m, Num a) => NumCat (Kleisli m) a where
 
 
 reverseDiff :: (Additive k, Cartesian k, NumCat k (Del a)) => RDiff k a a -> a `k` (a, Del a)
-reverseDiff (RDiff f fd) = fd . prod id (fromIntegerC 1)
+reverseDiff (RDiff f fd) = lift2 fd id (fromIntegerC 1)
 
 forwardDiff :: (forall a k. NumCat k a => k a a) -> Double -> (Double, Double)
 forwardDiff (FDiff f) x = f (x, 1)
 
+forwardDiff2 :: (forall a k. NumCat k a => k a a) -> Double -> (Double, Double)
+forwardDiff2 (FDiff (FDiff f)) x = (fx, xx)
+  where
+  ((fx, xy1), (xy2, xx)) = f ((x, 1), (1, 0))
+
 reverseDiff' :: RDiff (Kleisli []) Double Double -> Double -> (Double, Del Double)
-reverseDiff' e x = (fst (head xs), sum (map snd xs))
-  where xs = runKleisli (reverseDiff e) x
+reverseDiff' (RDiff f fd) x = (fst (head xs), sum (map snd xs))
+  where xs = runKleisli fd (x, 1)
 
 reverseDiff'' :: (forall a k. NumCat k a => k a a) -> Double -> (Double, Double)
 reverseDiff'' e = reverseDiff' e
 
-test :: [(Double, Double)]
-test = runKleisli (arr (\x -> (x, x)) >>> Control.Category.id *** fromIntegerC 1) 3
+-- Wrong wrong wrong!
+reverseDiff2 :: (forall a k. NumCat k a => k a a) -> Double -> Double
+reverseDiff2 (RDiff _ (RDiff _ fd)) x = head (map (snd . snd) xs)
+  where xs = runKleisli fd ((x, 1), (0, 0))
+
+reverseDiff1' :: (Cartesian k, Additive k, NumCat k (Del Double)) => Integer -> RDiff k Double Double -> k Double Double
+reverseDiff1' i (RDiff f fd) = proj2 . lift2 fd id (fromIntegerC i)
+
+reverseDiff2' :: (Cartesian k, Additive k, NumCat k (Del Double)) => RDiff (RDiff k) Double Double -> k Double Double
+reverseDiff2' = reverseDiff1' 0 . reverseDiff1' 1
