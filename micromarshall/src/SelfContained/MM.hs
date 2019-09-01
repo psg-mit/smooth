@@ -1,4 +1,4 @@
-module MM where
+module SelfContained.MM where
 
 type Q = Rational
 

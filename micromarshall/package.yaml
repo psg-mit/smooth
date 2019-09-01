@@ -23,11 +23,6 @@ dependencies:
 - containers
 - intervals
 - hmpfr
-- concat-plugin
-- concat-inline
-- concat-classes
-- concat-known
-- concat-satisfy
 - ghc-prim
 - constraints
 

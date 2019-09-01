@@ -1,6 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 
-module OpSem where
+module SelfContained.OpSem where
 
 import Control.Arrow (first)
 
@@ -172,7 +172,7 @@ outputTable es = latexTable (map out [0..8]) where
 
 mycomp :: Int -> R
 mycomp = do
-  y <- OpSem.sqrt (fromRat 2)
+  y <- SelfContained.OpSem.sqrt (fromRat 2)
   return (y `plus` fromRat 1)
 
 class TeX a where
@@ -193,12 +193,12 @@ example1 :: String
 example1 = outputTable (map Result [const two, sqrt2, const one, sqrt2plus1]) where
   two = fromRat 2
   one = fromRat 1
-  sqrt2 = OpSem.sqrt two
+  sqrt2 = SelfContained.OpSem.sqrt two
   sqrt2plus1 = fmap (plus one) sqrt2
 
 example2 :: String
 example2 = outputTable [Result sqrt2, Result sqrt2gt1, Result sqrt2lt3, Result conj] where
-  sqrt2 = OpSem.sqrt (fromRat 2)
+  sqrt2 = SelfContained.OpSem.sqrt (fromRat 2)
   sqrt2gt1 = rlt (fromRat 1) <$> sqrt2
   sqrt2lt3 = rlt <$> sqrt2 <*> pure (fromRat 3)
   conj = (&&) <$> sqrt2gt1 <*> sqrt2lt3

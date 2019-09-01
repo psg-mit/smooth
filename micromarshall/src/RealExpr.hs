@@ -1,4 +1,6 @@
 {-# LANGUAGE TypeFamilies, ExistentialQuantification #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 
 module RealExpr where
 
@@ -7,104 +9,100 @@ import Data.IORef
 
 import Interval
 import Rounded (Rounded, Prec, RoundDir (Up, Down))
+import qualified Rounded as R
 
-class Approx a where
-  data Compact a :: *
-  constant :: a -> Compact a
-  bottom :: Compact a
+type R = Interval MPFR
 
-instance Approx MPFR where
-  data Compact MPFR = CompactMPFR (Interval MPFR)
-  constant x = CompactMPFR (lift x)
-  bottom = CompactMPFR realLine
+class HasBottom a where
+  bottom :: a
 
-instance Approx () where
-  data Compact () = CompactUnit
-  constant () = CompactUnit
-  bottom = CompactUnit
+instance Rounded a => HasBottom (Interval a) where
+  bottom = Interval R.negativeInfinity R.positiveInfinity
 
-instance (Approx a, Approx b) => Approx (a, b) where
-  data Compact (a, b) = CompactPair (Compact a) (Compact b)
-  constant (x, y) = CompactPair (constant x) (constant y)
-  bottom = CompactPair bottom bottom
+instance HasBottom () where
+  bottom = ()
 
-class Precision p where
-  initPrecision :: p
-  nextPrecision :: p -> p
+instance (HasBottom a, HasBottom b) => HasBottom (a, b) where
+  bottom = (bottom, bottom)
 
-instance Precision () where
-  initPrecision = ()
-  nextPrecision _ = ()
+data RFunc a b = RFunc (a -> (b, RFunc a b))
 
-instance Precision Word where
-  initPrecision = 1
-  nextPrecision n = n + 1
+deriving instance Functor (RFunc a)
 
-instance (Precision a, Precision b) => Precision (a, b) where
-  initPrecision = (initPrecision, initPrecision)
-  nextPrecision (p, p') = (nextPrecision p, nextPrecision p')
+emap :: (a -> b) -> RFunc a b
+emap f = RFunc $ \x -> (f x, emap f)
 
-data RFunc a b = forall p. Precision p =>  RFunc
-  { func :: Compact a -> p -> Compact b
-  , currApprox :: Compact b
-  , currPrec :: p
-  }
+withPrec :: (Prec -> a -> b) -> RFunc a b
+withPrec f = withPrec' 1 where
+  withPrec' p = RFunc $ \x -> (f p x, withPrec' (p + 1))
 
-rfuncI :: Precision p => (Compact a -> p -> Compact b) -> Compact b -> RFunc a b
-rfuncI f a = RFunc f a initPrecision
+econst :: a -> RFunc g a
+econst x = emap (const x)
 
-econst :: Approx a => a -> RFunc g a
-econst x = rfuncI (\_ () -> constant x) (constant x)
+eRealOp2 :: (Prec -> a -> a -> a) -> RFunc (a, a) a
+eRealOp2 op = withPrec $ \p (ix, iy) -> op p ix iy
 
-eRealOp2 :: (Prec -> Interval MPFR -> Interval MPFR -> Interval MPFR) -> RFunc (MPFR, MPFR) MPFR
-eRealOp2 op = rfuncI (\(CompactPair (CompactMPFR ix) (CompactMPFR iy)) p -> CompactMPFR (op p ix iy)) (CompactMPFR realLine)
-
-eplus :: RFunc (MPFR, MPFR) MPFR
+eplus :: Rounded a => RFunc (Interval a, Interval a) (Interval a)
 eplus = eRealOp2 iadd
 
-emul :: RFunc (MPFR, MPFR) MPFR
+emul :: Rounded a => RFunc (Interval a, Interval a) (Interval a)
 emul = eRealOp2 imul
 
+emax :: Rounded a => RFunc (Interval a, Interval a) (Interval a)
+emax = eRealOp2 (\p -> imax)
+
+enegate :: Rounded a => RFunc (Interval a) (Interval a)
+enegate = withPrec inegate
+
+esqrt' :: Rounded a => Interval a -> Prec -> RFunc (Interval a) (Interval a)
+esqrt' i p = RFunc $ \x ->
+  let i' = maybe_cut_bisection (\q -> let q' = lift q in icmp (Interval.pow p q' 2) x) i
+  in (i', esqrt' i' (p + 1))
+
+esqrt :: Rounded a => RFunc (Interval a) (Interval a)
+esqrt = RFunc $ \i -> let ir = irecip 1 i in let i' = iunion i ir in
+  (i', esqrt' i' 1)
+
 ecompose :: RFunc a b -> RFunc b c -> RFunc a c
-ecompose (RFunc f1 a1 p1) (RFunc f2 a2 p2) =
-  RFunc (\i (p1, p2) -> f2 (f1 i p1) p2) a2 (p1, p2)
+ecompose (RFunc f1) (RFunc f2) =
+  RFunc (\a -> let (b, f1') = f1 a in let (c, f2') = f2 b in (c, ecompose f1' f2'))
 
 eprod :: RFunc g a -> RFunc g b -> RFunc g (a, b)
-eprod (RFunc f1 a1 p1) (RFunc f2 a2 p2) =
-  RFunc (\i (p1, p2) -> CompactPair (f1 i p1) (f2 i p2)) (CompactPair a1 a2) (p1, p2)
+eprod (RFunc f1) (RFunc f2) =
+  RFunc (\i -> let (a, f1') = f1 i in let (b, f2') = f2 i in ((a, b), eprod f1' f2'))
 
-emapOut :: (Compact a -> Compact b) -> RFunc g a -> RFunc g b
-emapOut f (RFunc aprx a p) = RFunc (\i p -> f (aprx i p)) (f a) p
+efst :: RFunc (a, b) a
+efst = emap fst
 
-emap :: Approx b => (Compact a -> Compact b) -> RFunc a b
-emap f = RFunc (\i _ -> f i) bottom ()
+esnd :: RFunc (a, b) b
+esnd = emap snd
 
-efst :: Approx a => RFunc (a, b) a
-efst = emap (\(CompactPair a b) -> a)
+eid :: RFunc a a
+eid = emap id
 
-esnd :: Approx b => RFunc (a, b) b
-esnd = emap (\(CompactPair a b) -> b)
+edup  :: RFunc a (a, a)
+edup = emap (\i -> (i,i))
 
-eid :: Approx a => RFunc a a
-eid = RFunc (\i _ -> i) bottom ()
+runRFunc :: RFunc () a -> [a]
+runRFunc (RFunc f) = let (x, f') = f () in
+  x : runRFunc f'
 
-edup  :: Approx a => RFunc a (a, a)
-edup = RFunc (\i _ -> CompactPair i i) bottom ()
-
-runRFunc :: Approx a => RFunc () a -> [Compact a]
-runRFunc (RFunc f a p) = let p' = nextPrecision p in
-  a : runRFunc (RFunc f (f CompactUnit p') p')
-
-econstD :: Double -> RFunc g MPFR
-econstD i = econst (fromDouble Data.Number.MPFR.Down 10 i)
+econstD :: Rounded r => Double -> RFunc g (Interval r)
+econstD i = econst (lift (R.fromDouble 52 R.Down i))
 
 test :: [(MPFR, MPFR)]
 test = runRFuncMPFR (ap2 eplus (econstD 1.3) (econstD 2))
 
-runRFuncMPFR :: RFunc () MPFR -> [(MPFR, MPFR)]
+runRFuncMPFR :: RFunc () R -> [(MPFR, MPFR)]
 runRFuncMPFR = fmap f . runRFunc
   where
-  f (CompactMPFR (Interval a b)) = (a, b)
+  f (Interval a b) = (a, b)
 
 ap2 :: RFunc (a, b) c -> RFunc g a -> RFunc g b -> RFunc g c
 ap2 f x y = eprod x y `ecompose` f
+
+ap1 :: RFunc a b -> RFunc g a -> RFunc g b
+ap1 f = (`ecompose` f)
+
+abs1 :: (forall d. RFunc d g -> RFunc d a -> RFunc d b) -> RFunc (g, a) b
+abs1 f = f efst esnd

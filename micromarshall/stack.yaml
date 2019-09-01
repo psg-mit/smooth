@@ -35,11 +35,6 @@ resolver: lts-12.9
 #  - wai
 packages:
 - .
-- /Users/sherman/Documents/Projects/concat/classes
-- /Users/sherman/Documents/Projects/concat/inline
-- /Users/sherman/Documents/Projects/concat/known
-- /Users/sherman/Documents/Projects/concat/plugin
-- /Users/sherman/Documents/Projects/concat/satisfy
 
 
 # Dependency packages to be pulled from upstream that are not in the resolver
