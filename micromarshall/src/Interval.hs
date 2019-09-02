@@ -13,12 +13,25 @@ instance Rounded a => Show (Interval a) where
 lift :: a -> Interval a
 lift x = Interval x x
 
+scalePos :: Rounded a => Prec -> a -> Interval a -> Interval a
+scalePos p c (Interval a b) = Interval (R.mul p R.Down c a) (R.mul p R.Up c b)
+
 realLine :: Rounded a => Interval a
 realLine = Interval R.negativeInfinity R.positiveInfinity
+
+unitInterval :: Rounded a => Interval a
+unitInterval = Interval R.zero R.one
 
 iadd :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
 iadd p (Interval l1 u1) (Interval l2 u2) =
   Interval (R.add p Down l1 l2) (R.add p Up u1 u2)
+
+isub :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
+isub p (Interval l1 u1) (Interval l2 u2) =
+  Interval (R.sub p Down l1 l2) (R.sub p Up u1 u2)
+
+idouble :: Rounded a => Prec -> Interval a -> Interval a
+idouble p = imonotone (R.double p)
 
 -- union and widen
 iunion :: Rounded a => Interval a -> Interval a -> Interval a

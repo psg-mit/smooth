@@ -44,6 +44,7 @@ class Ord a => Rounded a where
   mul :: Prec -> RoundDir -> a -> a -> a
   div :: Prec -> RoundDir -> a -> a -> a
   pow :: Prec -> RoundDir -> a -> Int -> a
+  double :: Prec -> RoundDir -> a -> a
   -- `fromDouble` is just for convenience for now
   fromDouble :: Prec -> RoundDir -> Double -> a
 
@@ -53,6 +54,7 @@ roundDirMPFR Down = M.Down
 
 instance Rounded MPFR where
   add p d = M.add (roundDirMPFR d) (fromIntegral p)
+  sub p d = M.sub (roundDirMPFR d) (fromIntegral p)
   mul p d = M.mul (roundDirMPFR d) (fromIntegral p)
   div p d = M.div (roundDirMPFR d) (fromIntegral p)
   pow p d x k = M.powi (roundDirMPFR d) (fromIntegral p) x k
@@ -74,6 +76,7 @@ instance Rounded MPFR where
   neg p d = M.neg (roundDirMPFR d) (fromIntegral p)
   average a b = let p = (M.getPrec a `Prelude.max` M.getPrec b) + 1 in
     M.mul2i M.Near (fromIntegral p) (M.add M.Near p a b) (-1)
+  double p d x = M.mul2i (roundDirMPFR d) (fromIntegral p) x 1
   toString x =
     let exp_notation = 4 in
     let trim = False in
