@@ -18,8 +18,6 @@ import qualified Interval as I
 import Rounded (Rounded, Prec, RoundDir (Up, Down))
 import qualified Rounded as R
 
-type R = Interval MPFR
-
 data CMap a b = CMap (a -> (b, CMap a b))
 deriving instance Functor (CMap a)
 
@@ -80,7 +78,7 @@ sqrt' i p = CMap $ \x ->
 
 sqrt :: Rounded a => CMap (Interval a) (Interval a)
 sqrt = CMap $ \i -> let ir = I.recip 1 i in let i' = I.union i ir in
-  (i', sqrt' i' 1)
+  (i', sqrt' i' 32)
 
 type B = (Bool, Bool)
 
