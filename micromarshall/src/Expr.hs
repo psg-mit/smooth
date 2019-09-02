@@ -4,82 +4,91 @@ module Expr (
   module Expr,
   Interval,
   MPFR,
-  ($)
+  ($),
+  Num ((+), (*), (-), abs, negate),
+  Fractional (..),
 ) where
 
 import Prelude hiding (max, min, pow, (&&), (||), (^), (<), (>))
 
 import Control.Arrow (arr)
-import RealExpr
+import RealExpr (CMap, B)
+import qualified RealExpr as E
 import Interval (Interval (..), unitInterval)
 import Rounded (Rounded)
 import qualified Rounded as R
 import Data.Number.MPFR (MPFR)
 
-type K = RFunc ()
+type K = CMap ()
 
-max :: Rounded a => RFunc g (Interval a) -> RFunc g (Interval a) -> RFunc g (Interval a)
-max = ap2 emax
+max :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g (Interval a)
+max = E.ap2 E.max
 
 infixr 3 &&
-(&&) :: RFunc g B -> RFunc g B -> RFunc g B
-(&&) = ap2 eand
+(&&) :: CMap g B -> CMap g B -> CMap g B
+(&&) = E.ap2 E.and
 
 infixr 2 ||
-(||) :: RFunc g B -> RFunc g B -> RFunc g B
-(||) = ap2 eor
+(||) :: CMap g B -> CMap g B -> CMap g B
+(||) = E.ap2 E.or
 
 infix 4 <
-(<) :: Rounded a => RFunc g (Interval a) -> RFunc g (Interval a) -> RFunc g B
-(<) = ap2 elt
+(<) :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g B
+(<) = E.ap2 E.lt
 
 infix 4 >
-(>) :: Rounded a => RFunc g (Interval a) -> RFunc g (Interval a) -> RFunc g B
+(>) :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g B
 x > y = y < x
 
 infixr 8 ^
-(^) :: Rounded a => RFunc g (Interval a) -> Int -> RFunc g (Interval a)
-x ^ k = ap1 (epow k) x
+(^) :: Rounded a => CMap g (Interval a) -> Int -> CMap g (Interval a)
+x ^ k = E.ap1 (E.pow k) x
 
-isTrue :: RFunc g B -> RFunc g Bool
-isTrue = ap1 (arr fst)
+isTrue :: CMap g B -> CMap g Bool
+isTrue = E.ap1 (arr fst)
 
-isFalse :: RFunc g B -> RFunc g Bool
-isFalse = ap1 (arr snd)
+isFalse :: CMap g B -> CMap g Bool
+isFalse = E.ap1 (arr snd)
 
-dedekind_cut :: Rounded a => (RFunc (g, Interval a) (Interval a) -> RFunc (g, Interval a) B)
-             -> RFunc g (Interval a)
-dedekind_cut f = secondOrderPrim dedekind_cut' (f (arr snd))
+dedekind_cut :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) B)
+             -> CMap g (Interval a)
+dedekind_cut f = E.secondOrderPrim E.dedekind_cut' (f (arr snd))
 
-integral_unit_interval :: (Show a, Rounded a) => (RFunc (g, Interval a) (Interval a) -> RFunc (g, Interval a) (Interval a))
-             -> RFunc g (Interval a)
-integral_unit_interval f = secondOrderPrim (integral' 16 unitInterval) (f (arr snd))
+integral_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
+             -> CMap g (Interval a)
+integral_unit_interval f = E.secondOrderPrim (E.integral' 16 unitInterval) (f (arr snd))
 
-forall_unit_interval :: (Show a, Rounded a) => (RFunc (g, Interval a) (Interval a) -> RFunc (g, Interval a) Bool)
-             -> RFunc g Bool
-forall_unit_interval f = secondOrderPrim (forall_interval' 16 unitInterval) (f (arr snd))
+forall_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) Bool)
+             -> CMap g Bool
+forall_unit_interval f = E.secondOrderPrim (E.forall_interval' 16 unitInterval) (f (arr snd))
 
-exists_unit_interval :: (Show a, Rounded a) => (RFunc (g, Interval a) (Interval a) -> RFunc (g, Interval a) Bool)
-             -> RFunc g Bool
-exists_unit_interval f = secondOrderPrim (exists_interval' 16 unitInterval) (f (arr snd))
+exists_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) Bool)
+             -> CMap g Bool
+exists_unit_interval f = E.secondOrderPrim (E.exists_interval' 16 unitInterval) (f (arr snd))
 
-instance Rounded a => Num (RFunc g (Interval a)) where
-  (+) = ap2 eplus
-  (*) = ap2 emul
-  negate = ap1 enegate
+instance Rounded a => Num (CMap g (Interval a)) where
+  (+) = E.ap2 E.add
+  (*) = E.ap2 E.mul
+  negate = E.ap1 E.negate
   x - y = x + (-y)
   abs x = max x (-x)
-  fromInteger = econstD . fromInteger
+  fromInteger = E.integer
 
-instance Rounded a => Fractional (RFunc g (Interval a)) where
-  fromRational = econstD . fromRational
+instance Rounded a => Fractional (CMap g (Interval a)) where
+  fromRational = E.rational
+  recip = E.ap1 E.recip
+  (/) = E.ap2 E.div
 
-runAndPrint :: Show a => RFunc () a -> IO ()
-runAndPrint = mapM_ (putStrLn . show) . runRFunc
+-- use as a type hint
+asMPFR :: CMap g (Interval MPFR) -> CMap g (Interval MPFR)
+asMPFR = id
+
+runAndPrint :: Show a => CMap () a -> IO ()
+runAndPrint = mapM_ (putStrLn . show) . E.runCMap
 
 sqrt2Example :: IO ()
 sqrt2Example = runAndPrint $ (dedekind_cut (\x -> x < 0 || (x ^ 2) < 2) :: K (Interval MPFR))
 
 quantificationExample :: IO ()
 quantificationExample = runAndPrint $
-  (exists_unit_interval (\x -> isTrue (x < constMPFR 0.5 && x > 0.3)))
+  (exists_unit_interval (\x -> isTrue (x < asMPFR 0.5 && x > 0.3)))

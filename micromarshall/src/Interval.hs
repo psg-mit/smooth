@@ -1,7 +1,6 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module Interval where
 
+import Prelude
 import Rounded (Rounded, Prec, RoundDir (Up, Down))
 import qualified Rounded as R
 
@@ -22,31 +21,31 @@ realLine = Interval R.negativeInfinity R.positiveInfinity
 unitInterval :: Rounded a => Interval a
 unitInterval = Interval R.zero R.one
 
-iadd :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
-iadd p (Interval l1 u1) (Interval l2 u2) =
+add :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
+add p (Interval l1 u1) (Interval l2 u2) =
   Interval (R.add p Down l1 l2) (R.add p Up u1 u2)
 
-isub :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
-isub p (Interval l1 u1) (Interval l2 u2) =
+sub :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
+sub p (Interval l1 u1) (Interval l2 u2) =
   Interval (R.sub p Down l1 l2) (R.sub p Up u1 u2)
 
-idouble :: Rounded a => Prec -> Interval a -> Interval a
-idouble p = imonotone (R.double p)
+mulpow2 :: Rounded a => Int -> Prec -> Interval a -> Interval a
+mulpow2 i p = monotone (R.mulpow2 i p)
 
 -- union and widen
-iunion :: Rounded a => Interval a -> Interval a -> Interval a
-iunion (Interval l1 u1) (Interval l2 u2) =
+union :: Rounded a => Interval a -> Interval a -> Interval a
+union (Interval l1 u1) (Interval l2 u2) =
   Interval (R.min l1 l2) (R.max u1 u2)
 
-icmp :: Ord a => Interval a -> Interval a -> Maybe Ordering
-icmp (Interval l1 u1) (Interval l2 u2) = case compare u1 l2 of
+cmp :: Ord a => Interval a -> Interval a -> Maybe Ordering
+cmp (Interval l1 u1) (Interval l2 u2) = case compare u1 l2 of
   LT -> Just LT
   _ -> case compare l1 u2 of
     GT -> Just GT
     _ -> Nothing
 
-irecip :: Rounded a => Prec -> Interval a -> Interval a
-irecip p (Interval a b) = case compare R.zero a of
+recip :: Rounded a => Prec -> Interval a -> Interval a
+recip p (Interval a b) = case compare R.zero a of
   LT -> Interval (R.div p R.Down R.one a) (R.div p R.Up R.one b)
   _ -> case compare b R.zero of
     LT -> Interval (R.div p R.Down R.one b) (R.div p R.Up R.one a)
@@ -61,20 +60,20 @@ maybe_cut_bisection f i@(Interval a b) = let x = R.average a b in
       EQ -> undefined -- lift x
       GT -> Interval a x
 
-inegate :: Rounded a => Prec -> Interval a -> Interval a
-inegate p (Interval l u) = Interval (R.neg p Down u) (R.neg p Up l)
+negate :: Rounded a => Prec -> Interval a -> Interval a
+negate p (Interval l u) = Interval (R.neg p Down u) (R.neg p Up l)
 
-imax :: Rounded a => Interval a -> Interval a -> Interval a
-imax (Interval l1 u1) (Interval l2 u2) =
+max :: Rounded a => Interval a -> Interval a -> Interval a
+max (Interval l1 u1) (Interval l2 u2) =
   Interval (R.max l1 l2) (R.max u1 u2)
 
-imin :: Rounded a => Interval a -> Interval a -> Interval a
-imin (Interval l1 u1) (Interval l2 u2) =
+min :: Rounded a => Interval a -> Interval a -> Interval a
+min (Interval l1 u1) (Interval l2 u2) =
     Interval (R.min l1 l2) (R.min u1 u2)
 
 -- Kaucher multiplication
-imul :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
-imul p (Interval a b) (Interval c d) = Interval l u
+mul :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
+mul p (Interval a b) (Interval c d) = Interval l u
   where
   lmul = R.mul p Down
   l = if R.negative a then
@@ -111,8 +110,11 @@ imul p (Interval a b) (Interval c d) = Interval l u
         else {- positive [b] -}
     if R.negative d then umul a d else umul b d
 
-imonotone :: Rounded a => (RoundDir -> a -> a) -> Interval a -> Interval a
-imonotone f (Interval a b) = Interval (f R.Down a) (f R.Up b)
+monotone :: Rounded a => (RoundDir -> a -> a) -> Interval a -> Interval a
+monotone f (Interval a b) = Interval (f R.Down a) (f R.Up b)
+
+rounded :: Rounded a => (RoundDir -> a) -> Interval a
+rounded f = Interval (f R.Down) (f R.Up)
 
 pow :: Rounded a => Prec -> Interval a -> Int -> Interval a
 pow prec i@(Interval a b) k =
@@ -142,4 +144,4 @@ pow prec i@(Interval a b) k =
     else {- non-negative [b] -}
       upow b k
     )
-    else imonotone (\d x -> R.pow prec d x k) i
+    else monotone (\d x -> R.pow prec d x k) i

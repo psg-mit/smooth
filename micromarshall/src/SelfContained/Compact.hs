@@ -1,4 +1,4 @@
-module Compact where
+module SelfContained.Compact where
 
 import Control.Arrow (first)
 

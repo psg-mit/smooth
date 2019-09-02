@@ -12,29 +12,26 @@ anti Down = Up
 type Prec = Word
 
 class Ord a => Rounded a where
-  ofInt :: Prec -> RoundDir -> Int -> a
+  ofInteger :: Prec -> RoundDir -> Integer -> a
   zero :: a
   one :: a
   negativeOne :: a
-  two :: a
-  half :: Prec -> RoundDir -> a
   min :: a -> a -> a
   max :: a -> a -> a
   min' :: Prec -> RoundDir -> a -> a -> a
   max' :: Prec -> RoundDir -> a -> a -> a
-  lt :: a -> a -> Bool
-  gt :: a -> a -> Bool
-  eq :: a -> a -> Bool
-  leq :: a -> a -> Bool
-  geq :: a -> a -> Bool
   isZero :: a -> Bool
   positive :: a -> Bool
+  positive = (> zero)
   negative :: a -> Bool
+  negative = (< zero)
   positiveInfinity :: a
   negativeInfinity :: a
   isInfinity :: a -> Bool
   isPositiveInfinity :: a -> Bool
+  isPositiveInfinity x = isInfinity x && positive x
   isNegativeInfinity :: a -> Bool
+  isNegativeInfinity x = isInfinity x && negative x
   toString :: a -> String
   ofString :: Prec -> RoundDir -> String -> a
   average :: a -> a -> a
@@ -44,9 +41,7 @@ class Ord a => Rounded a where
   mul :: Prec -> RoundDir -> a -> a -> a
   div :: Prec -> RoundDir -> a -> a -> a
   pow :: Prec -> RoundDir -> a -> Int -> a
-  double :: Prec -> RoundDir -> a -> a
-  -- `fromDouble` is just for convenience for now
-  fromDouble :: Prec -> RoundDir -> Double -> a
+  mulpow2 :: Int -> Prec -> RoundDir -> a -> a
 
 roundDirMPFR :: RoundDir -> M.RoundMode
 roundDirMPFR Up = M.Up
@@ -60,11 +55,8 @@ instance Rounded MPFR where
   pow p d x k = M.powi (roundDirMPFR d) (fromIntegral p) x k
   negativeInfinity = M.setInf 0 (-1)
   positiveInfinity = M.setInf 0 1
-  fromDouble p d = M.fromDouble (roundDirMPFR d) (fromIntegral p)
   zero = M.zero
   one = M.one
-  negative = M.greater M.zero
-  positive = M.less M.zero
   min a b = case M.cmp a b of
     Just LT -> a
     Just _ -> b
@@ -76,7 +68,12 @@ instance Rounded MPFR where
   neg p d = M.neg (roundDirMPFR d) (fromIntegral p)
   average a b = let p = (M.getPrec a `Prelude.max` M.getPrec b) + 1 in
     M.mul2i M.Near (fromIntegral p) (M.add M.Near p a b) (-1)
-  double p d x = M.mul2i (roundDirMPFR d) (fromIntegral p) x 1
+  mulpow2 i p d x = M.mul2i (roundDirMPFR d) (fromIntegral p) x i
+  ofInteger p d = M.fromIntegerA (roundDirMPFR d) (fromIntegral p)
+  negativeOne = ofInteger 10 Down (-1)
+  isInfinity = M.isInfinite
+  isZero = M.isZero
+  ofString p d = M.stringToMPFR (roundDirMPFR d) (fromIntegral p) 10
   toString x =
     let exp_notation = 4 in
     let trim = False in

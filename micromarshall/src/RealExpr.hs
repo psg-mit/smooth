@@ -1,189 +1,161 @@
-{-# LANGUAGE TypeFamilies, ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 {-# LANGUAGE Arrows #-}
 
 module RealExpr where
 
+import Prelude
 import Control.Category hiding ((.), id)
 import qualified Control.Category as C
 import Control.Arrow
-import Data.Number.MPFR hiding (Precision)
+import Data.Number.MPFR (MPFR)
 import Data.IORef
+import Data.Ratio (numerator, denominator)
 import Debug.Trace
 
-import Interval
+import Interval (Interval (..))
+import qualified Interval as I
 import Rounded (Rounded, Prec, RoundDir (Up, Down))
 import qualified Rounded as R
 
 type R = Interval MPFR
 
-class HasBottom a where
-  bottom :: a
+data CMap a b = CMap (a -> (b, CMap a b))
+deriving instance Functor (CMap a)
 
-instance Rounded a => HasBottom (Interval a) where
-  bottom = Interval R.negativeInfinity R.positiveInfinity
-
-instance HasBottom () where
-  bottom = ()
-
-instance (HasBottom a, HasBottom b) => HasBottom (a, b) where
-  bottom = (bottom, bottom)
-
-data RFunc a b = RFunc (a -> (b, RFunc a b))
-
-deriving instance Functor (RFunc a)
-
-instance Category RFunc where
+instance Category CMap where
   id = arr id
-  (.) = flip ecompose
+  CMap g . CMap f = CMap $ \a ->
+    let (b, f') = f a in let (c, g') = g b in (c, g' C.. f')
 
-instance Arrow RFunc where
-  arr f = RFunc $ \x -> (f x, arr f)
-  RFunc f *** RFunc g = RFunc $ \(x, y) ->
+instance Arrow CMap where
+  arr f = CMap $ \x -> (f x, arr f)
+  CMap f *** CMap g = CMap $ \(x, y) ->
     let (a, f') = f x in let (b, g') = g y in
     ((a, b), f' *** g')
-
-withPrec :: (Prec -> a -> b) -> RFunc a b
-withPrec f = withPrec' 1 where
-  withPrec' p = RFunc $ \x -> (f p x, withPrec' (p + 1))
-
-withPrec2 :: (Prec -> a -> b -> c) -> RFunc (a, b) c
-withPrec2 op = withPrec $ \p (ix, iy) -> op p ix iy
-
-
-econst :: a -> RFunc g a
-econst x = arr (const x)
-
-eplus :: Rounded a => RFunc (Interval a, Interval a) (Interval a)
-eplus = withPrec2 iadd
-
-emul :: Rounded a => RFunc (Interval a, Interval a) (Interval a)
-emul = withPrec2 imul
-
-epow :: Rounded a => Int -> RFunc (Interval a) (Interval a)
-epow k = withPrec (\p x -> Interval.pow p x k)
-
-emax :: Rounded a => RFunc (Interval a, Interval a) (Interval a)
-emax = withPrec2 (\p -> imax)
-
-enegate :: Rounded a => RFunc (Interval a) (Interval a)
-enegate = withPrec inegate
-
-esqrt' :: Rounded a => Interval a -> Prec -> RFunc (Interval a) (Interval a)
-esqrt' i p = RFunc $ \x ->
-  let i' = maybe_cut_bisection (\q -> let q' = lift q in icmp (Interval.pow p q' 2) x) i
-  in (i', esqrt' i' (p + 1))
-
-esqrt :: Rounded a => RFunc (Interval a) (Interval a)
-esqrt = RFunc $ \i -> let ir = irecip 1 i in let i' = iunion i ir in
-  (i', esqrt' i' 1)
-
-type B = (Bool, Bool)
+  CMap f1 &&& CMap f2 = CMap $ \i ->
+    let (a, f1') = f1 i in let (b, f2') = f2 i in ((a, b), f1' &&& f2')
 
 -- Not sure that this is right with the increasing precision in gab'
-secondOrderPrim :: RFunc (a -> b) c -> RFunc (g, a) b -> RFunc g c
-secondOrderPrim (RFunc abc) (RFunc gab) = RFunc $ \g ->
+secondOrderPrim :: CMap (a -> b) c -> CMap (g, a) b -> CMap g c
+secondOrderPrim (CMap abc) (CMap gab) = CMap $ \g ->
     let (c, abc') = abc (\a -> let (b, gab') = gab (g, a) in b) in
     let (_, gab') = gab (g, undefined) in
     (c, secondOrderPrim abc' gab')
 
-elt :: Rounded a => RFunc (Interval a, Interval a) B
-elt = arr (\(Interval l1 u1, Interval l2 u2) -> (u1 < l2, l1 > u2))
+withPrec :: (Prec -> a -> b) -> CMap a b
+withPrec f = withPrec' 32 where
+  withPrec' p = CMap $ \x -> (f p x, withPrec' (p + 1))
 
-eand :: RFunc (B, B) B
-eand = arr (\((t1, f1), (t2, f2)) -> (t1 && t2, f1 || f2))
+withPrec2 :: (Prec -> a -> b -> c) -> CMap (a, b) c
+withPrec2 op = withPrec $ \p (ix, iy) -> op p ix iy
 
-eor :: RFunc (B, B) B
-eor = arr (\((t1, f1), (t2, f2)) -> (t1 || t2, f1 && f2))
+add :: Rounded a => CMap (Interval a, Interval a) (Interval a)
+add = withPrec2 I.add
 
-eneg :: RFunc B B
-eneg = arr (\(x, y) -> (y, x))
+mul :: Rounded a => CMap (Interval a, Interval a) (Interval a)
+mul = withPrec2 I.mul
 
-integral' :: (Show a, Rounded a) => Prec -> Interval a -> RFunc (Interval a -> Interval a) (Interval a)
-integral' p i@(Interval a b) = RFunc $ \f ->
+recip :: Rounded a => CMap (Interval a) (Interval a)
+recip = withPrec I.recip
+
+div :: Rounded a => CMap (Interval a, Interval a) (Interval a)
+div = proc (x, y) -> do
+  ry <- RealExpr.recip -< y
+  mul -< (x, ry)
+
+pow :: Rounded a => Int -> CMap (Interval a) (Interval a)
+pow k = withPrec (\p x -> I.pow p x k)
+
+max :: Rounded a => CMap (Interval a, Interval a) (Interval a)
+max = withPrec2 (\p -> I.max)
+
+negate :: Rounded a => CMap (Interval a) (Interval a)
+negate = withPrec I.negate
+
+sqrt' :: Rounded a => Interval a -> Prec -> CMap (Interval a) (Interval a)
+sqrt' i p = CMap $ \x ->
+  let i' = I.maybe_cut_bisection (\q -> let q' = I.lift q in I.cmp (I.pow p q' 2) x) i
+  in (i', sqrt' i' (p + 1))
+
+sqrt :: Rounded a => CMap (Interval a) (Interval a)
+sqrt = CMap $ \i -> let ir = I.recip 1 i in let i' = I.union i ir in
+  (i', sqrt' i' 1)
+
+type B = (Bool, Bool)
+
+lt :: Rounded a => CMap (Interval a, Interval a) B
+lt = arr (\(Interval l1 u1, Interval l2 u2) -> (u1 < l2, l1 > u2))
+
+and :: CMap (B, B) B
+and = arr (\((t1, f1), (t2, f2)) -> (t1 && t2, f1 || f2))
+
+or :: CMap (B, B) B
+or = arr (\((t1, f1), (t2, f2)) -> (t1 || t2, f1 && f2))
+
+neg :: CMap B B
+neg = arr (\(x, y) -> (y, x))
+
+integral' :: (Show a, Rounded a) => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
+integral' p i@(Interval a b) = CMap $ \f ->
   let m = R.average a b in
   -- traceShow p $
-  (imul p (Interval.isub p (lift b) (lift a)) (f i), proc f' -> do
-     x1 <- integral' (p + 20) (Interval a m) -< f'
-     x2 <- integral' (p + 20) (Interval m b) -< f'
-     returnA -< iadd (p + 20) x1 x2)
+  (I.mul p (I.sub p (I.lift b) (I.lift a)) (f i), proc f' -> do
+     x1 <- integral' (p + 5) (Interval a m) -< f'
+     x2 <- integral' (p + 5) (Interval m b) -< f'
+     returnA -< I.add (p + 5) x1 x2)
 
-forall_interval' :: (Show a, Rounded a) => Prec -> Interval a -> RFunc (Interval a -> Bool) Bool
-forall_interval' p i@(Interval a b) = RFunc $ \f ->
+forall_interval' :: (Show a, Rounded a) => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
+forall_interval' p i@(Interval a b) = CMap $ \f ->
   let m = R.average a b in
   -- traceShow p $
   (f i, proc f' -> do
-    t1 <- forall_interval' (p + 20) (Interval a m) -< f'
-    t2 <- forall_interval' (p + 20) (Interval m b) -< f'
+    t1 <- forall_interval' (p + 5) (Interval a m) -< f'
+    t2 <- forall_interval' (p + 5) (Interval m b) -< f'
     returnA -< t1 && t2)
 
-exists_interval' :: (Show a, Rounded a) => Prec -> Interval a -> RFunc (Interval a -> Bool) Bool
-exists_interval' p i@(Interval a b) = RFunc $ \f ->
+exists_interval' :: (Show a, Rounded a) => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
+exists_interval' p i@(Interval a b) = CMap $ \f ->
   let m = R.average a b in
   -- traceShow p $
-  (f (lift m), proc f' -> do
-    t1 <- exists_interval' (p + 20) (Interval a m) -< f'
-    t2 <- exists_interval' (p + 20) (Interval m b) -< f'
+  (f (I.lift m), proc f' -> do
+    t1 <- exists_interval' (p + 5) (Interval a m) -< f'
+    t2 <- exists_interval' (p + 5) (Interval m b) -< f'
     returnA -< t1 || t2)
 
-dedekind_cut' :: Rounded a => RFunc (Interval a -> B) (Interval a)
+dedekind_cut' :: Rounded a => CMap (Interval a -> B) (Interval a)
 dedekind_cut' = bound 1 R.one where
-  bound p b = RFunc $ \f -> let negb = R.neg p R.Down b in
-    if fst (f (lift negb)) && snd (f (lift b))
+  bound p b = CMap $ \f -> let negb = R.neg p R.Down b in
+    if fst (f (I.lift negb)) && snd (f (I.lift b))
       then let i = Interval negb b in (i, locate p i)
-      else (realLine, bound (p + 1) (R.double p R.Down b))
-  locate p (Interval l u) = RFunc $ \f ->
+      else (I.realLine, bound (p + 1) (R.mulpow2 1 p R.Down b))
+  locate p (Interval l u) = CMap $ \f ->
     let (l', u') = (let m = R.average l u in
-                        case f (lift m) of
+                        case f (I.lift m) of
                           (True, _) -> (m, u)
                           (_, True) -> (l, m)
                           _ -> let mu = R.average m u in
-                            case f (lift mu) of
+                            case f (I.lift mu) of
                               (True, _) -> (mu, u)
                               (_, True) -> (l, mu)
                               _ -> (l, u))
     in let i' = Interval l' u' in (i', locate p i')
 
--- class Extends g d where
---   proj :: RFunc d g
+runCMap :: CMap () a -> [a]
+runCMap (CMap f) = let (x, f') = f () in
+  x : runCMap f'
 
--- instance Extends g g where
---   proj = eid
+integer :: Rounded r => Integer -> CMap g (Interval r)
+integer i = withPrec $ \p _ -> I.rounded (\d -> R.ofInteger p d i)
 
--- instance Extends g d => Extends g (d, a) where
---   proj = ecompose efst proj
+rational :: Rounded r => Rational -> CMap g (Interval r)
+rational q = ap2 RealExpr.div (integer (numerator q)) (integer (denominator q))
 
+ap2 :: CMap (a, b) c -> CMap g a -> CMap g b -> CMap g c
+ap2 f x y = f <<< x &&& y
 
-ecompose :: RFunc a b -> RFunc b c -> RFunc a c
-ecompose (RFunc f1) (RFunc f2) =
-  RFunc (\a -> let (b, f1') = f1 a in let (c, f2') = f2 b in (c, ecompose f1' f2'))
-
-eprod :: RFunc g a -> RFunc g b -> RFunc g (a, b)
-eprod (RFunc f1) (RFunc f2) =
-  RFunc (\i -> let (a, f1') = f1 i in let (b, f2') = f2 i in ((a, b), eprod f1' f2'))
-
-runRFunc :: RFunc () a -> [a]
-runRFunc (RFunc f) = let (x, f') = f () in
-  x : runRFunc f'
-
-econstD :: Rounded r => Double -> RFunc g (Interval r)
-econstD i = econst (lift (R.fromDouble 52 R.Down i))
-
-constMPFR :: Double -> RFunc g (Interval MPFR)
-constMPFR = econstD
-
-runRFuncMPFR :: RFunc () R -> [(MPFR, MPFR)]
-runRFuncMPFR = fmap f . runRFunc
-  where
-  f (Interval a b) = (a, b)
-
-ap2 :: RFunc (a, b) c -> RFunc g a -> RFunc g b -> RFunc g c
-ap2 f x y = f <<< eprod x y
-
-ap1 :: RFunc a b -> RFunc g a -> RFunc g b
+ap1 :: CMap a b -> CMap g a -> CMap g b
 ap1 f = (f <<<)
 
-abs1 :: (forall d. RFunc d g -> RFunc d a -> RFunc d b) -> RFunc (g, a) b
+abs1 :: (forall d. CMap d g -> CMap d a -> CMap d b) -> CMap (g, a) b
 abs1 f = f (arr fst) (arr snd)
