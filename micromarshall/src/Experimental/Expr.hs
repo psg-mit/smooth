@@ -1,57 +1,80 @@
-{-# LANGUAGE ExistentialQuantification, DataKinds, GADTs #-}
-{-# LANGUAGE PolyKinds, TypeOperators, RankNTypes, LiberalTypeSynonyms #-}
-{-# LANGUAGE TypeInType, TypeFamilies, MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures, MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE TypeOperators, RankNTypes #-}
 
 module Experimental.Expr where
-import Data.Kind (type (*))
 
-data Ty =
-  forall a. K a
-  | Unit
-  | forall a b. a :-> b
-  | forall a b. a :* b
-  | forall a b. a :+ b
+import Control.Category (Category)
+import qualified Control.Category as C
 
-class Cartesian (c :: Ty -> Ty -> *) where
-  unit :: c g Unit
-  compose :: c g a -> c a b -> c g b
-  fst' :: c (a :* b) a
-  snd' :: c (a :* b) b
-  id' :: c a a
+data (a :* b) g = a g :* b g
+data (a :+ b) g = Inl (a g) | Inr (b g)
 
-class Cartesian c => CCC c where
-  abstract :: c (g :* a) b -> c g (a :-> b)
-  appl :: c g (a :-> b) -> c g a -> c g b
+data Arr k a b (g :: *) = Arr (forall d. k d g -> a d -> b d)
 
-data Expr (c :: Ty -> Ty -> *) :: Ty -> * where
-  Const :: c 'Unit a -> Expr c a
-  App :: Expr c (a ':-> b) -> Expr c a -> Expr c b
-  Abs :: (Expr c a -> Expr c b) -> Expr c (a ':-> b)
+newtype R k a g = R (k g a)
 
-data InList :: Ty -> [Ty] -> * where
-  InHere :: InList x (x : xs)
-  InThere :: InList x ys -> InList x (y : ys)
+class Category k => Cartesian k where
+  unit :: k g ()
+  fst' :: k (a, b) a
+  snd' :: k (a, b) b
+
+class PSh k f where
+  pmap :: k d g -> f g -> f d
+
+instance Category k => PSh k (R k a) where
+  pmap dg (R f) = R (f C.. dg)
+
+instance (PSh k f, PSh k g) => PSh k (f :* g) where
+  pmap dg (f :* g) = pmap dg f :* pmap dg g
+
+instance (PSh k f, PSh k g) => PSh k (f :+ g) where
+  pmap dg (Inl f) = Inl (pmap dg f)
+  pmap dg (Inr g) = Inr (pmap dg g)
+
+instance Category k => PSh k (Arr k a b) where
+  pmap cd (Arr f) = Arr (\dg a -> f (cd C.. dg) a)
+
+data Expr (var :: (* -> *) -> *) (c :: * -> * -> *) :: (* -> *) -> * where
+  Var :: var a -> Expr var c a
+  Const :: PSh c a => (forall d. a d) -> Expr var c a
+  App :: Expr var c (Arr c a b) -> Expr var c a -> Expr var c b
+  Abs :: (var a -> Expr var c b) -> Expr var c (Arr c a b)
+
+data Expr' (c :: * -> * -> *) :: (* -> *) -> (* -> *) -> * where
+  Const' :: (forall d. Arr c g a d) -> Expr' c a g
+  App' :: Expr' c (Arr c a b) g -> Expr' c a g -> Expr' c b g
+  Abs' :: PSh c a => Expr' c b (g :* a) -> Expr' c (Arr c a b) g
+
+data Var c g a = Var' (forall d. Arr c g a d)
+
+constArr :: PSh c a => a d -> Arr c g a d
+constArr x = Arr (\d _ -> pmap d x)
+
+sndArr :: Var c (g :* a) a
+sndArr = Var' (Arr (\d (x :* y) -> y))
+
+phoas :: Expr (Var c g) c a -> Expr' c a g
+phoas (Var (Var' x)) = Const' x
+phoas (Const x) = Const' (constArr x)
+phoas (App f x) = App' (phoas f) (phoas x)
+-- phoas (Abs f) = let y = f sndArr in let z = phoas y in Abs' z
+
+compile :: PSh c g => Category c => Expr' c a g -> forall d. g d -> a d
+compile (Const' (Arr x)) = x C.id
+compile (App' f x) = \g -> case (compile f) g of
+  Arr h -> let y = compile x g in h C.id y
+compile (Abs' f) = \g -> Arr $ (\d x -> compile f (pmap d g :* x))
+
+-- data InList :: * -> [*] -> * where
+--   InHere :: InList x (x : xs)
+--   InThere :: InList x ys -> InList x (y : ys)
 
 class HasProj c g a where
   proj :: c g a
 
-instance CCC c => HasProj c a a where
-  proj = id'
+instance Cartesian c => HasProj c a a where
+  proj = C.id
 
-instance (CCC c, HasProj c g a) => HasProj c (g :* b) a where
-  proj = fst' `compose` proj
-
-data Expr' (c :: Ty -> Ty -> *) :: Ty -> Ty -> * where
-  Const' :: c g a -> Expr' c g a
-  App' :: Expr' c g (a ':-> b) -> Expr' c g a -> Expr' c g b
-  Abs' :: Expr' c (g ':* a) b -> Expr' c g (a ':-> b)
-
--- newtype PSh c g = PSh (g t -> a t)
-
--- type (a :*: b) k g = (a k g, b k g)
--- type (a :+: b) k g = Either (a k g) (b k g)
--- type (a :->: b) k g = forall d. Extends k g d => a k d -> b k d
-compile :: CCC c => Expr' c g a -> c g a
-compile (Const' x) = x
-compile (App' f x) = appl (compile f) (compile x)
-compile (Abs' f) = abstract (compile f)
+instance (Cartesian c, HasProj c g a) => HasProj c (g, b) a where
+  proj = proj C.. fst'

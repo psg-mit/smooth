@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving, RankNTypes #-}
 {-# LANGUAGE TypeOperators, TypeFamilies, FlexibleContexts #-}
-module Differentiable where
+module SelfContained.Differentiable where
 
 import Control.Category
 import Control.Monad (MonadPlus)
