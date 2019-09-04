@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE Arrows #-}
 
 module Expr (
   module Expr,
@@ -11,7 +12,7 @@ module Expr (
 
 import Prelude hiding (max, min, pow, (&&), (||), (^), (<), (>))
 
-import Control.Arrow (arr)
+import Control.Arrow (arr, (<<<))
 import RealExpr (CMap, B)
 import qualified RealExpr as E
 import Interval (Interval (..), unitInterval)
@@ -65,6 +66,16 @@ forall_unit_interval f = E.secondOrderPrim (E.forall_interval' 16 unitInterval) 
 exists_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) Bool)
              -> CMap g Bool
 exists_unit_interval f = E.secondOrderPrim (E.exists_interval' 16 unitInterval) (f (arr snd))
+
+-- Let statement with sharing
+lett :: CMap g a -> (CMap (g, a) a -> CMap (g, a) b) -> CMap g b
+lett x f = proc g -> do
+  a <- x -< g
+  f (arr snd) -< (g, a)
+
+-- Weakening
+wkn :: CMap g a -> CMap (g, x) a
+wkn f = f <<< arr fst
 
 instance Rounded a => Num (CMap g (Interval a)) where
   (+) = E.ap2 E.add
