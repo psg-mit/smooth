@@ -64,10 +64,37 @@ fstD = linearD fst
 sndD :: VectorSpace b s => (a,b) :~> b
 sndD = linearD snd
 
-square :: (Num a, VectorSpace a a) => a :~> a
-square x = dId x * dId x
+pairD :: g :~> a -> g :~> b -> g :~> (a, b)
+pairD f g x = D (fx, gx) (pairD f'x g'x) where
+  D fx f'x = f x
+  D gx g'x = g x
 
-absD :: (Num a, VectorSpace a a) => a :~> a
+dap1 :: a :~> b -> g :~> a -> g :~> b
+dap1 f = (f @.)
+
+dap2 :: (a, b) :~> c -> g :~> a -> g :~> b -> g :~> c
+dap2 f x y = f @. pairD x y
+
+square :: Num a => a :~> a
+square x = dId x ^ 2
+
+cube :: Num a => a :~> a
+cube x = dId x ^ 3
+
+-- Incorrect!
+-- mult :: Num a => (a, a) :~> a
+-- mult (x, y) = D (x * y) (\(dx, dy) ->
+
+dMult :: Num a => g :~> a -> g :~> a -> g :~> a
+dMult f g x = f x * g x
+
+square' :: Num a => g :~> a -> g :~> a
+square' x = dMult x x
+
+cube' :: Num a => g :~> a -> g :~> a
+cube' x = x^3 -- dMult x (square' x)
+
+absD :: Num a => a :~> a
 absD x = abs (dId x)
 
 getValue :: a :> b -> b
@@ -111,7 +138,10 @@ f >-< f' = \u@(D u0 u') -> D (f u0) (\da -> f' u *^ u' da)
 
 
 exampleAbsDiff :: IO ()
-exampleAbsDiff = E.runAndPrint $ E.asMPFR $ getDerivTower (absD (E.inEmptyCtx 0)) !! 1
+exampleAbsDiff = E.runAndPrint $ E.asMPFR $ getDerivTower (absD 0) !! 1
+
+example2 :: IO ()
+example2 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs (x ^ 2)) dId 2) !! 2
 
 
 -- I have no idea whether any of these are sensible
