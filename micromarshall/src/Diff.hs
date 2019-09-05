@@ -143,6 +143,9 @@ exampleAbsDiff = E.runAndPrint $ E.asMPFR $ getDerivTower (absD 0) !! 1
 example2 :: IO ()
 example2 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs (x ^ 2)) dId 2) !! 2
 
+example3 :: IO ()
+example3 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs x) dId (E.dedekind_cut (\x -> x E.< 0 E.|| (x E.^ 2) E.< 2))) !! 1
+
 
 -- I have no idea whether any of these are sensible
 collapse1 :: CMap a (b -> c) -> CMap (a, b) c

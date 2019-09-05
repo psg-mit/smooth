@@ -1,4 +1,5 @@
 module SelfContained.MM where
+import Prelude
 
 type Q = Rational
 

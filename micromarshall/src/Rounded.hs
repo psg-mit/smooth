@@ -1,5 +1,6 @@
 module Rounded where
 
+import Prelude
 import Data.Number.MPFR (MPFR)
 import qualified Data.Number.MPFR as M
 

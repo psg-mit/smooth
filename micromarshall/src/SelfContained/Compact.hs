@@ -1,5 +1,6 @@
 module SelfContained.Compact where
 
+import Prelude
 import Control.Arrow (first)
 
 import Data.Ratio
