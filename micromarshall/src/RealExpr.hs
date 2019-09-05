@@ -80,6 +80,26 @@ sqrt :: Rounded a => CMap (Interval a) (Interval a)
 sqrt = CMap $ \i -> let ir = I.recip 1 i in let i' = I.union i ir in
   (i', sqrt' i' 32)
 
+join :: Rounded a => CMap (Interval a, Interval a) (Interval a)
+join = arr (uncurry I.join)
+
+lower :: Rounded a => CMap (Interval a) (Interval a)
+lower = arr (\(Interval l u) -> Interval l R.positiveInfinity)
+
+upper :: Rounded a => CMap (Interval a) (Interval a)
+upper = arr (\(Interval l u) -> Interval R.negativeInfinity u)
+
+mkInterval ::  CMap (Interval a, Interval a) (Interval a)
+mkInterval = arr (\(Interval l1 u1, Interval l2 u2) -> Interval l1 u2)
+
+signum :: Rounded a => CMap (Interval a) (Interval a)
+signum = arr $ \(Interval l u) ->
+  if l > R.zero
+    then I.lift R.one
+    else if u < R.zero
+    then I.lift R.negativeOne
+    else Interval R.negativeOne R.one
+
 type B = (Bool, Bool)
 
 lt :: Rounded a => CMap (Interval a, Interval a) B

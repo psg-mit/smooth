@@ -1,5 +1,6 @@
 module MPFR where
 
+import Prelude (Word, ($), fromIntegral)
 import qualified Interval as I
 import Interval (Interval)
 import RealExpr

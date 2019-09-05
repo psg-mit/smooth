@@ -37,6 +37,11 @@ union :: Rounded a => Interval a -> Interval a -> Interval a
 union (Interval l1 u1) (Interval l2 u2) =
   Interval (R.min l1 l2) (R.max u1 u2)
 
+-- intersection: combine information from two sources
+join :: Rounded a => Interval a -> Interval a -> Interval a
+join (Interval l1 u1) (Interval l2 u2) =
+  Interval (R.max l1 l2) (R.min u1 u2)
+
 cmp :: Ord a => Interval a -> Interval a -> Maybe Ordering
 cmp (Interval l1 u1) (Interval l2 u2) = case compare u1 l2 of
   LT -> Just LT

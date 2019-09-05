@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE Arrows #-}
+{-# LANGUAGE MultiParamTypeClasses, OverlappingInstances #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Expr (
   module Expr,
@@ -12,7 +14,9 @@ module Expr (
 
 import Prelude hiding (max, min, pow, (&&), (||), (^), (<), (>))
 
-import Control.Arrow (arr, (<<<))
+import Control.Arrow (Arrow, arr, (<<<))
+import Control.Category (Category)
+import qualified Control.Category as C
 import RealExpr (CMap, B)
 import qualified RealExpr as E
 import Interval (Interval (..), unitInterval)
@@ -51,6 +55,9 @@ isTrue = E.ap1 (arr fst)
 isFalse :: CMap g B -> CMap g Bool
 isFalse = E.ap1 (arr snd)
 
+mkInterval :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g (Interval a)
+mkInterval = E.ap2 E.mkInterval
+
 dedekind_cut :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) B)
              -> CMap g (Interval a)
 dedekind_cut f = E.secondOrderPrim E.dedekind_cut' (f (arr snd))
@@ -84,6 +91,7 @@ instance Rounded a => Num (CMap g (Interval a)) where
   x - y = x + (-y)
   abs x = max x (-x)
   fromInteger = E.integer
+  signum = E.ap1 E.signum
 
 instance Rounded a => Fractional (CMap g (Interval a)) where
   fromRational = E.rational
@@ -94,11 +102,14 @@ instance Rounded a => Fractional (CMap g (Interval a)) where
 asMPFR :: CMap g (Interval MPFR) -> CMap g (Interval MPFR)
 asMPFR = id
 
+inEmptyCtx :: (forall g. CMap g a) -> CMap () a
+inEmptyCtx x = x
+
 runAndPrint :: Show a => CMap () a -> IO ()
 runAndPrint = mapM_ (putStrLn . show) . E.runCMap
 
 sqrt2Example :: IO ()
-sqrt2Example = runAndPrint $ (dedekind_cut (\x -> x < 0 || (x ^ 2) < 2) :: K (Interval MPFR))
+sqrt2Example = runAndPrint $ asMPFR $ dedekind_cut (\x -> x < 0 || (x ^ 2) < 2)
 
 quantificationExample :: IO ()
 quantificationExample = runAndPrint $

@@ -4,6 +4,8 @@
 
 module Experimental.Expr where
 
+import Prelude
+import Control.Arrow (Arrow, arr)
 import Control.Category (Category)
 import qualified Control.Category as C
 
@@ -13,11 +15,6 @@ data (a :+ b) g = Inl (a g) | Inr (b g)
 data Arr k a b (g :: *) = Arr (forall d. k d g -> a d -> b d)
 
 newtype R k a g = R (k g a)
-
-class Category k => Cartesian k where
-  unit :: k g ()
-  fst' :: k (a, b) a
-  snd' :: k (a, b) b
 
 class PSh k f where
   pmap :: k d g -> f g -> f d
@@ -70,11 +67,14 @@ compile (Abs' f) = \g -> Arr $ (\d x -> compile f (pmap d g :* x))
 --   InHere :: InList x (x : xs)
 --   InThere :: InList x ys -> InList x (y : ys)
 
-class HasProj c g a where
+class Extends c g a where
   proj :: c g a
 
-instance Cartesian c => HasProj c a a where
+instance Category c => Extends c a a where
   proj = C.id
 
-instance (Cartesian c, HasProj c g a) => HasProj c (g, b) a where
-  proj = proj C.. fst'
+instance (Arrow c, Extends c g a) => Extends c (g, b) a where
+  proj = proj C.. arr fst
+
+var :: Category c => Extends c d g => c g a -> c d a
+var x = x C.. proj
