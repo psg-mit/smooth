@@ -46,10 +46,10 @@ instance VectorSpace u s => VectorSpace (a :> u) (a :> s) where
   D a a' ^+^ D b b' = D (a ^+^ b) (\d -> a' d ^+^ b' d)
   negateV (D a a') = D (negateV a) (negateV a')
 
-dConst :: VectorSpace b s => b -> a:>b
-dConst b = b `D` const dZero
+dConst :: VectorSpace b s => b -> a :> b
+dConst b = D b (const dZero)
 
-dZero :: VectorSpace b s => a:>b
+dZero :: VectorSpace b s => a :> b
 dZero = dConst zeroV
 
 dId :: VectorSpace u s => u :~> u
@@ -80,10 +80,6 @@ square x = dId x ^ 2
 
 cube :: Num a => a :~> a
 cube x = dId x ^ 3
-
--- Incorrect!
--- mult :: Num a => (a, a) :~> a
--- mult (x, y) = D (x * y) (\(dx, dy) ->
 
 dMult :: Num a => g :~> a -> g :~> a -> g :~> a
 dMult f g x = f x * g x
@@ -120,15 +116,12 @@ instance (Num b, VectorSpace b b) => Num (a:>b) where
   D u0 u' - D v0 v'         = D (u0 - v0) (u' - v')
   u@(D u0 u') * v@(D v0 v') =
     D (u0 * v0) (\da -> (u * v' da) + (u' da * v))
-  abs (D u u') = D (abs u) (\du -> dConst (signum u) * u' du)
+  abs (D u u') = D (abs u) (dConst (signum u) *^ u')
   signum (D u u') = D (signum u) (error "no derivative for signum")
 
 (>-<) :: VectorSpace u s =>
     (u -> u) -> ((a :> u) -> (a :> s)) -> (a :> u) -> (a :> u)
 f >-< f' = \u@(D u0 u') -> D (f u0) (\da -> f' u *^ u' da)
-
--- absR :: R.Rounded a => CMap g (Interval a) :~> CMap g (Interval a)
--- absR = abs >-< signum
 
 (@.) :: (b :~> c) -> (a :~> b) -> (a :~> c)
 (f @. g) a0 = D c0 (c' @. b')

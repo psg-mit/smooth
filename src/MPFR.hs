@@ -63,6 +63,12 @@ expm1' = monotone M.expm1
 expm1 :: CMap g R -> CMap g R
 expm1 = ap1 expm1'
 
+sqrt' :: CMap R R
+sqrt' = monotone M.sqrt
+
+sqrt :: CMap g R -> CMap g R
+sqrt = ap1 MPFR.sqrt'
+
 
 -- Constants
 pi :: CMap g R
