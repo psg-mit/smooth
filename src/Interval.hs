@@ -12,6 +12,12 @@ instance Rounded a => Show (Interval a) where
 lift :: a -> Interval a
 lift x = Interval x x
 
+lower :: Interval a -> a
+lower (Interval a b) = a
+
+upper :: Interval a -> a
+upper (Interval a b) = b
+
 scalePos :: Rounded a => Prec -> a -> Interval a -> Interval a
 scalePos p c (Interval a b) = Interval (R.mul p R.Down c a) (R.mul p R.Up c b)
 
@@ -28,6 +34,9 @@ add p (Interval l1 u1) (Interval l2 u2) =
 sub :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
 sub p (Interval l1 u1) (Interval l2 u2) =
   Interval (R.sub p Down l1 l2) (R.sub p Up u1 u2)
+
+width :: Rounded a => Prec -> Interval a -> Interval a
+width p (Interval l u) = sub p (lift u) (lift l)
 
 mulpow2 :: Rounded a => Int -> Prec -> Interval a -> Interval a
 mulpow2 i p = monotone (R.mulpow2 i p)
@@ -120,6 +129,9 @@ monotone f (Interval a b) = Interval (f R.Down a) (f R.Up b)
 
 rounded :: Rounded a => (RoundDir -> a) -> Interval a
 rounded f = Interval (f R.Down) (f R.Up)
+
+flip :: Interval a -> Interval a
+flip (Interval a b) = Interval b a
 
 pow :: Rounded a => Prec -> Interval a -> Int -> Interval a
 pow prec i@(Interval a b) k =

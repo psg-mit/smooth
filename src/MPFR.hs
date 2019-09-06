@@ -86,6 +86,37 @@ euler = constant M.euler
 catalan :: CMap g R
 catalan = constant M.catalan
 
+sinI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
+sinI prec i@(I.Interval a b) =
+  if R.ofInteger (fromIntegral prec) R.Down 3 < I.lower (I.width (fromIntegral prec) i)
+  then I.Interval R.negativeOne R.one
+  else
+  if not (R.negative deriva1) && not (R.negative derivb1) then
+    sinMonotone i
+  else
+  if not (R.positive deriva2) && not (R.positive derivb2) then
+    sinMonotone (I.flip i)
+  else if not (R.negative deriva1) && not (R.positive derivb2) then
+    I.Interval (R.min (M.sin M.Down prec a) (M.sin M.Down prec b))
+          R.one
+  else if not (R.positive deriva1) && not (R.negative derivb2) then
+    I.Interval R.negativeOne
+         (R.max (M.sin M.Up prec a) (M.sin M.Up prec b))
+  {- Not sure about the sign of either of the derivatives -}
+  else I.Interval R.negativeOne R.one
+  where
+  sinMonotone = I.monotone (\d -> M.sin (R.roundDirMPFR d) prec)
+  deriva1 = M.cos M.Down prec a
+  derivb1 = M.cos M.Down prec b
+  deriva2 = M.cos M.Up prec a
+  derivb2 = M.cos M.Up prec b
+
+sin' :: CMap R R
+sin' = withPrec (sinI . fromIntegral)
+
+sin :: CMap g R -> CMap g R
+sin = ap1 sin'
+
 
 fact :: Word -> CMap g R
 fact n = constant (\d p -> M.facw d p n)
@@ -94,3 +125,4 @@ instance Floating (CMap g R) where
   pi = MPFR.pi
   log = MPFR.log
   exp = MPFR.exp
+  sin = MPFR.sin
