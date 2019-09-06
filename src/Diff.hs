@@ -129,14 +129,45 @@ instance Num b => Num (a->b) where
   abs         = fmap abs
   signum      = fmap signum
 
-instance (Num b, VectorSpace b b) => Num (a:>b) where
+instance Num b => Num (a:>b) where
   fromInteger               = dConst . fromInteger
   D u0 u' + D v0 v'         = D (u0 + v0) (u' + v')
   D u0 u' - D v0 v'         = D (u0 - v0) (u' - v')
   u@(D u0 u') * v@(D v0 v') =
-    D (u0 * v0) (\da -> (u * v' da) + (u' da * v))
-  abs (D u u') = D (abs u) (dConst (signum u) *^ u')
-  signum (D u u') = D (signum u) (error "no derivative for signum")
+    D (u0 * v0) (\da -> u * v' da + u' da * v)
+  abs u@(D u0 u') = D (abs u0) (\da -> signum u * u' da)
+  -- not totally accurate for signum here, it should blow up at 0...
+  signum (D u u') = D (signum u) 0
+
+instance Fractional b => Fractional (a:>b) where
+  recip u@(D u0 u') = D (recip u0) (\da -> - u' da / u^2)
+  fromRational = dConst . fromRational
+
+instance Fractional b => Fractional (a -> b) where
+  recip = fmap recip
+  fromRational = pure . fromRational
+
+instance Floating b => Floating (a :> b) where
+  pi = dConst pi
+  log u@(D u0 u') = D (log u0) (\da -> u' da / u)
+  exp u@(D u0 u') = D (exp u0) (\da -> u' da * exp u)
+
+instance Floating b => Floating (a -> b) where
+  pi = pure pi
+  log = fmap log
+  exp = fmap exp
+  sin = fmap sin
+  cos = fmap cos
+  tan = fmap tan
+  asin = fmap asin
+  acos = fmap acos
+  atan = fmap atan
+  sinh = fmap sinh
+  cosh = fmap cosh
+  tanh = fmap tanh
+  asinh = fmap asinh
+  acosh = fmap acosh
+  atanh = fmap atanh
 
 (>-<) :: VectorSpace u s =>
     (u -> u) -> ((a :> u) -> (a :> s)) -> (a :> u) -> (a :> u)

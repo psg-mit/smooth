@@ -1,9 +1,12 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module MPFR where
 
-import Prelude (Word, ($), fromIntegral)
+import Prelude
 import qualified Interval as I
 import Interval (Interval)
 import RealExpr
+import Expr ()
 import qualified Rounded as R
 import qualified Data.Number.MPFR as M
 
@@ -86,3 +89,8 @@ catalan = constant M.catalan
 
 fact :: Word -> CMap g R
 fact n = constant (\d p -> M.facw d p n)
+
+instance Floating (CMap g R) where
+  pi = MPFR.pi
+  log = MPFR.log
+  exp = MPFR.exp
