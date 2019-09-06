@@ -114,7 +114,7 @@ or = arr (\((t1, f1), (t2, f2)) -> (t1 || t2, f1 && f2))
 neg :: CMap B B
 neg = arr (\(x, y) -> (y, x))
 
-integral' :: (Show a, Rounded a) => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
+integral' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
 integral' p i@(Interval a b) = CMap $ \f ->
   let m = R.average a b in
   -- traceShow p $

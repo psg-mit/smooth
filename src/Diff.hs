@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances, IncoherentInstances #-}
 
 module Diff where
@@ -10,8 +11,9 @@ import Control.Applicative (liftA2)
 import RealExpr (CMap (..))
 import Data.Number.MPFR (MPFR)
 import qualified Rounded as R
-import Interval (Interval)
+import Interval (Interval, unitInterval)
 import qualified Expr as E
+import qualified RealExpr as E
 
 -- http://conal.net/blog/posts/higher-dimensional-higher-order-derivatives-functionally
 
@@ -90,6 +92,23 @@ square' x = dMult x x
 cube' :: Num a => g :~> a -> g :~> a
 cube' x = x^3 -- dMult x (square' x)
 
+integral :: R.Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
+  :~> CMap g (Interval a)
+integral = linearD E.integral_unit_interval
+
+integral' :: R.Rounded a => d :~> (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
+  -> d :~> CMap g (Interval a)
+integral' = (integral @.)
+
+integral1 :: R.Rounded a => CMap (g, Interval a) (Interval a) :~> CMap g (Interval a)
+integral1 = linearD $ E.secondOrderPrim (E.integral' 16 unitInterval)
+
+constFunc :: Num (CMap (g, b) a) => CMap g a :~> CMap (g, b) a
+constFunc = linearD $ \x -> x <<< arr fst
+
+idFunc :: CMap (g, a) a
+idFunc = arr snd
+
 absD :: Num a => a :~> a
 absD x = abs (dId x)
 
@@ -139,6 +158,10 @@ example2 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs (x ^ 2)) dId 2) 
 example3 :: IO ()
 example3 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs x) dId (E.dedekind_cut (\x -> x E.< 0 E.|| (x E.^ 2) E.< 2))) !! 1
 
+-- \c -> integral_0^1 (\x -> c * x^2)
+example4 :: IO ()
+example4 = E.runAndPrint $ E.asMPFR $
+  getDerivTower ((\c -> dap1 integral1 (dap1 constFunc c * (\_ -> dConst idFunc) * (\_ -> dConst idFunc))) dId (E.asMPFR 3)) !! 1
 
 -- I have no idea whether any of these are sensible
 collapse1 :: CMap a (b -> c) -> CMap (a, b) c
