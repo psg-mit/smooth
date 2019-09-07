@@ -197,9 +197,24 @@ cos' = withPrec (cosI . fromIntegral)
 cos :: CMap g R -> CMap g R
 cos = ap1 cos'
 
+coshI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
+coshI prec i@(I.Interval a b)
+  | R.positive a = coshi
+  | R.negative b = I.flip coshi
+  | otherwise    = I.Interval R.one (R.max' (fromIntegral prec) R.Up ca cb)
+  where
+  coshi@(I.Interval ca cb) = I.monotone (\d -> M.cosh (R.roundDirMPFR d) prec) i
+
+cosh' :: CMap R R
+cosh' = withPrec (coshI . fromIntegral)
+
+cosh :: CMap g R -> CMap g R
+cosh = ap1 cosh'
+
 fact :: Word -> CMap g R
 fact n = constant (\d p -> M.facw d p n)
 
+-- TODO: implement tan
 instance Floating (CMap g R) where
   pi = MPFR.pi
   log = MPFR.log
@@ -207,6 +222,8 @@ instance Floating (CMap g R) where
   sin = MPFR.sin
   cos = MPFR.cos
   sinh = MPFR.sinh
+  cosh = MPFR.cosh
+  tanh = MPFR.tanh
   asin = MPFR.asin
   acos = MPFR.acos
   atan = MPFR.atan
