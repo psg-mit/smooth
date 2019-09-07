@@ -71,14 +71,14 @@ max = withPrec2 (\p -> I.max)
 negate :: Rounded a => CMap (Interval a) (Interval a)
 negate = withPrec I.negate
 
-sqrt' :: Rounded a => Interval a -> Prec -> CMap (Interval a) (Interval a)
-sqrt' i p = CMap $ \x ->
+sqrtWithBisection' :: Rounded a => Interval a -> Prec -> CMap (Interval a) (Interval a)
+sqrtWithBisection' i p = CMap $ \x ->
   let i' = I.maybe_cut_bisection (\q -> let q' = I.lift q in I.cmp (I.pow p q' 2) x) i
-  in (i', sqrt' i' (p + 1))
+  in (i', sqrtWithBisection' i' (p + 1))
 
-sqrt :: Rounded a => CMap (Interval a) (Interval a)
-sqrt = CMap $ \i -> let ir = I.recip 1 i in let i' = I.union i ir in
-  (i', sqrt' i' 32)
+sqrtWithBisection :: Rounded a => CMap (Interval a) (Interval a)
+sqrtWithBisection = CMap $ \i -> let ir = I.recip 1 i in let i' = I.union i ir in
+  (i', sqrtWithBisection' i' 32)
 
 join :: Rounded a => CMap (Interval a, Interval a) (Interval a)
 join = arr (uncurry I.join)

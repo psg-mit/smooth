@@ -27,9 +27,6 @@ constant f = withPrec $ \p _ -> I.rounded (\d -> f (R.roundDirMPFR d) (fromInteg
 exp' :: CMap R R
 exp' = monotone M.exp
 
-exp :: CMap g R -> CMap g R
-exp = ap1 exp'
-
 exp2' :: CMap R R
 exp2' = monotone M.exp2
 
@@ -44,9 +41,6 @@ exp10 = ap1 exp10'
 
 log' :: CMap R R
 log' = monotone M.log
-
-log :: CMap g R -> CMap g R
-log = ap1 log'
 
 log2' :: CMap R R
 log2' = monotone M.log2
@@ -75,51 +69,27 @@ expm1 = ap1 expm1'
 sqrt' :: CMap R R
 sqrt' = monotone M.sqrt
 
-sqrt :: CMap g R -> CMap g R
-sqrt = ap1 MPFR.sqrt'
-
 sinh' :: CMap R R
 sinh' = monotone M.sinh
 
-sinh :: CMap g R -> CMap g R
-sinh = ap1 MPFR.sinh'
-
 tanh' :: CMap R R
 tanh' = monotone M.tanh
-
-tanh :: CMap g R -> CMap g R
-tanh = ap1 MPFR.tanh'
 
 -- NOTE: produces NaN when given inputs out of range
 asin' :: CMap R R
 asin' = monotone M.asin
 
-asin :: CMap g R -> CMap g R
-asin = ap1 MPFR.asin'
-
 atan' :: CMap R R
 atan' = monotone M.atan
-
-atan :: CMap g R -> CMap g R
-atan = ap1 MPFR.atan'
 
 asinh' :: CMap R R
 asinh' = monotone M.asinh
 
-asinh :: CMap g R -> CMap g R
-asinh = ap1 MPFR.asinh'
-
 acosh' :: CMap R R
 acosh' = monotone M.acosh
 
-acosh :: CMap g R -> CMap g R
-acosh = ap1 MPFR.acosh'
-
 atanh' :: CMap R R
 atanh' = monotone M.atanh
-
-atanh :: CMap g R -> CMap g R
-atanh = ap1 MPFR.atanh'
 
 
 
@@ -127,12 +97,7 @@ atanh = ap1 MPFR.atanh'
 acos' :: CMap R R
 acos' = antitone M.acos
 
-acos :: CMap g R -> CMap g R
-acos = ap1 MPFR.acos'
-
 -- Constants
-pi :: CMap g R
-pi = constant M.pi
 
 log2c :: CMap g R
 log2c = constant M.log2c
@@ -167,9 +132,6 @@ sinI prec i@(I.Interval a b)
 sin' :: CMap R R
 sin' = withPrec (sinI . fromIntegral)
 
-sin :: CMap g R -> CMap g R
-sin = ap1 sin'
-
 cosI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
 cosI prec i@(I.Interval a b)
   | R.ofInteger (fromIntegral prec) R.Down 3 < I.lower (I.width (fromIntegral prec) i)
@@ -194,9 +156,6 @@ cosI prec i@(I.Interval a b)
 cos' :: CMap R R
 cos' = withPrec (cosI . fromIntegral)
 
-cos :: CMap g R -> CMap g R
-cos = ap1 cos'
-
 coshI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
 coshI prec i@(I.Interval a b)
   | R.positive a = coshi
@@ -208,25 +167,23 @@ coshI prec i@(I.Interval a b)
 cosh' :: CMap R R
 cosh' = withPrec (coshI . fromIntegral)
 
-cosh :: CMap g R -> CMap g R
-cosh = ap1 cosh'
-
 fact :: Word -> CMap g R
 fact n = constant (\d p -> M.facw d p n)
 
 -- TODO: implement tan
 instance Floating (CMap g R) where
-  pi = MPFR.pi
-  log = MPFR.log
-  exp = MPFR.exp
-  sin = MPFR.sin
-  cos = MPFR.cos
-  sinh = MPFR.sinh
-  cosh = MPFR.cosh
-  tanh = MPFR.tanh
-  asin = MPFR.asin
-  acos = MPFR.acos
-  atan = MPFR.atan
-  asinh = MPFR.asinh
-  acosh = MPFR.acosh
-  atanh = MPFR.atanh
+  sqrt = ap1 sqrt'
+  pi = constant M.pi
+  log = ap1 log'
+  exp = ap1 exp'
+  sin = ap1 sin'
+  cos = ap1 cos'
+  sinh = ap1 sinh'
+  cosh = ap1 cosh'
+  tanh = ap1 tanh'
+  asin = ap1 asin'
+  acos = ap1 acos'
+  atan = ap1 atan'
+  asinh = ap1 asinh'
+  acosh = ap1 acosh'
+  atanh = ap1 atanh'

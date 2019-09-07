@@ -141,7 +141,7 @@ instance Num b => Num (a:>b) where
   signum (D u u') = D (signum u) 0
 
 instance Fractional b => Fractional (a:>b) where
-  recip u@(D u0 u') = D (recip u0) (\da -> - u' da / u^2)
+  recip = lift1 recip (\u -> - recip (u^2))
   fromRational = dConst . fromRational
 
 instance Fractional b => Fractional (a -> b) where

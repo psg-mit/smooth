@@ -50,9 +50,6 @@ infixr 8 ^
 (^) :: Rounded a => CMap g (Interval a) -> Int -> CMap g (Interval a)
 x ^ k = E.ap1 (E.pow k) x
 
-sqrt :: Rounded a => CMap g (Interval a) -> CMap g (Interval a)
-sqrt = E.ap1 E.sqrt
-
 isTrue :: CMap g B -> CMap g Bool
 isTrue = E.ap1 (arr fst)
 
