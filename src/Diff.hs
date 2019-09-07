@@ -8,6 +8,7 @@ module Diff where
 import Prelude
 import Control.Arrow
 import Control.Applicative (liftA2)
+import Control.Monad (join)
 import RealExpr (CMap (..))
 import Data.Number.MPFR (MPFR)
 import qualified Rounded as R
@@ -147,10 +148,24 @@ instance Fractional b => Fractional (a -> b) where
   recip = fmap recip
   fromRational = pure . fromRational
 
+-- Borrowed from
+-- http://hackage.haskell.org/package/ad-4.3.6/docs/src/Numeric.AD.Internal.Forward.Double.html#ForwardDouble
 instance Floating b => Floating (a :> b) where
   pi = dConst pi
-  log u@(D u0 u') = D (log u0) (\da -> u' da / u)
-  exp u@(D u0 u') = D (exp u0) (\da -> u' da * exp u)
+  log = lift1 log recip
+  exp = lift1 exp exp
+  sin      = lift1 sin cos
+  cos      = lift1 cos $ negate . sin
+  tan      = lift1 tan $ recip . join (*) . cos
+  asin     = lift1 asin $ \x -> recip (sqrt (1 - join (*) x))
+  acos     = lift1 acos $ \x -> negate (recip (sqrt (1 - join (*) x)))
+  atan     = lift1 atan $ \x -> recip (1 + join (*) x)
+  sinh     = lift1 sinh cosh
+  cosh     = lift1 cosh sinh
+  tanh     = lift1 tanh $ recip . join (*) . cosh
+  asinh    = lift1 asinh $ \x -> recip (sqrt (1 + join (*) x))
+  acosh    = lift1 acosh $ \x -> recip (sqrt (join (*) x - 1))
+  atanh    = lift1 atanh $ \x -> recip (1 - join (*) x)
 
 instance Floating b => Floating (a -> b) where
   pi = pure pi
@@ -168,6 +183,9 @@ instance Floating b => Floating (a -> b) where
   asinh = fmap asinh
   acosh = fmap acosh
   atanh = fmap atanh
+
+lift1 :: Num b => (b -> b) -> ((a :> b) -> a :> b) -> (a :> b) -> a :> b
+lift1 f f' u@(D u0 u') = D (f u0) (\da -> u' da * f' u)
 
 (>-<) :: VectorSpace u s =>
     (u -> u) -> ((a :> u) -> (a :> s)) -> (a :> u) -> (a :> u)
