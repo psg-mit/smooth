@@ -4,50 +4,42 @@ import Prelude
 import Control.Arrow (first)
 
 import Data.Ratio
-import Data.Set (Set)
-import qualified Data.Set as S
-import Numeric.Interval
-import qualified Numeric.Interval as Int
+import Interval (Interval (..))
+import qualified Interval as I
 
 data Space cov cmpt = Space
   { done :: cov -> cmpt -> Bool }
 
-sret :: a -> Set a
-sret = S.singleton
-
-sbind :: Ord b => Set a -> (a -> Set b) -> Set b
-sbind s f = S.unions [ f x | x <- S.toList s]
-
 cut_bisection :: (Ord a, Fractional a) => (a -> Ordering) -> Interval a -> Interval a
-cut_bisection f i = let x = midpoint i in
+cut_bisection f (Interval a b) = let x = a / 2 + b / 2 in
   case f x of
-    LT -> (x ... sup i)
-    EQ -> Int.singleton x
-    GT -> (inf i ... x)
+    LT -> Interval x b
+    EQ -> I.lift x
+    GT -> Interval a x
 
 maybe_cut_bisection :: (Ord a, Fractional a) => (a -> Maybe Ordering) -> Interval a -> Interval a
-maybe_cut_bisection f i = let x = midpoint i in
+maybe_cut_bisection f i@(Interval a b) = let x = a / 2 + b / 2 in
   case f x of
     Nothing -> i
     Just cmp -> case cmp of
-      LT -> (x ... sup i)
-      EQ -> Int.singleton x
-      GT -> (inf i ... x)
+      LT -> Interval x b
+      EQ -> Interval x x
+      GT -> Interval a x
 
 rat_sqrt :: Rational -> [Interval Rational]
 rat_sqrt a = iterate (cut_bisection (\x -> compare (x^2) a))
-  (if a > 1 then (recip a ... a) else (a ... recip a))
+  (if a > 1 then Interval (recip a) a else Interval a (recip a))
 
 compare_int :: Ord a => a -> Interval a -> Maybe Ordering
-compare_int x i = case compare x (inf i) of
+compare_int x i = case compare x (I.lower i) of
   LT -> Just LT
-  EQ -> if x == sup i then Just EQ else Nothing
-  GT -> if x > sup i then Just GT else Nothing
+  EQ -> if x == I.upper i then Just EQ else Nothing
+  GT -> if x > I.upper i then Just GT else Nothing
 
 r_sqrt :: Interval Rational -> [Interval Rational]
-r_sqrt i = let ir = recip i in
+r_sqrt i = let ir = I.recip undefined i in
   iterate (maybe_cut_bisection (\x -> compare_int (x^2) i))
-  (inf (min ir i) ... sup (max ir i))
+  (Interval (I.lower (I.min ir i)) (I.upper (I.max ir i)))
 
 approx_compose :: [a] -> (a -> [b]) -> [b]
 approx_compose xs f = go 0 xs where
@@ -55,7 +47,7 @@ approx_compose xs f = go 0 xs where
   go i (y : ys) = f y !! i : go (i + 1) ys
 
 rSpace :: Space Rational (Interval Rational)
-rSpace = Space (\eps int -> width int < eps)
+rSpace = Space (\eps (Interval a b) -> b - a < eps)
 
 runWith :: Space a b -> a -> [b] -> b
 runWith (Space f) cover = g where
@@ -64,50 +56,49 @@ runWith (Space f) cover = g where
 
 data R = R Rational Rational
   deriving (Eq, Show, Ord)
-data Sierp = STrue | SFalse
+data Sierp = STrue | SUnknown
   deriving (Eq, Show, Ord)
 
 
 dirac :: a -> [(a, Interval Rational)]
-dirac x = [(x, Int.singleton 1)]
+dirac x = [(x, I.lift 1)]
 
 bernoulli :: Interval Rational -> [(Bool, Interval Rational)]
-bernoulli p = [(True, p), (False, 1 - p)]
+bernoulli p = [(True, p), (False, I.sub undefined (I.lift 1) p)]
 
 probBind :: [(a, Interval Rational)] -> (a -> [(b, Interval Rational)]) -> [((a, b), Interval Rational)]
 probBind xs f = do
   (x, px) <- xs
   (y, py) <- f x
-  return ((x, y), px * py)
+  return ((x, y), I.mul undefined px py)
 
 probMap :: (a -> b) -> [(a, Interval Rational)] -> [(b, Interval Rational)]
 probMap f = map (first f)
 
 uniformProb :: [[(Interval Rational, Interval Rational)]]
 uniformProb = go 1 where
-  go n = [ (( i % n ... (i + 1) % n), Int.singleton (1 / fromIntegral n)) | i <- takeWhile (< n) [0..] ] : go (2 * n)
+  go n = [ (( Interval (i % n) ((i + 1) % n)), I.lift (1 / fromIntegral n)) | i <- takeWhile (< n) [0..] ] : go (2 * n)
 
 indepProd :: [(a, Interval Rational)] -> [(b, Interval Rational)] -> [((a, b), Interval Rational)]
 indepProd xs ys = probBind xs (\_ -> ys)
 
 showInterval :: (a -> String) -> Interval a -> String
-showInterval s i = "(" ++ s (inf i) ++ " ... " ++ s (sup i) ++ ")"
+showInterval s i = "(" ++ s (I.lower i) ++ " ... " ++ s (I.upper i) ++ ")"
 
 endpoints :: Real a => Interval a -> (Double, Double)
-endpoints i = (realToFrac (inf i), realToFrac (sup i))
+endpoints i = (realToFrac (I.lower i), realToFrac (I.upper i))
 
 
 sierpToBool :: Sierp -> Bool
 sierpToBool STrue = True
-sierpToBool SFalse = False
+sierpToBool SUnknown = False
 
 boolToSierp :: Bool -> Sierp
 boolToSierp True = STrue
-boolToSierp False = SFalse
+boolToSierp False = SUnknown
 
-gt0 :: R -> S.Set Sierp
-gt0 (R l u) = S.fromList [ STrue | 0 < u && l <= u ]
-            `S.union` S.fromList [ SFalse | l <= 0 && l <= u ]
+gt0 :: R -> Sierp
+gt0 (R l u) = if 0 < l then STrue else SUnknown
 
 plus :: R -> R -> R
 plus (R l u) (R l' u') = R (l + l') (u + u')

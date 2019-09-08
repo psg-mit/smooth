@@ -1,5 +1,6 @@
 module Rounded where
 
+import Data.Ratio (Ratio)
 import Prelude
 import Data.Number.MPFR (MPFR)
 import qualified Data.Number.MPFR as M
@@ -47,6 +48,30 @@ class Ord a => Rounded a where
 roundDirMPFR :: RoundDir -> M.RoundMode
 roundDirMPFR Up = M.Up
 roundDirMPFR Down = M.Down
+
+instance (Integral a, Read a, Show a) => Rounded (Ratio a) where
+  add p d = (+)
+  sub p d = (-)
+  mul p d = (*)
+  div p d = (/)
+  pow p d x k = x ^ k
+  negativeInfinity = error "negative infinity"
+  positiveInfinity = error "positive infinity"
+  zero = 0
+  one = 1
+  min = Prelude.min
+  max = Prelude.max
+  min' p d = Prelude.min
+  max' p d = Prelude.max
+  neg p d = negate
+  average a b = a / 2 + b / 2
+  mulpow2 i p d x = (2^i) * x
+  ofInteger p d = fromIntegral
+  negativeOne = - 1
+  isInfinity = const False
+  isZero = (==) 0
+  ofString p d = read
+  toString = show
 
 instance Rounded MPFR where
   add p d = M.add (roundDirMPFR d) (fromIntegral p)
