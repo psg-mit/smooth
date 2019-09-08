@@ -34,6 +34,7 @@ instance (PSh k f, PSh k g) => PSh k (f :+ g) where
 instance Category k => PSh k (Arr k a b) where
   pmap cd (Arr f) = Arr (\dg a -> f (cd C.. dg) a)
 
+-- PHOAS
 data Expr (var :: (* -> *) -> *) (c :: * -> * -> *) :: (* -> *) -> * where
   Var :: var a -> Expr var c a
   Const :: PSh c a => (forall d. a d) -> Expr var c a
@@ -47,16 +48,7 @@ mapVar f f' e = case e of
   App g y -> App (mapVar f f' g) (mapVar f f' y)
   Abs g -> Abs (\x -> mapVar f f' (g (f' x)))
 
--- push :: Int -> Expr KInt c g -> Expr KInt c g
--- push n e = case e of
---   Var x@(KInt i) -> Var (if i <= n then (x + 1) else x)
---   Const e' -> Const e'
---   App f x -> App (push n f) (push n x)
---   Abs g -> Abs (\i -> push (n + 1) (g i))
-
--- App (Abs (\x -> Abs (\y -> Var x))) 3
--- App (Abs (Abs (\y -> Var 0)))
-
+-- de Bruijn
 data Expr' (c :: * -> * -> *) :: (* -> *) -> (* -> *) -> * where
   Const' :: (forall d. Arr c g a d) -> Expr' c a g
   App' :: Expr' c (Arr c a b) g -> Expr' c a g -> Expr' c b g
@@ -94,6 +86,7 @@ indexToVMap k = case indexToVMap (k - 1) of
 newtype KInt (a :: * -> *) = KInt Int
   deriving (Num)
 
+-- go from PHOAS to de Bruijn
 phoas' :: Int -> Expr KInt c a -> Expr' c a g
 phoas' n (Var (KInt i)) = case indexToVMap (n - i - 1) of
   SomeVar a -> case coerceVar a of
@@ -101,6 +94,9 @@ phoas' n (Var (KInt i)) = case indexToVMap (n - i - 1) of
 phoas' n (Const x) = Const' (constArr x)
 phoas' n (App f x) = App' (phoas' n f) (phoas' n x)
 phoas' n (Abs f) = let y = f (KInt n) in let z = phoas' (n + 1) y in Abs' z
+
+phoas :: Expr KInt c a -> Expr' c a g
+phoas = phoas' 0
 
 compile :: PSh c g => Category c => Expr' c a g -> forall d. g d -> a d
 compile (Const' (Arr x)) = x C.id
@@ -128,16 +124,16 @@ constFunc :: k ~ (->) => Expr var k (Arr k (R k a) (Arr k (R k b) (R k a)))
 constFunc = Abs (\x -> Abs (\y -> Var x))
 
 constFuncCompiled :: k ~ (->) => (Arr k (R k a) (Arr k (R k b) (R k a))) g
-constFuncCompiled = compile (phoas' 0 constFunc) (R (\_ -> ()))
+constFuncCompiled = compile (phoas constFunc) (R (\_ -> ()))
 
 convolutedTwo :: k ~ (->) => Expr var k (R k Int)
 convolutedTwo = App
   (App
-  (App (Abs (\x -> Abs (\y -> Abs (\z -> Var z))))
+  (App (Abs (\x -> Abs (\y -> Abs (\z -> Var x))))
   (Const (R (\_ -> 2))))
   (Const (R (\_ -> 15))))
   (Const (R (\_ -> 3)))
 
 justTwo :: Int
-justTwo = case compile (phoas' 0 convolutedTwo) (R (\_ -> ())) of
+justTwo = case compile (phoas convolutedTwo) (R (\_ -> ())) of
   R f -> f ()
