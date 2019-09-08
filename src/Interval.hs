@@ -1,22 +1,19 @@
 module Interval where
 
-import Prelude
+import Prelude hiding (flip)
 import Rounded (Rounded, Prec, RoundDir (Up, Down))
 import qualified Rounded as R
 
-data Interval a = Interval a a
+data Interval a = Interval
+  { lower :: a
+  , upper :: a
+  }
 
 instance Rounded a => Show (Interval a) where
   show (Interval a b) = "[" ++ R.toString a ++ ", " ++ R.toString b ++ "]"
 
 lift :: a -> Interval a
 lift x = Interval x x
-
-lower :: Interval a -> a
-lower (Interval a b) = a
-
-upper :: Interval a -> a
-upper (Interval a b) = b
 
 scalePos :: Rounded a => Prec -> a -> Interval a -> Interval a
 scalePos p c (Interval a b) = Interval (R.mul p R.Down c a) (R.mul p R.Up c b)
@@ -52,18 +49,16 @@ join (Interval l1 u1) (Interval l2 u2) =
   Interval (R.max l1 l2) (R.min u1 u2)
 
 cmp :: Ord a => Interval a -> Interval a -> Maybe Ordering
-cmp (Interval l1 u1) (Interval l2 u2) = case compare u1 l2 of
-  LT -> Just LT
-  _ -> case compare l1 u2 of
-    GT -> Just GT
-    _ -> Nothing
+cmp (Interval l1 u1) (Interval l2 u2)
+  | u1 < l2   = Just LT
+  | l1 > u2   = Just GT
+  | otherwise = Nothing
 
 recip :: Rounded a => Prec -> Interval a -> Interval a
-recip p (Interval a b) = case compare R.zero a of
-  LT -> Interval (R.div p R.Down R.one a) (R.div p R.Up R.one b)
-  _ -> case compare b R.zero of
-    LT -> Interval (R.div p R.Down R.one b) (R.div p R.Up R.one a)
-    _ -> realLine
+recip p i@(Interval a b)
+  | R.zero < a = monotone (\d -> R.div p d R.one) i
+  | b < R.zero = monotone (\d -> R.div p d R.one) (flip i)
+  | otherwise  = realLine
 
 maybe_cut_bisection :: Rounded a => (a -> Maybe Ordering) -> Interval a -> Interval a
 maybe_cut_bisection f i@(Interval a b) = let x = R.average a b in
@@ -134,31 +129,20 @@ flip :: Interval a -> Interval a
 flip (Interval a b) = Interval b a
 
 pow :: Rounded a => Prec -> Interval a -> Int -> Interval a
-pow prec i@(Interval a b) k =
-  if even k
-    then let lpow = R.pow prec R.Down in
-    Interval
-    (if R.negative a then
-    if R.negative b then
-      lpow b k
-    else {- non-negative [b] -}
-      R.zero
-  else {- non-negative [a] -}
-    if R.negative b then
-      R.max (lpow a k) (lpow b k)
-    else {- non-negative [b] -}
-      lpow a k)
-   (
-      let upow = R.pow prec R.Up in
-  if R.negative a then
-    if R.negative b then
-      upow a k
-    else {- non-negative [b] -}
-      R.max (upow a k) (upow b k)
-  else {- non-negative [a] -}
-    if R.negative b then
-      R.zero
-    else {- non-negative [b] -}
-      upow b k
-    )
-    else monotone (\d x -> R.pow prec d x k) i
+pow prec i@(Interval a b) k
+  | odd k     = monotonePow i
+  | otherwise = i'
+  where
+  monotonePow = monotone (\d x -> R.pow prec d x k)
+  lpow x = R.pow prec R.Down x k
+  upow x = R.pow prec R.Up x k
+  i'  = if R.negative a then
+          if R.negative b then
+            monotonePow (flip i)
+          else {- non-negative [b] -}
+            Interval R.zero (R.max (upow a) (upow b))
+        else {- non-negative [a] -}
+          if R.negative b then
+            Interval (R.min (lpow a) (lpow b)) R.zero -- Marshall uses `max` here, I'm not sure why, seems potentially wrong
+          else {- non-negative [b] -}
+            monotonePow i

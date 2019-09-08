@@ -210,7 +210,7 @@ example3 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs x) dId (E.dedeki
 -- \c -> integral_0^1 (\x -> c * x^2)
 example4 :: IO ()
 example4 = E.runAndPrint $ E.asMPFR $
-  getDerivTower ((\c -> dap1 integral1 (dap1 constFunc c * (\_ -> dConst idFunc) * (\_ -> dConst idFunc))) dId (E.asMPFR 3)) !! 1
+  getDerivTower ((\c -> let x = (\_ -> dConst idFunc) in let c' = dap1 constFunc c in dap1 integral1 (c' * x^2)) dId (E.asMPFR 3)) !! 1
 
 -- I have no idea whether any of these are sensible
 collapse1 :: CMap a (b -> c) -> CMap (a, b) c
