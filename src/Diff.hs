@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances, IncoherentInstances #-}
+{-# LANGUAGE Arrows #-}
 
 module Diff where
 
@@ -48,6 +49,12 @@ instance VectorSpace u s => VectorSpace (a :> u) (a :> s) where
   D s s' *^ D x x' = D (s *^ x) (\d -> s' d *^ x' d)
   D a a' ^+^ D b b' = D (a ^+^ b) (\d -> a' d ^+^ b' d)
   negateV (D a a') = D (negateV a) (negateV a')
+
+instance (VectorSpace u1 s, VectorSpace u2 s) => VectorSpace (u1, u2) s where
+  zeroV = (zeroV, zeroV)
+  s *^ (x, y) = (s *^ x, s*^ y)
+  (x, y) ^+^ (x', y') = (x ^+^ x', y ^+^ y')
+  negateV (x, y) = (negateV x, negateV y)
 
 dConst :: VectorSpace b s => b -> a :> b
 dConst b = D b (const dZero)
@@ -197,6 +204,9 @@ f >-< f' = \u@(D u0 u') -> D (f u0) (\da -> f' u *^ u' da)
     D b0 b' = g a0
     D c0 c' = f b0
 
+smoothCompose :: ((b :~> c), (a :~> b)) :~> (a :~> c)
+smoothCompose (f, g) = D (f @. g) smoothCompose
+
 
 exampleAbsDiff :: IO ()
 exampleAbsDiff = E.runAndPrint $ E.asMPFR $ getDerivTower (absD 0) !! 1
@@ -211,6 +221,11 @@ example3 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs x) dId (E.dedeki
 example4 :: IO ()
 example4 = E.runAndPrint $ E.asMPFR $
   getDerivTower ((\c -> let x = (\_ -> dConst idFunc) in let c' = dap1 constFunc c in dap1 integral1 (c' * x^2)) dId (E.asMPFR 3)) !! 1
+
+-- this example does NOT really exercise smoothCompose
+example5 :: IO ()
+example5 = E.runAndPrint $ E.asMPFR $ getDerivTower (getValue (f ()) 2) !! 2
+  where f = (dap1 smoothCompose (\_ -> dConst (cube, square)))
 
 -- I have no idea whether any of these are sensible
 collapse1 :: CMap a (b -> c) -> CMap (a, b) c
