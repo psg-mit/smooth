@@ -41,13 +41,6 @@ data Expr (var :: (* -> *) -> *) (c :: * -> * -> *) :: (* -> *) -> * where
   App :: Expr var c (Arr c a b) -> Expr var c a -> Expr var c b
   Abs :: PSh c a => (var a -> Expr var c b) -> Expr var c (Arr c a b)
 
-mapVar :: (forall a. var a -> var' a) -> (forall a. var' a -> var a) -> Expr var c g -> Expr var' c g
-mapVar f f' e = case e of
-  Var x -> Var (f x)
-  Const e' -> Const e'
-  App g y -> App (mapVar f f' g) (mapVar f f' y)
-  Abs g -> Abs (\x -> mapVar f f' (g (f' x)))
-
 -- de Bruijn
 data Expr' (c :: * -> * -> *) :: (* -> *) -> (* -> *) -> * where
   Const' :: (forall d. Arr c g a d) -> Expr' c a g
@@ -72,7 +65,6 @@ arrCompose (Arr g) (Arr f) = Arr (\d x -> g d (f d x))
 varCompose :: Var k b c -> Var k a b -> Var k a c
 varCompose (Var' g) (Var' f) = Var' (arrCompose g f)
 
-newtype SomeHom c = SomeHom (forall a b. c a b)
 newtype SomeVar c = SomeVar (forall g a. Var c g a)
 
 coerceVar :: Var c a b -> Var c a' b'
@@ -85,6 +77,11 @@ indexToVMap k = case indexToVMap (k - 1) of
 
 newtype KInt (a :: * -> *) = KInt Int
   deriving (Num)
+
+data KUnit a = KUnit
+
+instance PSh c KUnit where
+  pmap f KUnit = KUnit
 
 -- go from PHOAS to de Bruijn
 phoas' :: Int -> Expr KInt c a -> Expr' c a g
@@ -103,6 +100,9 @@ compile (Const' (Arr x)) = x C.id
 compile (App' f x) = \g -> case (compile f) g of
   Arr h -> let y = compile x g in h C.id y
 compile (Abs' f) = \g -> Arr $ (\d x -> compile f (pmap d g :* x))
+
+compilePhoas :: Category c => Expr KInt c a -> forall g. a g
+compilePhoas e = compile (phoas e) KUnit
 
 -- data InList :: * -> [*] -> * where
 --   InHere :: InList x (x : xs)
@@ -124,7 +124,7 @@ constFunc :: k ~ (->) => Expr var k (Arr k (R k a) (Arr k (R k b) (R k a)))
 constFunc = Abs (\x -> Abs (\y -> Var x))
 
 constFuncCompiled :: k ~ (->) => (Arr k (R k a) (Arr k (R k b) (R k a))) g
-constFuncCompiled = compile (phoas constFunc) (R (\_ -> ()))
+constFuncCompiled = compilePhoas constFunc
 
 convolutedTwo :: k ~ (->) => Expr var k (R k Int)
 convolutedTwo = App
@@ -135,5 +135,5 @@ convolutedTwo = App
   (Const (R (\_ -> 3)))
 
 justTwo :: Int
-justTwo = case compile (phoas convolutedTwo) (R (\_ -> ())) of
+justTwo = case compilePhoas convolutedTwo of
   R f -> f ()
