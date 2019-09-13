@@ -5,6 +5,7 @@
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE PolyKinds #-}
 
 module DiffPSh where
 
@@ -27,6 +28,29 @@ import Experimental.Expr
 type a :-* b = a -> b
 data D k a b g = D (b g) (Sm k a b g)
 type Sm k a b = Arr k a (D k a b)
+
+class PShD k f where
+  pdmap :: Sm k a b g -> f b g -> f a g
+
+-- `d` for Delta: smooth context
+-- `g` for Gamma: continuous context
+data RD k a d g = RD (Sm k d a g)
+data ArrD k a b d g = ArrD (forall d'. Sm k d' d g -> a d' g -> b d' g)
+data (a :** b) (d :: * -> *) (g :: *) = a d g :** b d g
+
+instance Category k => PSh k (RD k a d) where
+  pmap f (RD x) = RD (pmap f x)
+
+instance PShD k (RD k a) where
+  pdmap dg (RD f) = RD (f @. dg)
+
+instance PShD k (ArrD k a b) where
+  pdmap dg (ArrD f) = ArrD $ \e x -> f (dg @. e) x
+
+-- instance PSh k (ArrD k a b d) where
+
+instance (PShD k f, PShD k g) => PShD k (f :** g) where
+  pdmap dg (f :** g) = pdmap dg f :** pdmap dg g
 
 instance (Category k, PSh k a, PSh k b) => PSh k (D k a b) where
   pmap f (D x y) = D (pmap f x) (pmap f y)
@@ -61,6 +85,12 @@ fstD = linearD (Arr (\d (x :* y) -> x))
 sndD :: Category k => VectorSpace b s => Sm k (a :* b) b g
 sndD = linearD (Arr (\d (x :* y) -> y))
 
+pairD :: Category k => Sm k g a d -> Sm k g b d -> Sm k g (a :* b) d
+pairD (Arr f) (Arr g) = Arr $ \d x ->
+  let D fx f'x = f d x
+      D gx g'x = g d x
+  in D (fx :* gx) (pairD f'x g'x)
+
 (@.) :: Sm k b c g -> Sm k a b g -> Sm k a c g
 Arr f @. Arr g = Arr $ \d a0 ->
   let D b0 b' = g d a0
@@ -86,6 +116,15 @@ instance R.Rounded a => Num (R CMap (Interval a) g) where
 
 lift2 :: (forall g. a g -> b g -> c g) -> Arr k d a g -> Arr k d b g -> Arr k d c g
 lift2 op (Arr f) (Arr g) = Arr $ \d x -> op (f d x) (g d x)
+
+lift1' :: (forall g. a g -> b g) -> Arr k d a g -> Arr k d b g
+lift1' op (Arr f) = Arr $ \d x -> op (f d x)
+
+instance (PSh k s, VectorSpace v s) => VectorSpace (Arr k a v) s where
+  zeroV   = DiffPSh.constArr zeroV
+  s *^ Arr f = Arr (\d x -> pmap d s *^ f d x)
+  (^+^)   = lift2 (^+^)
+  negateV = lift1' negateV
 
 instance (PSh CMap a, R.Rounded b) => Num (D CMap a (R CMap (Interval b)) g) where
   fromInteger               = dConst . fromInteger
@@ -154,6 +193,9 @@ asReal (R x) = x
 
 example2 :: IO ()
 example2 = E.runAndPrint $ asReal $ getDerivTower ((\x -> abs (x ^ 2)) (dId # 2)) !! 1
+
+constFunc :: Sm CMap Real (Arr CMap Real Real) g
+constFunc = linearD $ Arr $ \_ c -> Arr (\d _ -> pmap d c)
 
 -- example4 :: IO ()
 -- example4 = E.runAndPrint $ asReal $

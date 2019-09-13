@@ -2,6 +2,7 @@
 {-# LANGUAGE KindSignatures, MultiParamTypeClasses, FlexibleInstances #-}
 {-# LANGUAGE TypeOperators, RankNTypes #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PolyKinds #-}
 
 module Experimental.Expr where
 
