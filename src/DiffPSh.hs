@@ -197,6 +197,18 @@ example2 = E.runAndPrint $ asReal $ getDerivTower ((\x -> abs (x ^ 2)) (dId # 2)
 constFunc :: Sm CMap Real (Arr CMap Real Real) g
 constFunc = linearD $ Arr $ \_ c -> Arr (\d _ -> pmap d c)
 
+-- constFunc1 :: RD CMap Real d g -> ArrD
+
+type DReal = RD CMap Real
+
+-- smoothToCont :: ArrD CMap DReal DReal d g
+--             -> Arr CMap (d :* Real) Real g
+-- smoothToCont (ArrD f) = Arr $ \_ x -> RD (f dId x)
+
+-- integral' :: ArrD CMap DReal DReal d g
+--           -> DReal d g
+-- integral' f = RD $ (linearD $ Arr $ \d x -> integrate_unit_interval x)
+
 -- example4 :: IO ()
 -- example4 = E.runAndPrint $ asReal $
 --   getDerivTower (func # 3) !! 1

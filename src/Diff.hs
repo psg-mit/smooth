@@ -212,11 +212,9 @@ linCompose f g a0 = D c0 (\x -> linCompose c' g x ^+^ linCompose f b' x)
     D b0 b' = g a0
     D c0 c' = f b0
 
--- smoothCompose :: ((b :~> c), (a :~> b)) :~> (a :~> c)
--- smoothCompose (f, g) = D (f @. g) smoothCompose
-
-brokenExample :: IO ()
-brokenExample = E.runAndPrint $ E.asMPFR $ getDerivTower (((negate dId) @. (exp dId)) (E.asMPFR 1)) !! 2
+-- No longer broken
+brokenExample :: Int -> IO ()
+brokenExample n = E.runAndPrint $ E.asMPFR $ getDerivTower ((((*2) dId) @. ((*2) dId)) (E.asMPFR 1)) !! n
 
 
 exampleAbsDiff :: IO ()
@@ -237,11 +235,6 @@ example4 = E.runAndPrint $ E.asMPFR $
 example4b :: IO ()
 example4b = E.runAndPrint $ E.asMPFR $
   getDerivTower ((\c -> let c' = dap1 constFunc c in dap1 integral1 (c'^2)) dId (E.asMPFR (1/2))) !! 1
-
--- this example does NOT really exercise smoothCompose
--- example5 :: IO ()
--- example5 = E.runAndPrint $ E.asMPFR $ getDerivTower (getValue (f ()) 2) !! 2
---   where f = (dap1 smoothCompose (\_ -> dConst (cube, square)))
 
 -- I have no idea whether any of these are sensible
 collapse1 :: CMap a (b -> c) -> CMap (a, b) c
