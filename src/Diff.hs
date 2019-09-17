@@ -12,6 +12,7 @@ import Control.Applicative (liftA2)
 import Control.Monad (join)
 import RealExpr (CMap (..))
 import Data.Number.MPFR (MPFR)
+import MPFR ()
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Expr as E
@@ -46,7 +47,7 @@ instance VectorSpace v s => VectorSpace (a->v) s where
 
 instance VectorSpace u s => VectorSpace (a :> u) (a :> s) where
   zeroV = D zeroV (\_ -> zeroV)
-  D s s' *^ D x x' = D (s *^ x) (\d -> s' d *^ x' d)
+  s@(D s0 s') *^ x@(D x0 x') = D (s0 *^ x0) (\d -> (s *^ x' d) ^+^ (s' d *^ x))
   D a a' ^+^ D b b' = D (a ^+^ b) (\d -> a' d ^+^ b' d)
   negateV (D a a') = D (negateV a) (negateV a')
 
@@ -79,10 +80,10 @@ pairD f g x = D (fx, gx) (pairD f'x g'x) where
   D fx f'x = f x
   D gx g'x = g x
 
-dap1 :: a :~> b -> g :~> a -> g :~> b
+dap1 :: VectorSpace b s => a :~> b -> g :~> a -> g :~> b
 dap1 f = (f @.)
 
-dap2 :: (a, b) :~> c -> g :~> a -> g :~> b -> g :~> c
+dap2 :: VectorSpace c s => (a, b) :~> c -> g :~> a -> g :~> b -> g :~> c
 dap2 f x y = f @. pairD x y
 
 square :: Num a => a :~> a
@@ -160,7 +161,7 @@ instance Fractional b => Fractional (a -> b) where
 instance Floating b => Floating (a :> b) where
   pi = dConst pi
   log = lift1 log recip
-  exp = lift1 exp exp
+  exp = exp >-< exp
   sin      = lift1 sin cos
   cos      = lift1 cos $ negate . sin
   tan      = lift1 tan $ recip . join (*) . cos
@@ -198,14 +199,24 @@ lift1 f f' u@(D u0 u') = D (f u0) (\da -> u' da * f' u)
     (u -> u) -> ((a :> u) -> (a :> s)) -> (a :> u) -> (a :> u)
 f >-< f' = \u@(D u0 u') -> D (f u0) (\da -> f' u *^ u' da)
 
-(@.) :: (b :~> c) -> (a :~> b) -> (a :~> c)
-(f @. g) a0 = D c0 (c' @. b')
+-- Fixed compared to Conal Elliot's version!
+(@.) :: VectorSpace c s => (b :~> c) -> (a :~> b) -> (a :~> c)
+(f @. g) a0 = D c0 (linCompose c' b')
   where
     D b0 b' = g a0
     D c0 c' = f b0
 
-smoothCompose :: ((b :~> c), (a :~> b)) :~> (a :~> c)
-smoothCompose (f, g) = D (f @. g) smoothCompose
+linCompose :: VectorSpace c s => (b :~> c) -> (a :~> b) -> (a :~> c)
+linCompose f g a0 = D c0 (\x -> linCompose c' g x ^+^ linCompose f b' x)
+  where
+    D b0 b' = g a0
+    D c0 c' = f b0
+
+-- smoothCompose :: ((b :~> c), (a :~> b)) :~> (a :~> c)
+-- smoothCompose (f, g) = D (f @. g) smoothCompose
+
+brokenExample :: IO ()
+brokenExample = E.runAndPrint $ E.asMPFR $ getDerivTower (((negate dId) @. (exp dId)) (E.asMPFR 1)) !! 2
 
 
 exampleAbsDiff :: IO ()
@@ -220,12 +231,17 @@ example3 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs x) dId (E.dedeki
 -- \c -> integral_0^1 (\x -> c * x^2)
 example4 :: IO ()
 example4 = E.runAndPrint $ E.asMPFR $
-  getDerivTower ((\c -> let x = (\_ -> dConst idFunc) in let c' = dap1 constFunc c in dap1 integral1 (c' * x^2)) dId (E.asMPFR 3)) !! 1
+  getDerivTower ((\c -> let x = (\_ -> dConst idFunc) in let c' = dap1 constFunc c in dap1 integral1 (abs (c' * x^2))) dId (E.asMPFR 3)) !! 2
+
+-- Getting wrong answers here
+example4b :: IO ()
+example4b = E.runAndPrint $ E.asMPFR $
+  getDerivTower ((\c -> let c' = dap1 constFunc c in dap1 integral1 (c'^2)) dId (E.asMPFR (1/2))) !! 1
 
 -- this example does NOT really exercise smoothCompose
-example5 :: IO ()
-example5 = E.runAndPrint $ E.asMPFR $ getDerivTower (getValue (f ()) 2) !! 2
-  where f = (dap1 smoothCompose (\_ -> dConst (cube, square)))
+-- example5 :: IO ()
+-- example5 = E.runAndPrint $ E.asMPFR $ getDerivTower (getValue (f ()) 2) !! 2
+--   where f = (dap1 smoothCompose (\_ -> dConst (cube, square)))
 
 -- I have no idea whether any of these are sensible
 collapse1 :: CMap a (b -> c) -> CMap (a, b) c
