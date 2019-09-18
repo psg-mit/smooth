@@ -11,29 +11,7 @@ import Control.Arrow (Arrow, arr)
 import Control.Category (Category)
 import qualified Control.Category as C
 import Unsafe.Coerce
-
-data (a :* b) g = a g :* b g
-data (a :+ b) g = Inl (a g) | Inr (b g)
-
-data Arr k a b (g :: *) = Arr (forall d. k d g -> a d -> b d)
-
-newtype R k a g = R (k g a)
-
-class PSh k f where
-  pmap :: k d g -> f g -> f d
-
-instance Category k => PSh k (R k a) where
-  pmap dg (R f) = R (f C.. dg)
-
-instance (PSh k f, PSh k g) => PSh k (f :* g) where
-  pmap dg (f :* g) = pmap dg f :* pmap dg g
-
-instance (PSh k f, PSh k g) => PSh k (f :+ g) where
-  pmap dg (Inl f) = Inl (pmap dg f)
-  pmap dg (Inr g) = Inr (pmap dg g)
-
-instance Category k => PSh k (Arr k a b) where
-  pmap cd (Arr f) = Arr (\dg a -> f (cd C.. dg) a)
+import Experimental.PSh
 
 -- PHOAS
 data Expr (var :: (* -> *) -> *) (c :: * -> * -> *) :: (* -> *) -> * where
