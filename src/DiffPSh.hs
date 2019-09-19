@@ -96,6 +96,10 @@ integral f = integral' (f sndD)
 asReal :: R CMap (Interval MPFR) g -> CMap g (Interval MPFR)
 asReal (R x) = x
 
+derivative :: Additive g => R.Rounded a => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+  -> g :~> Interval a -> g :~> Interval a
+derivative f x = deriv (f sndD) @. pairD dId x
+
 asMPFR :: g :~> Interval MPFR -> g :~> Interval MPFR
 asMPFR x = x
 
@@ -109,3 +113,7 @@ example n = E.runAndPrint $ E.asMPFR $
 absExample :: (forall g. CMap g (Interval MPFR)) -> Int -> IO ()
 absExample y n = E.runAndPrint $
   getDerivTower ((\c -> integral (\x -> abs (x - wkn c))) dId) y !! n
+
+internalDiffExample :: IO ()
+internalDiffExample = E.runAndPrint $ E.asMPFR $ getValue $
+  derivative (\c -> integral (\x -> abs (x - wkn c))) 3

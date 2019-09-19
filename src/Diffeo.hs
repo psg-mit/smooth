@@ -33,6 +33,19 @@ class Additive v where
   (^+^)   :: CMap (v, v) v    -- add vectors
   negateV :: CMap v v         -- additive inverse
 
+instance Additive () where
+  zeroV = arr (\_ -> ())
+  (^+^) = arr (\_ -> ())
+  negateV = arr (\_ -> ())
+
+instance (Additive u, Additive v) => Additive (u, v) where
+  zeroV = zeroV &&& zeroV
+  (^+^) = proc ((u1, v1), (u2, v2)) -> do
+    u <- (^+^) -< (u1, u2)
+    v <- (^+^) -< (v1, v2)
+    returnA -< (u, v)
+  negateV = negateV *** negateV
+
 class Additive v => VectorSpace v s | v -> s where
   (*^)    :: CMap (s, v) v    -- scale a vector
 
@@ -122,8 +135,11 @@ fstD = linearD (arr fst)
 sndD :: Additive b => (a,b) :~> b
 sndD = linearD (arr snd)
 
-pairD :: Df g g' a k -> Df g g' b k -> Df g g' (a, b) k
-pairD (f :# f') (g :# g') = (f &&& g) :# (pairD f' g')
+pairD' :: Df g g' a k -> Df g g' b k -> Df g g' (a, b) k
+pairD' (f :# f') (g :# g') = (f &&& g) :# (pairD' f' g')
+
+pairD :: g :~> a -> g :~> b -> g :~> (a, b)
+pairD (D f) (D g) = D (pairD' f g)
 
 add :: R.Rounded a => (Interval a, Interval a) :~> Interval a
 add = linearD RE.add
@@ -149,7 +165,7 @@ dap1 :: Additive b => a :~> b -> g :~> a -> g :~> b
 dap1 f = (f @.)
 
 dap2 :: Additive c => (a, b) :~> c -> g :~> a -> g :~> b -> g :~> c
-dap2 f (D x) (D y) = f @. D (pairD x y)
+dap2 f x y = f @. pairD x y
 
 -- Seems right. Could inline scalarMult if I wanted
 lift1 :: VectorSpace a a => CMap a a -> a :~> a -> a :~> a
@@ -173,6 +189,15 @@ getDerivTower :: R.Rounded a => Interval a :~> Interval a -> CMap g (Interval a)
 getDerivTower (D f) x = go (wknValue x f) (arr (\_ -> ())) where
   go :: R.Rounded a => Df g (Interval a) b k -> CMap g k -> [CMap g b]
   go (g :# g') y = (g <<< (C.id &&& y)) : go g' (1 &&& y)
+
+getValue :: g :~> a -> CMap g a
+getValue (D (f :# f')) = f <<< arr (\x -> (x, ()))
+
+deriv' :: Additive d => R.Rounded a => Df g (d, Interval a) (Interval a) k -> Df g (d, Interval a) (Interval a) k
+deriv' (f :# f') = dWkn (proc k -> do { z <- zeroV -< () ; o <- 1 -< () ; returnA -< ((z, o), k) }) f'
+
+deriv :: Additive g => R.Rounded a => (g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a
+deriv (D f) = D (deriv' f)
 
 diffeoExample :: Int -> IO ()
 diffeoExample n = E.runAndPrint $ E.asMPFR $ getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n
