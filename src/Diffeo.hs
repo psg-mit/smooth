@@ -17,6 +17,7 @@ import RealExpr (CMap (..))
 import Data.Number.MPFR (MPFR)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
+import qualified Interval as I
 import qualified Expr as E
 import qualified RealExpr as RE
 import qualified MPFR as M
@@ -65,6 +66,9 @@ dMult x@(x0 :# x') y@(y0 :# y') =
 wknValue :: CMap g' g -> Df g a b k -> Df g' a b k
 wknValue g (f :# f') = (f <<< (g *** C.id)) :# wknValue g f'
 
+wknValueF :: (forall k. CMap (g, k) b -> CMap (g', k) b) -> Df g a b k -> Df g' a b k
+wknValueF g (f :# f') = g f :# wknValueF g f'
+
 dWkn :: CMap k' k -> Df g a b k -> Df g a b k'
 dWkn ext = dWkn1 (ext <<< arr snd)
 
@@ -75,20 +79,36 @@ dWkn1 ext (f :# f') = (f <<< (arr fst &&& ext)) :# dWkn1 ext' f'
     k <- ext -< (g, k')
     returnA -< (a, k)
 
--- dlinearWkn' :: (forall g. CMap (g, k) b -> CMap (g, k') b) -> Df (a, k) a b -> Df (a, k') a b
--- dlinearWkn' l (f :# f') = l f :# dlinearWkn' l f'
+dlinearWkn' :: Additive b => (forall d. CMap (d, x) b -> CMap d b) -> Df g (a, x) b k -> Df g a b k
+dlinearWkn' l = dlinearWkn1 2 l id
 
--- dlinearWkn1 :: (forall g. CMap (a, g) b -> CMap (a', g) b) -> Df k a b -> Df k a' b
--- dlinearWkn1 l (g :# g') = g :# go id id g' where
---   go swap z (f :# f') = z f :# go (inswap . swap) (swap l . z) f'
---   inswap l' f = l' (f <<< arr (\(a', (a, k)) -> (a, (a', k)))) <<< arr (\(a, (a', k)) -> (a', (a, k)))
+dlinearWkn2' :: R.Rounded x => Additive b => (forall d. CMap (d, Interval x) b -> CMap d b) -> Df g (a, Interval x) b k -> Df g a b k
+dlinearWkn2' l = dlinearWkn2 l id
 
--- dWknMap :: (forall g. CMap (g, x) b -> CMap g b) -> Df (k, x) (g, x) b -> Df k g b
--- dWknMap f (g :# g') = f g :# dWknMap undefined g' where
---   g'' = proc () -> do
---       g -< ((k, x), (g, x'))
-  -- f2 = proc (g, (a, k)) -> do
-  --    <- f -< ((g, a), k)
+dlinearWkn2 :: R.Rounded x => Additive b => (forall d. CMap (d, Interval x) b -> CMap d b) -> (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, Interval x) b k' -> Df g a b k
+dlinearWkn2 l z (f :# f') = z f :# dlinearWkn2 l z' f'
+  where
+  -- z' :: forall d. CMap (d, ((a, x), k')) b -> CMap (d, (a, k)) b
+  z' g = l g1' where
+    g' = proc ((d, ax), k') -> do
+      g -< (d, (ax, k'))
+    -- g1 :: CMap ((d, (a, x)), k) b
+    g1 = z g'
+    g1' = proc ((d, (a, k)), x) -> do
+      g1 -< ((d, (a, I.lift R.zero)), k)
+
+dlinearWkn1 :: Additive b => Int -> (forall d. CMap (d, x) b -> CMap d b) -> (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, x) b k' -> Df g a b k
+dlinearWkn1 0 l z (f :# f') = dZero
+dlinearWkn1 n l z (f :# f') = z f :# dlinearWkn1 (n - 1) l z' f'
+  where
+  -- z' :: forall d. CMap (d, ((a, x), k')) b -> CMap (d, (a, k)) b
+  z' g = l g1' where
+    g' = proc ((d, ax), k') -> do
+      g -< (d, (ax, k'))
+    -- g1 :: CMap ((d, (a, x)), k) b
+    g1 = z g'
+    g1' = proc ((d, (a, k)), x) -> do
+      g1 -< ((d, (a, x)), k)
 
 dId :: Additive u => u :~> u
 dId = D $ arr fst :# arr (fst . snd) :# dZero

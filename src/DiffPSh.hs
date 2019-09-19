@@ -79,26 +79,29 @@ instance Floating (g :~> Interval MPFR) where
   -- atanh    = lift1 atanh $ \x -> recip (1 - join (*) x)
 
 -- Crossing my fingers that this is right!
-integrate_unit_interval :: Arr CMap Real Real g -> Real g
-integrate_unit_interval f = R $
-  E.secondOrderPrim (E.integral' 16 unitInterval) (unArr f (arr fst) (arr snd))
-
 integral1' :: R.Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 integral1' = E.secondOrderPrim (E.integral' 16 unitInterval)
 
--- integral1 :: R.Rounded a => ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
--- integral1 (D f) = D $ (dWkn integral1' f)
+-- Maybe this is working!!!
+integral' :: R.Rounded a => ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+integral' (D f) = D $ dlinearWkn2' integral1' (wknValueF integ f)
+  where
+  integ :: R.Rounded a => CMap ((g, Interval a), k1) (Interval a) -> CMap (g, k1) (Interval a)
+  integ h = integral1' (h <<< arr (\((g, k), a) -> ((g, a), k)))
 
---
-integral :: (Arr D DReal DReal) g -> DReal g
-integral (Arr f) = undefined -- linearD $ Arr $ \d x -> integrate_unit_interval x
+integral :: R.Rounded a => ((g, Interval a) :~> (Interval a) -> (g, Interval a) :~> (Interval a))
+  -> g :~> (Interval a)
+integral f = integral' (f sndD)
 
 asReal :: R CMap (Interval MPFR) g -> CMap g (Interval MPFR)
 asReal (R x) = x
 
--- example4 :: IO ()
--- example4 = E.runAndPrint $ asReal $
---   getDerivTower (func # 3) !! 1
---   where
---   func :: Sm CMap Real Real g
---   func = Arr $ \g c -> (integral # Arr (\d x -> pmap d c * x ^ 2))
+asMPFR :: g :~> Interval MPFR -> g :~> Interval MPFR
+asMPFR x = x
+
+wkn :: Additive g => Additive a => g :~> a -> (g, x) :~> a
+wkn f = f @. fstD
+
+example4 :: Int -> IO ()
+example4 n = E.runAndPrint $ E.asMPFR $
+  getDerivTower ((\c -> integral (\x -> wkn c^2 * x)) dId) 3 !! n
