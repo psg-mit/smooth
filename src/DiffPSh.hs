@@ -48,33 +48,35 @@ instance R.Rounded a => Num (g :~> Interval a) where
   (+) = dap2 add
   D x * D y = D (dMult x y)
   abs = dap1 (lift1 (abs C.id) (signum dId))
+  -- not totally accurate for signum here, it should blow up at 0...
   signum = dap1 (lift1 (signum C.id) 0)
   fromInteger x = D $ fromInteger x :# dZero
-  negate = dap1 (linearD (negate C.id))
-
--- instance (PSh k s, VectorSpace v s) => VectorSpace (Arr k a v) s where
---   zeroV   = DiffPSh.constArr zeroV
---   s *^ Arr f = Arr (\d x -> pmap d s *^ f d x)
---   (^+^)   = lift2 (^+^)
---   negateV = lift1' negateV
-
--- instance (PSh CMap a, R.Rounded b) => Num (D CMap a (R CMap (Interval b)) g) where
---   fromInteger               = dConst . fromInteger
---   D u0 u' + D v0 v'         = D (u0 + v0) (lift2 (+) u' v')
---   D u0 u' - D v0 v'         = D (u0 - v0) (lift2 (-) u' v')
---   u@(D u0 (Arr u')) * v@(D v0 (Arr v')) =
---     D (u0 * v0) (Arr (\g da -> pmap g u * v' g da + u' g da * pmap g v))
---   abs u@(D u0 (Arr u')) = D (abs u0) (Arr (\g da -> pmap g (signum u) * u' g da))
---   -- not totally accurate for signum here, it should blow up at 0...
---   signum (D u u') = D (signum u) (DiffPSh.constArr 0)
+  negate = dap1 negate'
 
 instance R.Rounded a => Fractional (R CMap (Interval a) g) where
   recip (R x) = R (recip x)
   fromRational = R Prelude.. fromRational
 
--- instance (PSh CMap a, R.Rounded b) => Fractional (D CMap a (R CMap (Interval b)) g) where
---   recip = lift1 recip (\u -> - recip (u^2))
---   fromRational = dConst . fromRational
+instance R.Rounded a => Fractional (g :~> Interval a) where
+  recip = dap1 recip'
+  fromRational x = D $ fromRational x :# dZero
+
+instance Floating (g :~> Interval MPFR) where
+  pi = D $ pi :# dZero
+  log = dap1 log'
+  exp = dap1 exp'
+  sin = dap1 sin'
+  cos = dap1 cos'
+  -- tan      = lift1 tan $ recip . join (*) . cos
+  -- asin     = lift1 asin $ \x -> recip (sqrt (1 - join (*) x))
+  -- acos     = lift1 acos $ \x -> negate (recip (sqrt (1 - join (*) x)))
+  -- atan     = lift1 atan $ \x -> recip (1 + join (*) x)
+  -- sinh     = lift1 sinh cosh
+  -- cosh     = lift1 cosh sinh
+  -- tanh     = lift1 tanh $ recip . join (*) . cosh
+  -- asinh    = lift1 asinh $ \x -> recip (sqrt (1 + join (*) x))
+  -- acosh    = lift1 acosh $ \x -> recip (sqrt (join (*) x - 1))
+  -- atanh    = lift1 atanh $ \x -> recip (1 - join (*) x)
 
 -- Crossing my fingers that this is right!
 integrate_unit_interval :: Arr CMap Real Real g -> Real g
