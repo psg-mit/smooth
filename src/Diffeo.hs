@@ -89,13 +89,13 @@ dlinearWkn2 :: R.Rounded x => Additive b => (forall d. CMap (d, Interval x) b ->
 dlinearWkn2 l z (f :# f') = z f :# dlinearWkn2 l z' f'
   where
   -- z' :: forall d. CMap (d, ((a, x), k')) b -> CMap (d, (a, k)) b
-  z' g = l g1' where
+  z' g = proc (d, (a, k)) -> do
+    g1 -< ((d, (a, I.lift R.zero)), k)
+    where
     g' = proc ((d, ax), k') -> do
       g -< (d, (ax, k'))
     -- g1 :: CMap ((d, (a, x)), k) b
     g1 = z g'
-    g1' = proc ((d, (a, k)), x) -> do
-      g1 -< ((d, (a, I.lift R.zero)), k)
 
 dlinearWkn1 :: Additive b => Int -> (forall d. CMap (d, x) b -> CMap d b) -> (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, x) b k' -> Df g a b k
 dlinearWkn1 0 l z (f :# f') = dZero
@@ -158,6 +158,8 @@ lift1 f (D f') = D $ (f <<< arr fst) :# scalarMult (dWkn (arr snd) f') (arr (fst
 negate' :: R.Rounded a => Interval a :~> Interval a
 negate' = linearD RE.negate
 
+signum_deriv' :: R.Rounded a => Interval a :~> Interval a
+signum_deriv' = lift1 RE.signum_deriv signum_deriv'
 log' = lift1 M.log' recip'
 exp' = lift1 M.exp' exp'
 sin' = lift1 M.sin' cos'

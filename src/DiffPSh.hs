@@ -49,7 +49,7 @@ instance R.Rounded a => Num (g :~> Interval a) where
   D x * D y = D (dMult x y)
   abs = dap1 (lift1 (abs C.id) (signum dId))
   -- not totally accurate for signum here, it should blow up at 0...
-  signum = dap1 (lift1 (signum C.id) 0)
+  signum = dap1 (lift1 (signum C.id) signum_deriv')
   fromInteger x = D $ fromInteger x :# dZero
   negate = dap1 negate'
 
@@ -102,6 +102,10 @@ asMPFR x = x
 wkn :: Additive g => Additive a => g :~> a -> (g, x) :~> a
 wkn f = f @. fstD
 
-example4 :: Int -> IO ()
-example4 n = E.runAndPrint $ E.asMPFR $
-  getDerivTower ((\c -> integral (\x -> wkn c^2 * x)) dId) 3 !! n
+example :: Int -> IO ()
+example n = E.runAndPrint $ E.asMPFR $
+  getDerivTower ((\c -> integral (\x -> sin (wkn c * x))) dId) 3 !! n
+
+absExample :: (forall g. CMap g (Interval MPFR)) -> Int -> IO ()
+absExample y n = E.runAndPrint $
+  getDerivTower ((\c -> integral (\x -> abs (x - wkn c))) dId) y !! n

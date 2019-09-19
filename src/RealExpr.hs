@@ -100,6 +100,12 @@ signum = arr $ \(Interval l u) ->
     then I.lift R.negativeOne
     else Interval R.negativeOne R.one
 
+signum_deriv :: Rounded a => CMap (Interval a) (Interval a)
+signum_deriv = arr $ \(Interval l u) ->
+  if l > R.zero || u < R.zero
+    then I.lift R.zero
+    else I.realLine
+
 type B = (Bool, Bool)
 
 lt :: Rounded a => CMap (Interval a, Interval a) B
