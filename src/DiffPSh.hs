@@ -1,11 +1,6 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE UndecidableInstances, IncoherentInstances #-}
-{-# LANGUAGE Arrows #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module DiffPSh where
@@ -14,14 +9,12 @@ import Prelude hiding (Real)
 import Control.Arrow
 import Control.Category (Category)
 import qualified Control.Category as C
-import Control.Applicative (liftA2)
-import Control.Monad (join)
 import RealExpr (CMap (..))
 import Data.Number.MPFR (MPFR)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Expr as E
-import qualified RealExpr as E
+import qualified RealExpr as RE
 import Experimental.PSh
 import Diffeo
 
@@ -80,7 +73,7 @@ instance Floating (g :~> Interval MPFR) where
 
 -- Crossing my fingers that this is right!
 integral1' :: R.Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-integral1' = E.secondOrderPrim (E.integral' 16 unitInterval)
+integral1' = RE.secondOrderPrim (RE.integral' 16 unitInterval)
 
 -- Maybe this is working!!!
 integral' :: R.Rounded a => ((g, Interval a) :~> Interval a) -> (g :~> Interval a)

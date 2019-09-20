@@ -1,7 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE UndecidableInstances, IncoherentInstances #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
@@ -194,7 +192,7 @@ getValue :: g :~> a -> CMap g a
 getValue (D (f :# f')) = f <<< arr (\x -> (x, ()))
 
 deriv' :: Additive d => R.Rounded a => Df g (d, Interval a) b k -> Df g (d, Interval a) b k
-deriv' (f :# f') = dWkn (proc k -> do { z <- zeroV -< () ; o <- 1 -< () ; returnA -< ((z, o), k) }) f'
+deriv' (f :# f') = dWkn ((zeroV &&& 1) &&& C.id) f'
 
 deriv :: Additive g => R.Rounded a => (g, Interval a) :~> b -> (g, Interval a) :~> b
 deriv (D f) = D (deriv' f)
