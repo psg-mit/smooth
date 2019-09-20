@@ -89,15 +89,16 @@ integral' (D f) = D $ dlinearWkn2' integral1' (wknValueF integ f)
   integ :: R.Rounded a => CMap ((g, Interval a), k1) (Interval a) -> CMap (g, k1) (Interval a)
   integ h = integral1' (h <<< arr (\((g, k), a) -> ((g, a), k)))
 
-integral :: R.Rounded a => ((g, Interval a) :~> (Interval a) -> (g, Interval a) :~> (Interval a))
+integral :: R.Rounded a => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
   -> g :~> (Interval a)
 integral f = integral' (f sndD)
 
 asReal :: R CMap (Interval MPFR) g -> CMap g (Interval MPFR)
 asReal (R x) = x
 
-derivative :: Additive g => R.Rounded a => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
-  -> g :~> Interval a -> g :~> Interval a
+derivative :: Additive g => Additive b => R.Rounded a =>
+  ((g, Interval a) :~> Interval a -> (g, Interval a) :~> b)
+  -> g :~> Interval a -> g :~> b
 derivative f x = deriv (f sndD) @. pairD dId x
 
 asMPFR :: g :~> Interval MPFR -> g :~> Interval MPFR
@@ -109,6 +110,8 @@ wkn f = f @. fstD
 example :: Int -> IO ()
 example n = E.runAndPrint $ E.asMPFR $
   getDerivTower ((\c -> integral (\x -> sin (wkn c * x))) dId) 3 !! n
+
+
 
 absExample :: (forall g. CMap g (Interval MPFR)) -> Int -> IO ()
 absExample y n = E.runAndPrint $

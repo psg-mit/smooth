@@ -109,6 +109,9 @@ inEmptyCtx x = x
 runAndPrint :: Show a => CMap () a -> IO ()
 runAndPrint = mapM_ (putStrLn . show) . E.runCMap
 
+runAndPrint' :: Show a => Int -> CMap () a -> IO ()
+runAndPrint' n = mapM_ (putStrLn . show) . take 10 . E.runCMap
+
 sqrt2Example :: IO ()
 sqrt2Example = runAndPrint $ asMPFR $ dedekind_cut (\x -> x < 0 || (x ^ 2) < 2)
 
