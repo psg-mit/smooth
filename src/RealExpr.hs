@@ -129,6 +129,9 @@ integral' p i@(Interval a b) = CMap $ \f ->
      x2 <- integral' (p + 5) (Interval m b) -< f'
      returnA -< I.add (p + 5) x1 x2)
 
+integral1' :: R.Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
+integral1' = secondOrderPrim (integral' 16 I.unitInterval)
+
 forall_interval' :: (Show a, Rounded a) => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
 forall_interval' p i@(Interval a b) = CMap $ \f ->
   let m = R.average a b in

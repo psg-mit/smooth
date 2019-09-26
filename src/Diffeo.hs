@@ -90,14 +90,11 @@ dWkn1 ext (f :# f') = (f <<< (arr fst &&& ext)) :# dWkn1 ext' f'
     k <- ext -< (g, k')
     returnA -< (a, k)
 
-dlinearWkn' :: Additive b => (forall d. CMap (d, x) b -> CMap d b) -> Df g (a, x) b k -> Df g a b k
-dlinearWkn' l = dlinearWkn1 2 l id
+dlinearWkn :: R.Rounded x => Additive b => Df g (a, Interval x) b k -> Df g a b k
+dlinearWkn = dlinearWkn' id
 
-dlinearWkn2' :: R.Rounded x => Additive b => (forall d. CMap (d, Interval x) b -> CMap d b) -> Df g (a, Interval x) b k -> Df g a b k
-dlinearWkn2' l = dlinearWkn2 l id
-
-dlinearWkn2 :: R.Rounded x => Additive b => (forall d. CMap (d, Interval x) b -> CMap d b) -> (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, Interval x) b k' -> Df g a b k
-dlinearWkn2 l z (f :# f') = z f :# dlinearWkn2 l z' f'
+dlinearWkn' :: R.Rounded x => Additive b => (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, Interval x) b k' -> Df g a b k
+dlinearWkn' z (f :# f') = z f :# dlinearWkn' z' f'
   where
   -- z' :: forall d. CMap (d, ((a, x), k')) b -> CMap (d, (a, k)) b
   z' g = proc (d, (a, k)) -> do
@@ -107,19 +104,6 @@ dlinearWkn2 l z (f :# f') = z f :# dlinearWkn2 l z' f'
       g -< (d, (ax, k'))
     -- g1 :: CMap ((d, (a, x)), k) b
     g1 = z g'
-
-dlinearWkn1 :: Additive b => Int -> (forall d. CMap (d, x) b -> CMap d b) -> (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, x) b k' -> Df g a b k
-dlinearWkn1 0 l z (f :# f') = dZero
-dlinearWkn1 n l z (f :# f') = z f :# dlinearWkn1 (n - 1) l z' f'
-  where
-  -- z' :: forall d. CMap (d, ((a, x), k')) b -> CMap (d, (a, k)) b
-  z' g = l g1' where
-    g' = proc ((d, ax), k') -> do
-      g -< (d, (ax, k'))
-    -- g1 :: CMap ((d, (a, x)), k) b
-    g1 = z g'
-    g1' = proc ((d, (a, k)), x) -> do
-      g1 -< ((d, (a, x)), k)
 
 dId :: Additive u => u :~> u
 dId = D $ arr fst :# arr (fst . snd) :# dZero

@@ -71,16 +71,12 @@ instance Floating (g :~> Interval MPFR) where
   -- acosh    = lift1 acosh $ \x -> recip (sqrt (join (*) x - 1))
   -- atanh    = lift1 atanh $ \x -> recip (1 - join (*) x)
 
--- Crossing my fingers that this is right!
-integral1' :: R.Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-integral1' = RE.secondOrderPrim (RE.integral' 16 unitInterval)
-
 -- Maybe this is working!!!
 integral' :: R.Rounded a => ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
-integral' (D f) = D $ dlinearWkn2' integral1' (wknValueF integ f)
+integral' (D f) = D $ dlinearWkn (wknValueF integ f)
   where
   integ :: R.Rounded a => CMap ((g, Interval a), k1) (Interval a) -> CMap (g, k1) (Interval a)
-  integ h = integral1' (h <<< arr (\((g, k), a) -> ((g, a), k)))
+  integ h = RE.integral1' (h <<< arr (\((g, k), a) -> ((g, a), k)))
 
 integral :: R.Rounded a => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
   -> g :~> (Interval a)
