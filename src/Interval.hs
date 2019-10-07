@@ -30,7 +30,7 @@ add p (Interval l1 u1) (Interval l2 u2) =
 
 sub :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
 sub p (Interval l1 u1) (Interval l2 u2) =
-  Interval (R.sub p Down l1 l2) (R.sub p Up u1 u2)
+  Interval (R.sub p Down l1 u2) (R.sub p Up u1 l2)
 
 width :: Rounded a => Prec -> Interval a -> Interval a
 width p (Interval l u) = sub p (lift u) (lift l)
