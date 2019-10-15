@@ -56,8 +56,8 @@ cmp (Interval l1 u1) (Interval l2 u2)
 
 recip :: Rounded a => Prec -> Interval a -> Interval a
 recip p i@(Interval a b)
-  | R.zero < a = monotone (\d -> R.div p d R.one) i
-  | b < R.zero = monotone (\d -> R.div p d R.one) (flip i)
+  | R.zero <= a = monotone (\d -> R.div p d R.one) i
+  | b <= R.zero = monotone (\d -> R.div p d R.one) (flip i)
   | otherwise  = realLine
 
 maybe_cut_bisection :: Rounded a => (a -> Maybe Ordering) -> Interval a -> Interval a

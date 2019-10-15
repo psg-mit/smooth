@@ -58,9 +58,6 @@ instance R.Rounded a => VectorSpace (Interval a) (Interval a) where
 dZero :: Additive b => Df a a' b k
 dZero = zeroV :# dZero
 
-dConst :: Additive v => v :~> v
-dConst = D $ arr fst :# dZero
-
 dSum :: Additive b => Df a a' b k -> Df a a' b k -> Df a a' b k
 dSum (f :# f') (g :# g') = RE.ap2 (^+^) f g :# dSum f' g'
 
