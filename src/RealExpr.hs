@@ -1,6 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
+{-# LANGUAGE TypeOperators #-}
 
 module RealExpr where
 
@@ -10,6 +11,7 @@ import qualified Control.Category as C
 import Control.Arrow
 import Data.Number.MPFR (MPFR)
 import Data.IORef
+import Data.MemoTrie
 import Data.Ratio (numerator, denominator)
 import Debug.Trace
 
@@ -33,6 +35,45 @@ instance Arrow CMap where
     ((a, b), f' *** g')
   CMap f1 &&& CMap f2 = CMap $ \i ->
     let (a, f1') = f1 i in let (b, f2') = f2 i in ((a, b), f1' &&& f2')
+
+toDiscrete :: Traversable t => t (CMap a b) -> CMap a (t b)
+toDiscrete fs = CMap $ \x -> let res = fmap (\(CMap f) -> f x) fs in
+  (fmap fst res, toDiscrete (fmap snd res))
+
+parallel :: [CMap a b] -> CMap [a] [b]
+parallel fs = CMap $ \xs -> let (rs, fs') = unzip (zipWith (\(CMap f) x -> f x) fs xs) in
+  (rs, parallel fs')
+
+parallelmt :: HasTrie i => (i -> CMap a b) -> CMap (i :->: a) (i :->: b)
+parallelmt f = CMap $ \x ->
+  let results = memo (\i -> let CMap f' = f i in f' (untrie x i)) in
+  (trie (\i -> fst (results i)), parallelmt (memo (\i -> snd (results i))))
+
+parallelmtg :: HasTrie i => (i -> CMap (g, a) b) -> CMap (g, i :->: a) (i :->: b)
+parallelmtg f = CMap $ \(g, x) ->
+  let results = memo (\i -> let CMap f' = f i in f' (g, untrie x i)) in
+  (trie (\i -> fst (results i)), parallelmtg (memo (\i -> snd (results i))))
+
+lift2mt :: HasTrie i => CMap (a, b) c -> CMap (i :->: a, i :->: b) (i :->: c)
+lift2mt f = parallelmt (const f) <<< arr (\(x, y) -> trie (\i -> (untrie x i, untrie y i)))
+
+tensor0 :: HasTrie i => CMap g a -> CMap g (i :->: a)
+tensor0 f = fmap (trie . const) f
+
+tensor1 :: HasTrie i => CMap a b -> CMap (i :->: a) (i :->: b)
+tensor1 = parallelmt . const
+
+tensor2 :: HasTrie i => HasTrie j => CMap (a, b) c -> CMap (i :->: a, j :->: b) ((i, j) :->: c)
+tensor2 f = parallelmt (const f) <<< arr (\(x, y) -> trie (\(i, j) -> (untrie x i, untrie y j)))
+
+replicateI :: CMap g a -> CMap g (i -> a)
+replicateI = fmap const
+
+curryTrie :: HasTrie i => HasTrie j => (i, j) :->: a -> i :->: (j :->: a)
+curryTrie f = trie $ \i -> trie $ \j -> untrie f (i, j)
+
+uncurryTrie :: HasTrie i => HasTrie j => i :->: (j :->: a) -> (i, j) :->: a
+uncurryTrie f = trie $ \(i, j) -> untrie (untrie f i) j
 
 -- Not sure that this is right with the increasing precision in gab'
 secondOrderPrim :: CMap (a -> b) c -> CMap (g, a) b -> CMap g c

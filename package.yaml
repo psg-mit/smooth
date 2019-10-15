@@ -22,6 +22,7 @@ dependencies:
 - base >= 4.7 && < 5
 - containers
 - hmpfr
+- MemoTrie
 
 library:
   source-dirs: src
