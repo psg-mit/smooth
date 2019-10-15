@@ -1,3 +1,13 @@
+{-|
+Lift the first-order language for continuous maps `CMap`
+into a higher-order language in Haskell by simply
+using generalized points `CMap g a` at "stage of definition" `g`.
+
+For instance, `add : CMap (R, R) R` becomes
+`(+) : forall g. CMap g R -> CMap g R -> CMap g R`
+which is "equivalent".
+-}
+
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}

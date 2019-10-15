@@ -1,3 +1,9 @@
+{-|
+A module for higher-order, higher-dimensional
+automatic differentiation a la
+http://conal.net/blog/posts/higher-dimensional-higher-order-derivatives-functionally
+-}
+
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -17,8 +23,6 @@ import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Expr as E
 import qualified RealExpr as E
-
--- http://conal.net/blog/posts/higher-dimensional-higher-order-derivatives-functionally
 
 type a :-* b = a -> b
 data a :> b = D b (a :-* (a :> b))

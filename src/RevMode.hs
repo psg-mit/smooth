@@ -32,8 +32,7 @@ data a :~> b where
 
 instance (HasTrie i, Additive v) => Additive (i :->: v) where
   zeroV = RE.tensor0 zeroV
-  (^+^) = RE.lift2mt (^+^)
-  negateV = RE.tensor1 negateV
+  addV = RE.lift2mt addV
 
 dZero :: HasTrie a => HasTrie k => Df g a b k
 dZero = zeroV :# dZero
@@ -44,7 +43,7 @@ dShift (f :# f') = undefined
 dSum :: HasTrie k => HasTrie a' =>
   Df a a' b k -> Df a a' b k -> Df a a' b k
 dSum (f :# f') (g :# g') = fplusg :# dSum f' g' where
-  fplusg = RE.ap2 (^+^) f g
+  fplusg = RE.ap2 addV f g
 
 unUnitTrie :: HasTrie i => ((i, ()) :->: a) -> i :->: a
 unUnitTrie f = trie $ \i -> untrie f (i, ())
@@ -101,7 +100,7 @@ pairD' (f :# f') (g :# g') = fg :# (pairD' f' g') where
   fg = proc (g, (b, c)) -> do
     fi <- f -< (g, b)
     gi <- g -< (g, c)
-    (^+^) -< (fi, gi)
+    addV -< (fi, gi)
 
 negate' :: HasTrie u => u :~> (u :->: Interval MPFR)
 negate' = linearD neg neg where
@@ -168,13 +167,13 @@ dWkn2 = undefined
 linCompose :: HasTrie a => HasTrie b => Additive ka =>
   Df g b c ka
   -> Df g a (b :->: Interval MPFR) ka -> Df g a c ka
-linCompose f@(f0 :# f') g@(g0 :# g') = g0f0 :# dSum gf' g'f
+linCompose f@(f0 :# f') g@(g0 :# g') = undefined -- g0f0 :# dSum gf' g'f
   where
   g0f0 = proc (g, c) -> do
     b <- f0 -< (g, c)
-    g0 -< (g, b)
-  gf' = linCompose (dWkn1 g0 f') (dWkn g)
-  g'f = linCompose (dWkn2 f') g'
+    g0 -< undefined -- (g, b)
+  gf' = undefined -- linCompose (dWkn1 g0 f') (dWkn g)
+  g'f = undefined -- linCompose (dWkn2 f') g'
 -- linCompose g@(g0 :# g') f@(f0 :# f') =
 --   (g0 <<< (arr fst &&& f2)) :# dSum (linCompose (dWkn1 f0' g') (dWkn (arr snd) f))
 --                       (linCompose (dWkn (C.id *** arr snd) g) f')

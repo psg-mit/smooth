@@ -1,3 +1,8 @@
+{-|
+Exact real arithmetic implementations, based on MPFR implementations,
+of various special functions.
+-}
+
 {-# LANGUAGE FlexibleInstances #-}
 
 module MPFR where

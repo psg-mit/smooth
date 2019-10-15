@@ -23,34 +23,61 @@ import qualified MPFR as M
 -- http://conal.net/blog/posts/higher-dimensional-higher-order-derivatives-functionally
 
 infixr :#
+
+{-- `Df a a b ()` is a Taylor series for a smooth function `f : a -> b`.
+  It is represented by a stream of continuous maps, for the function
+  and all its derivatives:
+
+  f  : (a, ()) -> b
+  f' : (a, (a, ())) -> b
+  f'' : (a, (a, (a, ()))) -> b
+  ...
+
+  Each of f, f', f'' is multilinear in all of the `a` arguments
+  after the first one, which is the one around which the Taylor expansion
+  is taken. We expect `a` and `b` to be vector spaces.
+
+  `Df g a b ()` is "value pullback" of a Taylor series for a smooth
+  function `f : a -> b`. For instance, if we apply `f` to a point
+  `x : g -> a` (represented as a continuous map from some stage of
+  definition `g`), then we get a Taylor series `Df g a b ()`.
+
+  In general, we have `Df g a b k`, where the final argument `k`
+  is useful for inductively characterizing the stream of derivatives.
+  `k` essentially represents an unary natural number:
+  () = 0
+  (a, ()) = 1
+  (a, (a, ())) = 2
+  ...
+
+  This allows us to inductively define the stream of derivatives.
+  A `Df g a b k` is a stream of derivatives starting from the `k`th
+  derivative.
+-}
 data Df g a b k = CMap (g, k) b :# Df g a b (a, k)
 newtype a :~> b = D (Df a a b ())
 
 class Additive v where
   zeroV   :: CMap g v         -- the zero vector
-  (^+^)   :: CMap (v, v) v    -- add vectors
-  negateV :: CMap v v         -- additive inverse
+  addV   :: CMap (v, v) v    -- add vectors
 
 instance Additive () where
   zeroV = arr (\_ -> ())
-  (^+^) = arr (\_ -> ())
-  negateV = arr (\_ -> ())
+  addV = arr (\_ -> ())
 
 instance (Additive u, Additive v) => Additive (u, v) where
   zeroV = zeroV &&& zeroV
-  (^+^) = proc ((u1, v1), (u2, v2)) -> do
-    u <- (^+^) -< (u1, u2)
-    v <- (^+^) -< (v1, v2)
+  addV = proc ((u1, v1), (u2, v2)) -> do
+    u <- addV -< (u1, u2)
+    v <- addV -< (v1, v2)
     returnA -< (u, v)
-  negateV = negateV *** negateV
 
 class Additive v => VectorSpace v s | v -> s where
   (*^)    :: CMap (s, v) v    -- scale a vector
 
 instance R.Rounded a => Additive (Interval a) where
   zeroV = 0
-  (^+^) = RE.add
-  negateV = RE.negate
+  addV = RE.add
 
 instance R.Rounded a => VectorSpace (Interval a) (Interval a) where
   (*^) = RE.mul
@@ -59,7 +86,7 @@ dZero :: Additive b => Df a a' b k
 dZero = zeroV :# dZero
 
 dSum :: Additive b => Df a a' b k -> Df a a' b k -> Df a a' b k
-dSum (f :# f') (g :# g') = RE.ap2 (^+^) f g :# dSum f' g'
+dSum (f :# f') (g :# g') = RE.ap2 addV f g :# dSum f' g'
 
 scalarMult :: VectorSpace v s => Df g g' s k -> Df g g' v k -> Df g g' v k
 scalarMult s@(s0 :# s') x@(x0 :# x') =

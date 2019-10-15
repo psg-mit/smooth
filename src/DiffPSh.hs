@@ -1,3 +1,10 @@
+{-|
+Lifting the module `Diffeo` into the category of
+presheaves, adding higher-order functions. In particular,
+we implement integration as a smooth higher-order function
+of type `(R -> R) -> R`.
+-}
+
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}

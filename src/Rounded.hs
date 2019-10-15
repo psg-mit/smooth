@@ -1,3 +1,9 @@
+{-|
+A typeclass for multi-precision arithmetic,
+so that we can implement the fundamental arithmetic
+operations without explicitly tying ourselves to MPFR.
+-}
+
 module Rounded where
 
 import Data.Ratio (Ratio)

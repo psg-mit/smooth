@@ -1,3 +1,9 @@
+{-|
+A generic module for performing interval arithmetic using
+the `Rounded` typeclass, which represents approximate
+number types with operations that permit rounding up and down.
+-}
+
 module Interval where
 
 import Prelude hiding (flip)

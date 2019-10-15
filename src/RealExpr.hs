@@ -1,3 +1,13 @@
+{-|
+A simple first-order language for exact real arithmetic,
+based on a Zelus-like stream encoding.
+`CMap a b` represents a continuous map from a space `a`
+to a space `b`, where the Haskell types `a` and `b` represent
+the types of finite approximations of those spaces.
+For instance, `Interval MPFR` represents our usual real
+number type.
+-}
+
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
