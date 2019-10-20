@@ -8,6 +8,7 @@ Admits higher-order derivatives, but not higher-order functions.
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Diffeo where
 
@@ -95,6 +96,9 @@ instance R.Rounded a => Additive (Interval a) where
 dZero :: Additive b => Df a a' b k
 dZero = zeroV :# dZero
 
+zeroD :: Additive b => a :~> b
+zeroD = D dZero
+
 dSum :: Additive b => Df a a' b k -> Df a a' b k -> Df a a' b k
 dSum (f :# f') (g :# g') = RE.ap2 addV f g :# dSum f' g'
 
@@ -133,6 +137,14 @@ dWkn1 ext (f :# f') = (f <<< (arr fst &&& ext)) :# dWkn1 ext' f'
   ext' = proc (g, (a, k')) -> do
     k <- ext -< (g, k')
     returnA -< (a, k)
+
+dWknA :: forall a' a g b k. CMap a' a -> Df g a b k -> Df g a' b k
+dWknA fa = go (arr id) where
+  go :: forall k' k. CMap k' k -> Df g a b k -> Df g a' b k'
+  go fk (f :# f') = f1 :# go (fa *** fk) f' where
+    f1 = proc (g, k') -> do
+       k <- fk -< k'
+       f -< (g, k)
 
 dlinearWkn :: R.Rounded x => Additive b => Df g (a, Interval x) b k -> Df g a b k
 dlinearWkn = dlinearWkn' id
@@ -174,6 +186,9 @@ pairD (D f) (D g) = D (pairD' f g)
 
 add :: R.Rounded a => (Interval a, Interval a) :~> Interval a
 add = linearD RE.add
+
+addD :: Additive a => g :~> a -> g :~> a -> g :~> a
+addD (D x) (D y) = D (dSum x y)
 
 {-| Composition of two smooth maps yields a smooth map -}
 (@.) :: Additive c => (b :~> c) -> (a :~> b) -> (a :~> c)
@@ -236,11 +251,71 @@ getDerivTower (D f) x = go (wknValue x f) (arr (\_ -> ())) where
 getValue :: g :~> a -> CMap g a
 getValue (D (f :# f')) = f <<< arr (\x -> (x, ()))
 
+fwdDeriv' :: Additive a => CMap ((g, (a, a)), k') ((g, a), k) -> Df (g, a) (g, a) b k -> Df (g, (a, a)) (g, (a, a)) b k'
+fwdDeriv' g (f :# f') = (f <<< g) :# fwdDeriv' g2 f'
+  where
+  g2 = proc ((g', (x', dx')), ((g, (x, dx)), k')) -> do
+    dx2 <- addV -< (x', dx)
+    k <- g -< ((g, (x, dx2)), k')
+    returnA -< ((g', dx'), k)
+
+fwdDeriv :: Additive a => (g, a) :~> b -> (g, (a, a)):~> b
+fwdDeriv (D f) = D (fwdDeriv' (arr (\((g, (a, da)), ()) -> ((g, a), ()))) f)
+
+getDeriv :: Additive g => g :~> a -> g :~> a
+getDeriv (D (f :# f')) = D (dWkn1 (zeroV &&& arr snd) f')
+
+justDeriv :: Additive g => Additive a => g :~> a -> g :~> a
+justDeriv (D f) = D (zeroV :# dWkn zeroV f)
+
+genDeriv' :: Additive d => CMap (g, k) a
+  -> Df g (d, a) b k -> Df g (d, a) b k
+genDeriv' dx (f :# f') = dWkn1 ((zeroV &&& dx) &&& arr snd) f'
+
 deriv' :: Additive d => R.Rounded a => Df g (d, Interval a) b k -> Df g (d, Interval a) b k
 deriv' (f :# f') = dWkn ((zeroV &&& 1) &&& C.id) f'
 
 deriv :: Additive g => R.Rounded a => (g, Interval a) :~> b -> (g, Interval a) :~> b
 deriv (D f) = D (deriv' f)
+
+-- The continuous map argument is the directional derivative
+genDeriv :: Additive g => (g, a) :~> b -> CMap g a -> (g, a) :~> b
+genDeriv (D f) dx = D $ genDeriv' (dx <<< arr (fst . fst)) f
+
+genDeriv'' :: CMap (g, k) a
+  -> Df g a b k -> Df g a b k
+genDeriv'' dx (f :# f') = dWkn1 (dx &&& arr snd) f'
+
+fwdDerDU :: Additive b => CMap k' k ->
+  Df g g b (g, k) -> Df (g, g) (g, g) b ((g, g), k')
+fwdDerDU fext f@(f0 :# f') = f1 :#
+  fwdDerDU fext' f'
+  where
+  f1 = proc ((x, u), ((dx, du), k')) -> do
+    k <- fext -< k'
+    f0 -< (x, (du, k))
+  fext' = arr fst *** fext
+
+fwdDerU :: Additive b =>
+  Df g g b (g, k) -> Df (g, g) (g, g) b k
+fwdDerU (f' :# f'') = f1 :# dWkn (arr fst *** arr id) (fwdDerU f'')
+  where
+  f1 = proc ((x, u), k) -> do
+    f' -< (x, (u, k))
+
+fwdDerDUs :: Additive b => CMap k' k ->
+  Df g g b (g, k) -> Df (g, g) (g, g) b ((g, g), k')
+fwdDerDUs fext f'@(_ :# f'') =
+  dSum (fwdDerDU fext f')
+       (zeroV :# fwdDerDUs (arr fst *** fext) f'')
+
+fwdDer' :: Additive b =>
+  Df g g b k -> Df (g, g) (g, g) b k
+fwdDer' (f :# f'@(f0' :# f'')) =
+  dSum (fwdDerU f') (zeroV :# fwdDerDUs (arr id) f')
+
+fwdDer :: Additive b => g :~> b -> (g, g) :~> b
+fwdDer (D f) = D (fwdDer' f)
 
 {-| An example function. Calculates the `n`th derivative of
     (\x -> exp (2 * x)) at x = 0.

@@ -97,6 +97,14 @@ derivative :: Additive g => Additive b => R.Rounded a =>
   -> g :~> Interval a -> g :~> b
 derivative f x = deriv (f sndD) @. pairD dId x
 
+fwd_deriv' :: Additive g => Additive a => Additive b =>
+  (g, a) :~> b -> g :~> a -> g :~> a -> g :~> b
+fwd_deriv' f x dx = dap2 (fwdDer f) (pairD dId x) (pairD zeroD dx)
+
+fwd_deriv :: Additive g => Additive a => Additive b =>
+  ((g, a) :~> a -> (g, a) :~> b) -> g :~> a -> g :~> a -> g :~> b
+fwd_deriv f = fwd_deriv' (f sndD)
+
 asMPFR :: g :~> Interval MPFR -> g :~> Interval MPFR
 asMPFR x = x
 
@@ -107,6 +115,14 @@ example :: Int -> IO ()
 example n = E.runAndPrint $ E.asMPFR $
   getDerivTower ((\c -> integral (\x -> sin (wkn c * x))) dId) 3 !! n
 
+example2 :: IO ()
+example2 = E.runAndPrint $ E.asMPFR $ getValue $
+  fwd_deriv (\c -> integral (\x -> abs (x - wkn c))) 0.6 1
+
+-- I think this is right!
+example3 :: (forall g. CMap g (Interval MPFR)) -> Int -> IO ()
+example3 y n = E.runAndPrint $ E.asMPFR $ getDerivTower
+  ((\z -> fwd_deriv (\x -> x^2) z z) dId) y !! n
 
 
 absExample :: (forall g. CMap g (Interval MPFR)) -> Int -> IO ()
@@ -115,4 +131,4 @@ absExample y n = E.runAndPrint $
 
 internalDiffExample :: IO ()
 internalDiffExample = E.runAndPrint $ E.asMPFR $ getValue $
-  derivative (\c -> integral (\x -> abs (x - wkn c))) 3
+  derivative (\c -> integral (\x -> abs (x - wkn c))) 0.6

@@ -1,7 +1,7 @@
 {-|
 A module for higher-order, higher-dimensional
 automatic differentiation a la
-http://conal.net/blog/posts/higher-dimensional-higher-order-derivatives-functionally
+<http://conal.net/blog/posts/higher-dimensional-higher-order-derivatives-functionally>
 -}
 
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
