@@ -119,32 +119,27 @@ getDerivTower' :: R.Rounded a => (Interval a :~> Interval a -> Interval a :~> In
   -> CMap g (Interval a) -> [CMap g (Interval a)]
 getDerivTower' f = getDerivTower (f dId)
 
-example :: Int -> IO ()
-example n = E.runAndPrint $ E.asMPFR $
-  getDerivTower' (\c -> integral (\x -> sin (wkn c * x))) 3 !! n
+example :: Int -> CMap () (Interval MPFR)
+example n = getDerivTower' (\c -> integral (\x -> sin (wkn c * x))) 3 !! n
 
-example2 :: IO ()
-example2 = E.runAndPrint $ E.asMPFR $ getValue $
-  fwd_deriv (\c -> integral (\x -> abs (x - wkn c))) 0.6 1
+example2 :: CMap () (Interval MPFR)
+example2 = getValue $ fwd_deriv (\c -> integral (\x -> abs (x - wkn c))) 0.6 1
 
 -- I think this is right!
-example3 :: CMap () (Interval MPFR) -> Int -> IO ()
-example3 y n = E.runAndPrint $ E.asMPFR $ getDerivTower'
+example3 :: CMap () (Interval MPFR) -> Int -> CMap () (Interval MPFR)
+example3 y n = getDerivTower'
   (\z -> fwd_deriv (\x -> x^2) z z) y !! n
 
 
-absExample :: CMap () (Interval MPFR) -> Int -> IO ()
-absExample y n = E.runAndPrint $
-  getDerivTower' (\c -> integral (\x -> abs (x - wkn c))) y !! n
+absExample :: CMap () (Interval MPFR) -> Int -> CMap () (Interval MPFR)
+absExample y n = getDerivTower' (\c -> integral (\x -> abs (x - wkn c))) y !! n
 
-internalDiffExample :: IO ()
-internalDiffExample = E.runAndPrint $ E.asMPFR $ getValue $
-  derivative (\c -> integral (\x -> abs (x - wkn c))) 0.6
+internalDiffExample :: CMap () (Interval MPFR)
+internalDiffExample = getValue $ derivative (\c -> integral (\x -> abs (x - wkn c))) 0.6
 
-reluIntegralExample :: CMap () (Interval MPFR) -> Int -> IO ()
-reluIntegralExample y n = M.runAndPrintReal $
+reluIntegralExample :: CMap () (Interval MPFR) -> Int -> CMap () (Interval MPFR)
+reluIntegralExample y n =
   getDerivTower' (\c -> integral (\x -> max 0 (x - wkn c))) y !! n
 
-reluExample :: CMap () (Interval MPFR) -> Int -> IO ()
-reluExample x n = E.runAndPrint $ E.asMPFR $ getDerivTower'
-  (max 0) x !! n
+reluExample :: CMap () (Interval MPFR) -> Int -> CMap () (Interval MPFR)
+reluExample x n = getDerivTower' (max 0) x !! n

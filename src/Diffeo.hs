@@ -315,5 +315,5 @@ fwdDer (D f) = D (fwdDer' f)
 {-| An example function. Calculates the `n`th derivative of
     (\x -> exp (2 * x)) at x = 0.
 -}
-diffeoExample :: Int -> IO ()
-diffeoExample n = M.runAndPrintReal $ E.asMPFR $ getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n
+diffeoExample :: Int -> CMap () M.R
+diffeoExample n = getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n

@@ -20,10 +20,13 @@ module Expr (
   Num ((+), (*), (-), abs, negate),
   Fractional (..),
   (!!),
+  CMap (..),
+  Bool,
 ) where
 
 import Prelude hiding (max, min, pow, (&&), (||), (^), (<), (>))
 
+import Data.List (intercalate)
 import GHC.Float (Floating (..))
 import Control.Arrow (Arrow, arr, (<<<), (&&&))
 import Control.Category (Category)
@@ -36,6 +39,9 @@ import qualified Rounded as R
 import Data.Number.MPFR (MPFR)
 
 type K = CMap ()
+
+instance Show a => Show (CMap () a) where
+  show = intercalate "\n" . map show . E.runCMap
 
 ap2 :: CMap (a, b) c -> CMap g a -> CMap g b -> CMap g c
 ap2 f x y = f <<< x &&& y
@@ -153,10 +159,3 @@ runAndPrint = mapM_ (putStrLn . show) . E.runCMap
 
 runAndPrint' :: Show a => Int -> CMap () a -> IO ()
 runAndPrint' n = mapM_ (putStrLn . show) . take 10 . E.runCMap
-
--- sqrt2Example :: IO ()
--- sqrt2Example = runAndPrint $ asMPFR $ dedekind_cut (\x -> x < 0 || (x ^ 2) < 2)
-
--- quantificationExample :: IO ()
--- quantificationExample = runAndPrint $
---   (exists_unit_interval (\x -> isTrue (x < asMPFR 0.5 && x > 0.3)))

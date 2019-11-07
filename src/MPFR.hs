@@ -12,7 +12,7 @@ import Prelude
 import qualified Interval as I
 import Interval (Interval)
 import RealExpr
-import Expr (ap1, ap2)
+import Expr (ap1, ap2, dedekind_cut, exists_unit_interval, isTrue )
 import Rounded as R
 import qualified Data.Number.MPFR as M
 import qualified Language.Haskell.HsColour.ANSI as C
@@ -251,5 +251,5 @@ showIntervals = go "" ""
     then (replicate (eh - el) '0' ++ sl, sh, eh)
     else (sl, replicate (el - eh) '0' ++ sh, el)
 
-runAndPrintReal :: CMap () (Interval M.MPFR) -> IO ()
-runAndPrintReal = putStrLn . showIntervals . runCMap
+showReal :: CMap () (Interval M.MPFR) -> String
+showReal = showIntervals . runCMap
