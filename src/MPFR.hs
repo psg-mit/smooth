@@ -13,9 +13,70 @@ import qualified Interval as I
 import Interval (Interval)
 import RealExpr
 import Expr ()
-import qualified Rounded as R
+import Rounded as R
 import qualified Data.Number.MPFR as M
 import qualified Language.Haskell.HsColour.ANSI as C
+import GHC.Float
+
+instance Rounded M.MPFR where
+  add p d = M.add (roundDirMPFR d) (fromIntegral p)
+  sub p d = M.sub (roundDirMPFR d) (fromIntegral p)
+  mul p d = M.mul (roundDirMPFR d) (fromIntegral p)
+  div p d = M.div (roundDirMPFR d) (fromIntegral p)
+  pow p d x k = M.powi (roundDirMPFR d) (fromIntegral p) x k
+  negativeInfinity = M.setInf 0 (-1)
+  positiveInfinity = M.setInf 0 1
+  zero = M.zero
+  one = M.one
+  min a b = case M.cmp a b of
+    Just LT -> a
+    Just _ -> b
+  max a b = case M.cmp a b of
+    Just GT -> a
+    Just _ -> b
+  min' p d = M.minD (roundDirMPFR d) (fromIntegral p)
+  max' p d = M.maxD (roundDirMPFR d) (fromIntegral p)
+  neg p d = M.neg (roundDirMPFR d) (fromIntegral p)
+  average a b = let p = (M.getPrec a `Prelude.max` M.getPrec b) + 1 in
+    M.mul2i M.Near (fromIntegral p) (M.add M.Near p a b) (-1)
+  mulpow2 i p d x = M.mul2i (roundDirMPFR d) (fromIntegral p) x i
+  ofInteger p d = M.fromIntegerA (roundDirMPFR d) (fromIntegral p)
+  negativeOne = ofInteger 10 Down (-1)
+  isInfinity = M.isInfinite
+  isZero = M.isZero
+  ofString p d = M.stringToMPFR (roundDirMPFR d) (fromIntegral p) 10
+  toString x =
+    let exp_notation = 4 in
+    let trim = False in
+      if M.isNumber x then
+        let (s, e) = M.mpfrToString M.Near 0 10 x in
+        let e' = fromIntegral e in
+        let (sign, str') = if s !! 0 == '-' then ("-", tail s) else ("", s)
+        in
+        let str = if trim then trim_right (Prelude.max 1 e') str'  '0' else str'
+        in
+          if e' > length str || e' < - exp_notation then
+            sign ++ string_insert str 1 "." ++ "e" ++ show (e' - 1)
+          else if e > 0 then
+            sign ++ string_insert str e' "."
+          else
+            sign ++ "0." ++ replicate (-e') '0' ++ str
+      else
+      if M.isNaN x then "NaN"
+      else if M.greater x M.zero
+        then "+Infinity"
+        else "-Infinity"
+
+trim_right :: Int -> String -> Char -> String
+trim_right min_length s c = let (s1, s2) = splitAt min_length s in
+  s1 ++ trimAllChar c s2
+
+trimAllChar :: Char -> String -> String
+trimAllChar c = reverse . dropWhile (== c) . reverse
+
+string_insert :: String -> Int -> String -> String
+string_insert s i toInsert = let (s1, s2) = splitAt i s in
+  s1 ++ toInsert ++ s2
 
 type R = Interval M.MPFR
 
@@ -31,9 +92,6 @@ constant f = withPrec $ \p _ -> I.rounded (\d -> f (R.roundDirMPFR d) (fromInteg
 
 -- Many monotone functions
 
-exp' :: CMap R R
-exp' = monotone M.exp
-
 exp2' :: CMap R R
 exp2' = monotone M.exp2
 
@@ -45,9 +103,6 @@ exp10' = monotone M.exp10
 
 exp10 :: CMap g R -> CMap g R
 exp10 = ap1 exp10'
-
-log' :: CMap R R
-log' = monotone M.log
 
 log2' :: CMap R R
 log2' = monotone M.log2
@@ -61,48 +116,11 @@ log10' = monotone M.log10
 log10 :: CMap g R -> CMap g R
 log10 = ap1 log10'
 
-log1p' :: CMap R R
-log1p' = monotone M.log1p
-
-log1p :: CMap g R -> CMap g R
-log1p = ap1 log1p'
-
-expm1' :: CMap R R
-expm1' = monotone M.expm1
+-- log1p :: CMap g R -> CMap g R
+-- log1p = ap1 log1p'
 
 expm1 :: CMap g R -> CMap g R
-expm1 = ap1 expm1'
-
-sqrt' :: CMap R R
-sqrt' = monotone M.sqrt
-
-sinh' :: CMap R R
-sinh' = monotone M.sinh
-
-tanh' :: CMap R R
-tanh' = monotone M.tanh
-
--- NOTE: produces NaN when given inputs out of range
-asin' :: CMap R R
-asin' = monotone M.asin
-
-atan' :: CMap R R
-atan' = monotone M.atan
-
-asinh' :: CMap R R
-asinh' = monotone M.asinh
-
-acosh' :: CMap R R
-acosh' = monotone M.acosh
-
-atanh' :: CMap R R
-atanh' = monotone M.atanh
-
-
-
--- Monotone decreasing (antitone) functions
-acos' :: CMap R R
-acos' = antitone M.acos
+expm1 = ap1 cexpm1
 
 -- Constants
 
@@ -136,9 +154,6 @@ sinI prec i@(I.Interval a b)
   I.Interval deriva1 deriva2 = I.rounded (\d -> M.cos (R.roundDirMPFR d) prec a)
   I.Interval derivb1 derivb2 = I.rounded (\d -> M.cos (R.roundDirMPFR d) prec b)
 
-sin' :: CMap R R
-sin' = withPrec (sinI . fromIntegral)
-
 cosI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
 cosI prec i@(I.Interval a b)
   | R.ofInteger (fromIntegral prec) R.Down 3 < I.lower (I.width (fromIntegral prec) i)
@@ -160,9 +175,6 @@ cosI prec i@(I.Interval a b)
   I.Interval negderiva1 negderiva2 = I.rounded (\d -> M.sin (R.roundDirMPFR d) prec a)
   I.Interval negderivb1 negderivb2 = I.rounded (\d -> M.sin (R.roundDirMPFR d) prec b)
 
-cos' :: CMap R R
-cos' = withPrec (cosI . fromIntegral)
-
 coshI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
 coshI prec i@(I.Interval a b)
   | R.positive a = coshi
@@ -171,29 +183,31 @@ coshI prec i@(I.Interval a b)
   where
   coshi@(I.Interval ca cb) = I.monotone (\d -> M.cosh (R.roundDirMPFR d) prec) i
 
-cosh' :: CMap R R
-cosh' = withPrec (coshI . fromIntegral)
-
 fact :: Word -> CMap g R
 fact n = constant (\d p -> M.facw d p n)
 
 -- TODO: implement tan
-instance Floating (CMap g R) where
-  sqrt = ap1 sqrt'
-  pi = constant M.pi
-  log = ap1 log'
-  exp = ap1 exp'
-  sin = ap1 sin'
-  cos = ap1 cos'
-  sinh = ap1 sinh'
-  cosh = ap1 cosh'
-  tanh = ap1 tanh'
-  asin = ap1 asin'
-  acos = ap1 acos'
-  atan = ap1 atan'
-  asinh = ap1 asinh'
-  acosh = ap1 acosh'
-  atanh = ap1 atanh'
+instance CFloating R where
+  cpi = constant M.pi
+  cexp = monotone M.exp
+  clog = monotone M.log
+  csqrt = monotone M.sqrt
+  csinh = monotone M.sinh
+  ctanh = monotone M.tanh
+  csin = withPrec (sinI . fromIntegral)
+  ccos = withPrec (cosI . fromIntegral)
+  ccosh = withPrec (coshI . fromIntegral)
+  -- NOTE: produces NaN when given inputs out of range
+  casin = monotone M.asin
+  catan = monotone M.atan
+  casinh = monotone M.asinh
+  cacosh = monotone M.acosh
+  catanh = monotone M.atanh
+  -- Monotone decreasing (antitone) functions
+  cacos = antitone M.acos
+  -- log,exp,etc.
+  clog1p = monotone M.log1p
+  cexpm1 = monotone M.expm1
 
 
 tentative = id -- C.highlight [C.Foreground C.Red]

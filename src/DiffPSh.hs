@@ -16,7 +16,7 @@ import Prelude hiding (Real, max)
 import Control.Arrow
 import Control.Category (Category)
 import qualified Control.Category as C
-import RealExpr (CMap (..))
+import RealExpr (CMap (..), Additive (..))
 import Data.Number.MPFR (MPFR)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)

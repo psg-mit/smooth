@@ -12,7 +12,7 @@ import Control.Arrow
 import qualified Control.Category as C
 import Control.Applicative (liftA2)
 import Control.Monad (join)
-import RealExpr (CMap (..))
+import RealExpr (CMap (..), Additive (..))
 import Data.Number.MPFR (MPFR)
 import Data.MemoTrie
 import qualified Rounded as R
@@ -21,7 +21,6 @@ import qualified Interval as I
 import qualified Expr as E
 import qualified RealExpr as RE
 import qualified MPFR as M
-import Diffeo (Additive (..))
 
 -- http://conal.net/blog/posts/higher-dimensional-higher-order-derivatives-functionally
 

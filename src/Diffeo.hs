@@ -17,7 +17,7 @@ import Control.Arrow
 import qualified Control.Category as C
 import Control.Applicative (liftA2)
 import Control.Monad (join)
-import RealExpr (CMap (..))
+import RealExpr (CMap (..), Additive (..))
 import Data.Number.MPFR (MPFR)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
@@ -67,27 +67,6 @@ data Df g a b k = CMap (g, k) b :# Df g a b (a, k)
 -}
 newtype a :~> b = D (Df a a b ())
 
-{-| A typeclass for the structure of vector spaces
-    needed for computing derivatives.
--}
-class Additive v where
-  zeroV  :: CMap g v         -- the zero vector
-  addV   :: CMap (v, v) v    -- add vectors
-
-instance Additive () where
-  zeroV = arr (\_ -> ())
-  addV = arr (\_ -> ())
-
-instance (Additive u, Additive v) => Additive (u, v) where
-  zeroV = zeroV &&& zeroV
-  addV = proc ((u1, v1), (u2, v2)) -> do
-    u <- addV -< (u1, u2)
-    v <- addV -< (v1, v2)
-    returnA -< (u, v)
-
-instance R.Rounded a => Additive (Interval a) where
-  zeroV = 0
-  addV = RE.add
 
 {-| Derivative towers form a vector space. Here we show
     that there is a zero `dZero`, and that you can add
@@ -109,17 +88,17 @@ dSum (f :# f') (g :# g') = RE.ap2 addV f g :# dSum f' g'
 class Additive v => VectorSpace v s | v -> s where
   (*^)    :: CMap (s, v) v    -- scale a vector
 
-instance R.Rounded a => VectorSpace (Interval a) (Interval a) where
-  (*^) = RE.mul
+instance RE.CNum a => VectorSpace a a where
+  (*^) = RE.cmul
 
 scalarMult :: VectorSpace v s => Df g g' s k -> Df g g' v k -> Df g g' v k
 scalarMult s@(s0 :# s') x@(x0 :# x') =
   RE.ap2 (*^) s0 x0 :# dSum (scalarMult (dWkn (arr snd) s) x')
                             (scalarMult s' (dWkn (arr snd) x))
 
-dMult :: R.Rounded a => Df g g' (Interval a) k -> Df g g' (Interval a) k -> Df g g' (Interval a) k
+dMult :: RE.CNum a => Df g g' a k -> Df g g' a k -> Df g g' a k
 dMult x@(x0 :# x') y@(y0 :# y') =
-  RE.ap2 RE.mul x0 y0 :# dSum (dMult (dWkn (arr snd) x) y')
+  RE.ap2 RE.cmul x0 y0 :# dSum (dMult (dWkn (arr snd) x) y')
                               (dMult x' (dWkn (arr snd) y))
 
 wknValue :: CMap g' g -> Df g a b k -> Df g' a b k
@@ -237,8 +216,8 @@ dap2 f x y = f @. pairD x y
 lift1 :: VectorSpace a a => CMap a a -> a :~> a -> a :~> a
 lift1 f (D f') = D $ (f <<< arr fst) :# scalarMult (dWkn (arr snd) f') (arr (fst . snd) :# dZero)
 
-negate' :: R.Rounded a => Interval a :~> Interval a
-negate' = linearD RE.negate
+negate' :: RE.CNum a => a :~> a
+negate' = linearD RE.cnegate
 
 max' :: R.Rounded a => (Interval a, Interval a) :~> Interval a
 max' = D $ (RE.max <<< arr fst) :# (RE.max_deriv <<< arr f)
@@ -248,13 +227,15 @@ max' = D $ (RE.max <<< arr fst) :# (RE.max_deriv <<< arr f)
 
 signum_deriv' :: R.Rounded a => Interval a :~> Interval a
 signum_deriv' = lift1 RE.signum_deriv signum_deriv'
-log' = lift1 M.log' recip'
-exp' = lift1 M.exp' exp'
-sin' = lift1 M.sin' cos'
-cos' = lift1 M.cos' (negate' @. sin')
-recip' :: R.Rounded a => Interval a :~> Interval a
-recip' = lift1 RE.recip (negate' @. recip' @. square')
-square' :: R.Rounded a => Interval a :~> Interval a
+
+log', exp', sin', cos' :: RE.CFloating a => a :~> a
+log' = lift1 RE.clog recip'
+exp' = lift1 RE.cexp exp'
+sin' = lift1 RE.csin cos'
+cos' = lift1 RE.ccos (negate' @. sin')
+recip' :: RE.CFractional a => a :~> a
+recip' = lift1 RE.crecip (negate' @. recip' @. square')
+square' :: RE.CNum a => a :~> a
 square' = D $ (\(D x) -> dMult x x) dId
 
 getDerivTower :: R.Rounded a => Interval a :~> Interval a -> CMap g (Interval a) -> [CMap g (Interval a)]

@@ -27,7 +27,7 @@ import Prelude hiding (max, min, pow, (&&), (||), (^), (<), (>))
 import Control.Arrow (Arrow, arr, (<<<))
 import Control.Category (Category)
 import qualified Control.Category as C
-import RealExpr (CMap, B)
+import RealExpr (CMap, B, CNum (..), CFractional (..), CFloating (..), ap1, ap2)
 import qualified RealExpr as E
 import Interval (Interval (..), unitInterval)
 import Rounded (Rounded)
@@ -97,19 +97,42 @@ lett x f = proc g -> do
 wkn :: CMap g a -> CMap (g, x) a
 wkn f = f <<< arr fst
 
-instance Rounded a => Num (CMap g (Interval a)) where
-  (+) = E.ap2 E.add
-  (*) = E.ap2 E.mul
-  negate = E.ap1 E.negate
-  x - y = x + (-y)
-  abs x = max x (-x)
-  fromInteger = E.integer
-  signum = E.ap1 E.signum
+instance CNum a => Num (CMap g a) where
+  (+) = ap2 cadd
+  (-) = ap2 csub
+  (*) = ap2 cmul
+  negate = ap1 cnegate
+  abs = ap1 cabs
+  signum = ap1 csignum
+  fromInteger = cfromInteger
 
-instance Rounded a => Fractional (CMap g (Interval a)) where
-  fromRational = E.rational
-  recip = E.ap1 E.recip
-  (/) = E.ap2 E.div
+instance CFractional a => Fractional (CMap g a) where
+  (/) = ap2 cdiv
+  recip = ap1 crecip
+  fromRational = cfromRational
+
+
+instance CFloating a => Floating (CMap g a) where
+  pi = cpi
+  exp = ap1 cexp
+  log = ap1 clog
+  sqrt = ap1 csqrt
+  sin = ap1 csin
+  cos = ap1 ccos
+  tan = ap1 ctan
+  asin = ap1 casin
+  acos = ap1 cacos
+  atan = ap1 catan
+  sinh = ap1 csinh
+  cosh = ap1 ccosh
+  tanh = ap1 ctanh
+  asinh = ap1 casinh
+  acosh = ap1 cacosh
+  atanh = ap1 catanh
+  -- log1p = ap1 clog1p
+  -- expm1 = ap1 cexpm1
+  -- log1pexp = ap1 clog1pexp
+  -- log1mexp = ap1 clog1mexp
 
 -- use as a type hint
 asMPFR :: CMap g (Interval MPFR) -> CMap g (Interval MPFR)
@@ -124,9 +147,9 @@ runAndPrint = mapM_ (putStrLn . show) . E.runCMap
 runAndPrint' :: Show a => Int -> CMap () a -> IO ()
 runAndPrint' n = mapM_ (putStrLn . show) . take 10 . E.runCMap
 
-sqrt2Example :: IO ()
-sqrt2Example = runAndPrint $ asMPFR $ dedekind_cut (\x -> x < 0 || (x ^ 2) < 2)
+-- sqrt2Example :: IO ()
+-- sqrt2Example = runAndPrint $ asMPFR $ dedekind_cut (\x -> x < 0 || (x ^ 2) < 2)
 
-quantificationExample :: IO ()
-quantificationExample = runAndPrint $
-  (exists_unit_interval (\x -> isTrue (x < asMPFR 0.5 && x > 0.3)))
+-- quantificationExample :: IO ()
+-- quantificationExample = runAndPrint $
+--   (exists_unit_interval (\x -> isTrue (x < asMPFR 0.5 && x > 0.3)))
