@@ -127,12 +127,16 @@ class CNum a => CFractional a where
   cdiv :: CMap (a, a) a
   crecip :: CMap a a
   cfromRational :: Rational -> CMap g a
+  cfromRational q = cdiv <<< cfromInteger (numerator q) &&& cfromInteger (denominator q)
 
 class CFractional a => CFloating a where
   cpi :: CMap g a
   cexp, clog, csqrt, csin, ccos, ctan, casin, cacos, catan,
     csinh, ccosh, ctanh, casinh, cacosh, catanh,
     clog1p, cexpm1, clog1pexp, clog1mexp :: CMap a a
+  clog1pexp = clog1p <<< cexp
+  clog1mexp = clog1p <<< cnegate <<< cexp
+  ctan = cdiv <<< csin &&& ccos
 
 instance Rounded a => Additive (Interval a) where
   addV = add
@@ -148,7 +152,6 @@ instance Rounded a => CNum (Interval a) where
   csignum = signum
 
 instance Rounded a => CFractional (Interval a) where
-  cfromRational = rational
   crecip = recip
   cdiv = div
 
@@ -298,15 +301,6 @@ runCMap (CMap f) = let (x, f') = f () in
 
 integer :: Rounded r => Integer -> CMap g (Interval r)
 integer i = withPrec $ \p _ -> I.rounded (\d -> R.ofInteger p d i)
-
-rational :: Rounded r => Rational -> CMap g (Interval r)
-rational q = ap2 RealExpr.div (integer (numerator q)) (integer (denominator q))
-
-ap2 :: CMap (a, b) c -> CMap g a -> CMap g b -> CMap g c
-ap2 f x y = f <<< x &&& y
-
-ap1 :: CMap a b -> CMap g a -> CMap g b
-ap1 f = (f <<<)
 
 abs1 :: (forall d. CMap d g -> CMap d a -> CMap d b) -> CMap (g, a) b
 abs1 f = f (arr fst) (arr snd)

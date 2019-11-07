@@ -79,7 +79,7 @@ zeroD :: Additive b => a :~> b
 zeroD = D dZero
 
 dSum :: Additive b => Df a a' b k -> Df a a' b k -> Df a a' b k
-dSum (f :# f') (g :# g') = RE.ap2 addV f g :# dSum f' g'
+dSum (f :# f') (g :# g') = E.ap2 addV f g :# dSum f' g'
 
 {-| A notion of vector spaces over some scalar type `s`,
     which we use to implement scalar multiplication as
@@ -93,12 +93,12 @@ instance RE.CNum a => VectorSpace a a where
 
 scalarMult :: VectorSpace v s => Df g g' s k -> Df g g' v k -> Df g g' v k
 scalarMult s@(s0 :# s') x@(x0 :# x') =
-  RE.ap2 (*^) s0 x0 :# dSum (scalarMult (dWkn (arr snd) s) x')
+  E.ap2 (*^) s0 x0 :# dSum (scalarMult (dWkn (arr snd) s) x')
                             (scalarMult s' (dWkn (arr snd) x))
 
 dMult :: RE.CNum a => Df g g' a k -> Df g g' a k -> Df g g' a k
 dMult x@(x0 :# x') y@(y0 :# y') =
-  RE.ap2 RE.cmul x0 y0 :# dSum (dMult (dWkn (arr snd) x) y')
+  E.ap2 RE.cmul x0 y0 :# dSum (dMult (dWkn (arr snd) x) y')
                               (dMult x' (dWkn (arr snd) y))
 
 wknValue :: CMap g' g -> Df g a b k -> Df g' a b k
@@ -213,8 +213,8 @@ dap2 :: Additive c => (a, b) :~> c -> g :~> a -> g :~> b -> g :~> c
 dap2 f x y = f @. pairD x y
 
 -- Seems right. Could inline scalarMult if I wanted
-lift1 :: VectorSpace a a => CMap a a -> a :~> a -> a :~> a
-lift1 f (D f') = D $ (f <<< arr fst) :# scalarMult (dWkn (arr snd) f') (arr (fst . snd) :# dZero)
+lift1 :: RE.CNum a => CMap a a -> a :~> a -> a :~> a
+lift1 f (D f') = D $ (f <<< arr fst) :# dMult (dWkn (arr snd) f') (arr (fst . snd) :# dZero)
 
 negate' :: RE.CNum a => a :~> a
 negate' = linearD RE.cnegate

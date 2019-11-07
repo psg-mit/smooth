@@ -24,10 +24,11 @@ module Expr (
 
 import Prelude hiding (max, min, pow, (&&), (||), (^), (<), (>))
 
-import Control.Arrow (Arrow, arr, (<<<))
+import GHC.Float (Floating (..))
+import Control.Arrow (Arrow, arr, (<<<), (&&&))
 import Control.Category (Category)
 import qualified Control.Category as C
-import RealExpr (CMap, B, CNum (..), CFractional (..), CFloating (..), ap1, ap2)
+import RealExpr (CMap, B, CNum (..), CFractional (..), CFloating (..))
 import qualified RealExpr as E
 import Interval (Interval (..), unitInterval)
 import Rounded (Rounded)
@@ -36,20 +37,26 @@ import Data.Number.MPFR (MPFR)
 
 type K = CMap ()
 
+ap2 :: CMap (a, b) c -> CMap g a -> CMap g b -> CMap g c
+ap2 f x y = f <<< x &&& y
+
+ap1 :: CMap a b -> CMap g a -> CMap g b
+ap1 f = (f <<<)
+
 max :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g (Interval a)
-max = E.ap2 E.max
+max = ap2 E.max
 
 infixr 3 &&
 (&&) :: CMap g B -> CMap g B -> CMap g B
-(&&) = E.ap2 E.and
+(&&) = ap2 E.and
 
 infixr 2 ||
 (||) :: CMap g B -> CMap g B -> CMap g B
-(||) = E.ap2 E.or
+(||) = ap2 E.or
 
 infix 4 <
 (<) :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g B
-(<) = E.ap2 E.lt
+(<) = ap2 E.lt
 
 infix 4 >
 (>) :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g B
@@ -57,16 +64,16 @@ x > y = y < x
 
 infixr 8 ^
 (^) :: Rounded a => CMap g (Interval a) -> Int -> CMap g (Interval a)
-x ^ k = E.ap1 (E.pow k) x
+x ^ k = ap1 (E.pow k) x
 
 isTrue :: CMap g B -> CMap g Bool
-isTrue = E.ap1 (arr fst)
+isTrue = ap1 (arr fst)
 
 isFalse :: CMap g B -> CMap g Bool
-isFalse = E.ap1 (arr snd)
+isFalse = ap1 (arr snd)
 
 mkInterval :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g (Interval a)
-mkInterval = E.ap2 E.mkInterval
+mkInterval = ap2 E.mkInterval
 
 dedekind_cut :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) B)
              -> CMap g (Interval a)
@@ -85,7 +92,7 @@ exists_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a
 exists_unit_interval f = E.secondOrderPrim (E.exists_interval' 16 unitInterval) (f (arr snd))
 
 restrictReal :: Rounded a => CMap g Bool -> CMap g (Interval a) -> CMap g (Interval a)
-restrictReal = E.ap2 E.restrictReal
+restrictReal = ap2 E.restrictReal
 
 -- Let statement with sharing
 lett :: CMap g a -> (CMap (g, a) a -> CMap (g, a) b) -> CMap g b
@@ -129,10 +136,10 @@ instance CFloating a => Floating (CMap g a) where
   asinh = ap1 casinh
   acosh = ap1 cacosh
   atanh = ap1 catanh
-  -- log1p = ap1 clog1p
-  -- expm1 = ap1 cexpm1
-  -- log1pexp = ap1 clog1pexp
-  -- log1mexp = ap1 clog1mexp
+  log1p = ap1 clog1p
+  expm1 = ap1 cexpm1
+  log1pexp = ap1 clog1pexp
+  log1mexp = ap1 clog1mexp
 
 -- use as a type hint
 asMPFR :: CMap g (Interval MPFR) -> CMap g (Interval MPFR)

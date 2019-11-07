@@ -12,7 +12,7 @@ import Prelude
 import qualified Interval as I
 import Interval (Interval)
 import RealExpr
-import Expr ()
+import Expr (ap1, ap2)
 import Rounded as R
 import qualified Data.Number.MPFR as M
 import qualified Language.Haskell.HsColour.ANSI as C
@@ -209,8 +209,6 @@ instance CFloating R where
   clog1p = monotone M.log1p
   cexpm1 = monotone M.expm1
 
-
-tentative = id -- C.highlight [C.Foreground C.Red]
 
 match :: String -> String -> (String, String)
 match a@(x : xs) (y : ys) = if x == y then first (x :) (match xs ys) else ([], a)

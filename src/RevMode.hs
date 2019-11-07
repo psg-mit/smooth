@@ -42,7 +42,7 @@ dShift (f :# f') = undefined
 dSum :: HasTrie k => HasTrie a' =>
   Df a a' b k -> Df a a' b k -> Df a a' b k
 dSum (f :# f') (g :# g') = fplusg :# dSum f' g' where
-  fplusg = RE.ap2 addV f g
+  fplusg = E.ap2 addV f g
 
 unUnitTrie :: HasTrie i => ((i, ()) :->: a) -> i :->: a
 unUnitTrie f = trie $ \i -> untrie f (i, ())
@@ -69,7 +69,7 @@ wknValue g (f :# f') = fg :# wknValue g f' where
 tensorProd :: HasTrie i => HasTrie j =>
   CMap (a, b) c -> CMap g (i :->: a) -> CMap g (j :->: b)
   -> CMap g ((i, j) :->: c)
-tensorProd f = RE.ap2 (RE.tensor2 f)
+tensorProd f = E.ap2 (RE.tensor2 f)
 
 selfTensor :: HasTrie i => CMap (a, a) a -> CMap g (i :->: a) -> CMap g ((i, i) :->: a)
 selfTensor f x = tensorProd f x x
@@ -187,12 +187,12 @@ linCompose f@(f0 :# f') g@(g0 :# g') = undefined -- g0f0 :# dSum gf' g'f
 
 -- scalarMult :: VectorSpace v s => Df g g' s k -> Df g g' v k -> Df g g' v k
 -- scalarMult s@(s0 :# s') x@(x0 :# x') =
---   RE.ap2 (*^) s0 x0 :# dSum (scalarMult (dWkn (arr snd) s) x')
+--   E.ap2 (*^) s0 x0 :# dSum (scalarMult (dWkn (arr snd) s) x')
 --                             (scalarMult s' (dWkn (arr snd) x))
 
 -- dMult :: R.Rounded a => Df g g' (Interval a) k -> Df g g' (Interval a) k -> Df g g' (Interval a) k
 -- dMult x@(x0 :# x') y@(y0 :# y') =
---   RE.ap2 RE.mul x0 y0 :# dSum (dMult (dWkn (arr snd) x) y')
+--   E.ap2 RE.mul x0 y0 :# dSum (dMult (dWkn (arr snd) x) y')
 --                               (dMult x' (dWkn (arr snd) y))
 
 -- dWkn1 :: CMap (g, k') k -> Df g a b k -> Df g a b k'
