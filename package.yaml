@@ -23,6 +23,7 @@ dependencies:
 - containers
 - hmpfr
 - MemoTrie
+- hscolour
 
 library:
   source-dirs: src

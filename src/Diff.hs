@@ -229,35 +229,3 @@ example2 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs (x ^ 2)) dId 2) 
 
 example3 :: IO ()
 example3 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs x) dId (E.dedekind_cut (\x -> x E.< 0 E.|| (x E.^ 2) E.< 2))) !! 1
-
--- \c -> integral_0^1 (\x -> c * x^2)
-example4 :: IO ()
-example4 = E.runAndPrint $ E.asMPFR $
-  getDerivTower ((\c -> let x = (\_ -> dConst idFunc) in let c' = dap1 constFunc c in dap1 integral1 (abs (c' * x^2))) dId (E.asMPFR 3)) !! 2
-
--- Getting wrong answers here
-example4b :: IO ()
-example4b = E.runAndPrint $ E.asMPFR $
-  getDerivTower ((\c -> let c' = dap1 constFunc c in dap1 integral1 (c'^2)) dId (E.asMPFR (1/2))) !! 1
-
--- I have no idea whether any of these are sensible
-collapse1 :: CMap a (b -> c) -> CMap (a, b) c
-collapse1 (CMap f) = CMap $ \(a, b) ->
-  let (bc, f') = f a in
-  (bc b, collapse1 f')
-
-uncollapse1 :: CMap (a, b) c -> CMap a (b -> c)
-uncollapse1 (CMap f) = CMap $ \a ->
-  (\b -> let (c, f') = f (a, b) in c, let (_, f') = f (a, undefined) in uncollapse1 f')
-
-collapse :: CMap a (CMap b c) -> CMap (a, b) c
-collapse (CMap f) = CMap $ \(a, b) ->
-  let (CMap g, f') = f a in
-  let (c, g') = g b in
-  (c, collapse f')
-
-uncollapse :: CMap (a, b) c -> CMap a (CMap b c)
-uncollapse f = CMap $ \a ->
-  (g f a, uncollapse f)
-  where
-  g (CMap z) a = CMap $ \b -> let (c, z') = z (a, b) in (c, g z' a)

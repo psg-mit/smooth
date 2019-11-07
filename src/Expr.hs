@@ -19,7 +19,7 @@ module Expr (
   ($),
   Num ((+), (*), (-), abs, negate),
   Fractional (..),
-  (!!)
+  (!!),
 ) where
 
 import Prelude hiding (max, min, pow, (&&), (||), (^), (<), (>))
@@ -84,6 +84,9 @@ exists_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a
              -> CMap g Bool
 exists_unit_interval f = E.secondOrderPrim (E.exists_interval' 16 unitInterval) (f (arr snd))
 
+restrictReal :: Rounded a => CMap g Bool -> CMap g (Interval a) -> CMap g (Interval a)
+restrictReal = E.ap2 E.restrictReal
+
 -- Let statement with sharing
 lett :: CMap g a -> (CMap (g, a) a -> CMap (g, a) b) -> CMap g b
 lett x f = proc g -> do
@@ -112,8 +115,8 @@ instance Rounded a => Fractional (CMap g (Interval a)) where
 asMPFR :: CMap g (Interval MPFR) -> CMap g (Interval MPFR)
 asMPFR = id
 
-inEmptyCtx :: (forall g. CMap g a) -> CMap () a
-inEmptyCtx x = x
+inEmptyCtx :: CMap () a -> CMap () a
+inEmptyCtx = id
 
 runAndPrint :: Show a => CMap () a -> IO ()
 runAndPrint = mapM_ (putStrLn . show) . E.runCMap

@@ -12,7 +12,7 @@ of type `(R -> R) -> R`.
 
 module DiffPSh where
 
-import Prelude hiding (Real)
+import Prelude hiding (Real, max)
 import Control.Arrow
 import Control.Category (Category)
 import qualified Control.Category as C
@@ -24,6 +24,7 @@ import qualified Expr as E
 import qualified RealExpr as RE
 import Experimental.PSh
 import Diffeo
+import qualified MPFR as M
 
 type D = (:~>)
 
@@ -60,6 +61,9 @@ instance R.Rounded a => Fractional (R CMap (Interval a) g) where
 instance R.Rounded a => Fractional (g :~> Interval a) where
   recip = dap1 recip'
   fromRational x = D $ fromRational x :# dZero
+
+max :: R.Rounded a => g :~> Interval a -> g :~> Interval a -> g :~> Interval a
+max = dap2 max'
 
 instance Floating (g :~> Interval MPFR) where
   pi = D $ pi :# dZero
@@ -111,24 +115,36 @@ asMPFR x = x
 wkn :: Additive g => Additive a => g :~> a -> (g, x) :~> a
 wkn f = f @. fstD
 
+getDerivTower' :: R.Rounded a => (Interval a :~> Interval a -> Interval a :~> Interval a)
+  -> CMap g (Interval a) -> [CMap g (Interval a)]
+getDerivTower' f = getDerivTower (f dId)
+
 example :: Int -> IO ()
 example n = E.runAndPrint $ E.asMPFR $
-  getDerivTower ((\c -> integral (\x -> sin (wkn c * x))) dId) 3 !! n
+  getDerivTower' (\c -> integral (\x -> sin (wkn c * x))) 3 !! n
 
 example2 :: IO ()
 example2 = E.runAndPrint $ E.asMPFR $ getValue $
   fwd_deriv (\c -> integral (\x -> abs (x - wkn c))) 0.6 1
 
 -- I think this is right!
-example3 :: (forall g. CMap g (Interval MPFR)) -> Int -> IO ()
-example3 y n = E.runAndPrint $ E.asMPFR $ getDerivTower
-  ((\z -> fwd_deriv (\x -> x^2) z z) dId) y !! n
+example3 :: CMap () (Interval MPFR) -> Int -> IO ()
+example3 y n = E.runAndPrint $ E.asMPFR $ getDerivTower'
+  (\z -> fwd_deriv (\x -> x^2) z z) y !! n
 
 
-absExample :: (forall g. CMap g (Interval MPFR)) -> Int -> IO ()
+absExample :: CMap () (Interval MPFR) -> Int -> IO ()
 absExample y n = E.runAndPrint $
-  getDerivTower ((\c -> integral (\x -> abs (x - wkn c))) dId) y !! n
+  getDerivTower' (\c -> integral (\x -> abs (x - wkn c))) y !! n
 
 internalDiffExample :: IO ()
 internalDiffExample = E.runAndPrint $ E.asMPFR $ getValue $
   derivative (\c -> integral (\x -> abs (x - wkn c))) 0.6
+
+reluIntegralExample :: CMap () (Interval MPFR) -> Int -> IO ()
+reluIntegralExample y n = M.runAndPrintReal $
+  getDerivTower' (\c -> integral (\x -> max 0 (x - wkn c))) y !! n
+
+reluExample :: CMap () (Interval MPFR) -> Int -> IO ()
+reluExample x n = E.runAndPrint $ E.asMPFR $ getDerivTower'
+  (max 0) x !! n

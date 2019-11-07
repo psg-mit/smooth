@@ -7,6 +7,7 @@ of various special functions.
 
 module MPFR where
 
+import Control.Arrow (first)
 import Prelude
 import qualified Interval as I
 import Interval (Interval)
@@ -14,6 +15,7 @@ import RealExpr
 import Expr ()
 import qualified Rounded as R
 import qualified Data.Number.MPFR as M
+import qualified Language.Haskell.HsColour.ANSI as C
 
 type R = Interval M.MPFR
 
@@ -192,3 +194,50 @@ instance Floating (CMap g R) where
   asinh = ap1 asinh'
   acosh = ap1 acosh'
   atanh = ap1 atanh'
+
+
+tentative = id -- C.highlight [C.Foreground C.Red]
+
+match :: String -> String -> (String, String)
+match a@(x : xs) (y : ys) = if x == y then first (x :) (match xs ys) else ([], a)
+match [] _ = ([], [])
+match _ [] = ([], [])
+
+extendFromTo :: String -> String -> (Int, String)
+extendFromTo a@(x : xs) b@(y : ys) = if x == y then extendFromTo xs ys else (length a, b)
+extendFromTo [] ys = (0, ys)
+extendFromTo xs [] = (length xs, "")
+
+
+-- this code is really gross
+showIntervals :: [Interval M.MPFR] -> String
+showIntervals = go "" ""
+  where
+  hl = C.highlight [C.Foreground C.Red]
+  go certain tentative (i : xs) = let (nextCertain, nextTentative) = forInterval i in
+    let (backtrackCertain, newCertain) = extendFromTo certain nextCertain in
+    (if backtrackCertain == 0 && null newCertain
+      then let (backtrackTentative, newTentative) = extendFromTo tentative nextTentative in
+           concat (replicate backtrackTentative C.cursorLeft) ++ hl newTentative
+      else concat (map (\_ -> C.cursorLeft) tentative ++ replicate backtrackCertain C.cursorLeft) ++ newCertain ++ hl nextTentative) ++ go nextCertain nextTentative xs
+
+  mpfrInfo round x = let (s, e) = M.mpfrToString round 0 10 x in
+    let e' = fromIntegral e in
+    if s !! 0 == '-' then (False, tail s, e') else (True, s, e')
+
+  forInterval i@(I.Interval l h) = if M.isInfinite l || M.isInfinite h
+    then ("", show i) else
+    if signl == signh
+    then first (("e" ++ show e' ++ (if signl then " " else " -") ++ ".") ++) (match sl' sh')
+    else ("", "0 (e" ++ show e' ++ ")")
+    where
+    (signl, sl, el) = mpfrInfo M.Down l
+    (signh, sh, eh) = mpfrInfo M.Up h
+    (sl', sh', e') = packZeros (sl, el) (sh, eh)
+
+  packZeros (sl, el) (sh, eh) = if el <= eh
+    then (replicate (eh - el) '0' ++ sl, sh, eh)
+    else (sl, replicate (el - eh) '0' ++ sh, el)
+
+runAndPrintReal :: CMap () (Interval M.MPFR) -> IO ()
+runAndPrintReal = putStrLn . showIntervals . runCMap

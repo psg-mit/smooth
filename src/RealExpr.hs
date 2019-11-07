@@ -102,6 +102,9 @@ withPrec2 op = withPrec $ \p (ix, iy) -> op p ix iy
 add :: Rounded a => CMap (Interval a, Interval a) (Interval a)
 add = withPrec2 I.add
 
+sub :: Rounded a => CMap (Interval a, Interval a) (Interval a)
+sub = withPrec2 I.sub
+
 mul :: Rounded a => CMap (Interval a, Interval a) (Interval a)
 mul = withPrec2 I.mul
 
@@ -157,7 +160,21 @@ signum_deriv = arr $ \(Interval l u) ->
     then I.lift R.zero
     else I.realLine
 
+max_snd_deriv :: Rounded a => CMap (Interval a, Interval a) (Interval a)
+max_snd_deriv = signum_deriv <<< sub
+
+max_deriv :: Rounded a => CMap ((Interval a, Interval a), (Interval a, Interval a)) (Interval a)
+max_deriv = arr $ \((Interval xl xu, Interval yl yu), (dx, dy)) ->
+  if xu < yl
+    then dy
+  else if yu < xl
+    then dx
+  else I.union dx dy
+
 type B = (Bool, Bool)
+
+restrictReal :: Rounded a => CMap (Bool, Interval a) (Interval a)
+restrictReal = arr $ \(s, x) -> if s then x else I.realLine
 
 lt :: Rounded a => CMap (Interval a, Interval a) B
 lt = arr (\(Interval l1 u1, Interval l2 u2) -> (u1 < l2, l1 > u2))
@@ -170,6 +187,9 @@ or = arr (\((t1, f1), (t2, f2)) -> (t1 || t2, f1 && f2))
 
 neg :: CMap B B
 neg = arr (\(x, y) -> (y, x))
+
+neq :: Rounded a => CMap (Interval a, Interval a) Bool
+neq = arr $ \(Interval l1 u1, Interval l2 u2) -> u1 < l2 || u2 < l1
 
 integral' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
 integral' p i@(Interval a b) = CMap $ \f ->
@@ -237,3 +257,33 @@ ap1 f = (f <<<)
 
 abs1 :: (forall d. CMap d g -> CMap d a -> CMap d b) -> CMap (g, a) b
 abs1 f = f (arr fst) (arr snd)
+
+
+
+
+
+
+
+
+
+-- I have no idea whether any of these are sensible
+collapse1 :: CMap a (b -> c) -> CMap (a, b) c
+collapse1 (CMap f) = CMap $ \(a, b) ->
+  let (bc, f') = f a in
+  (bc b, collapse1 f')
+
+uncollapse1 :: CMap (a, b) c -> CMap a (b -> c)
+uncollapse1 (CMap f) = CMap $ \a ->
+  (\b -> let (c, f') = f (a, b) in c, let (_, f') = f (a, undefined) in uncollapse1 f')
+
+collapse :: CMap a (CMap b c) -> CMap (a, b) c
+collapse (CMap f) = CMap $ \(a, b) ->
+  let (CMap g, f') = f a in
+  let (c, g') = g b in
+  (c, collapse f')
+
+uncollapse :: CMap (a, b) c -> CMap a (CMap b c)
+uncollapse f = CMap $ \a ->
+  (g f a, uncollapse f)
+  where
+  g (CMap z) a = CMap $ \b -> let (c, z') = z (a, b) in (c, g z' a)

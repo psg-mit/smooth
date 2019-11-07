@@ -138,6 +138,14 @@ dWkn1 ext (f :# f') = (f <<< (arr fst &&& ext)) :# dWkn1 ext' f'
     k <- ext -< (g, k')
     returnA -< (a, k)
 
+restrictReal :: R.Rounded b => CMap g Bool -> Df g a (Interval b) k -> Df g a (Interval b) k
+restrictReal mustHold (f :# f') = f1 :# restrictReal mustHold f'
+  where
+  f1 = proc (g, k) -> do
+     b <- mustHold -< g
+     y <- f -< (g, k)
+     RE.restrictReal -< (b, y)
+
 dWknA :: forall a' a g b k. CMap a' a -> Df g a b k -> Df g a' b k
 dWknA fa = go (arr id) where
   go :: forall k' k. CMap k' k -> Df g a b k -> Df g a' b k'
@@ -232,6 +240,12 @@ lift1 f (D f') = D $ (f <<< arr fst) :# scalarMult (dWkn (arr snd) f') (arr (fst
 negate' :: R.Rounded a => Interval a :~> Interval a
 negate' = linearD RE.negate
 
+max' :: R.Rounded a => (Interval a, Interval a) :~> Interval a
+max' = D $ (RE.max <<< arr fst) :# (RE.max_deriv <<< arr f)
+  :# restrictReal RE.neq dZero
+  where
+  f (x, (dx, ())) = (x, dx)
+
 signum_deriv' :: R.Rounded a => Interval a :~> Interval a
 signum_deriv' = lift1 RE.signum_deriv signum_deriv'
 log' = lift1 M.log' recip'
@@ -321,4 +335,4 @@ fwdDer (D f) = D (fwdDer' f)
     (\x -> exp (2 * x)) at x = 0.
 -}
 diffeoExample :: Int -> IO ()
-diffeoExample n = E.runAndPrint $ E.asMPFR $ getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n
+diffeoExample n = M.runAndPrintReal $ E.asMPFR $ getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n
