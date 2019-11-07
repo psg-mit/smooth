@@ -6,23 +6,14 @@ automatic differentiation a la
 
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances, IncoherentInstances #-}
-{-# LANGUAGE Arrows #-}
 
-module Diff where
+module SelfContained.Fwd where
 
 import Prelude
 import Control.Arrow
 import Control.Applicative (liftA2)
 import Control.Monad (join)
-import RealExpr (CMap (..))
-import Data.Number.MPFR (MPFR)
-import MPFR ()
-import qualified Rounded as R
-import Interval (Interval, unitInterval)
-import qualified Expr as E
-import qualified RealExpr as E
 
 type a :-* b = a -> b
 data a :> b = D b (a :-* (a :> b))
@@ -34,16 +25,13 @@ class VectorSpace v s | v -> s where
   (^+^)   :: v -> v -> v    -- add vectors
   negateV :: v -> v         -- additive inverse
 
-class VectorSpace v s => InnerSpace v s | v -> s where
-  (<.>) :: v -> v -> s
-
 instance Num a => VectorSpace a a where
   zeroV = 0
   (*^) = (*)
   (^+^) = (+)
   negateV = negate
 
-instance VectorSpace v s => VectorSpace (a->v) s where
+instance VectorSpace v s => VectorSpace (a -> v) s where
   zeroV   = pure   zeroV
   (*^) s  = fmap   (s *^)
   (^+^)   = liftA2 (^+^)
@@ -103,24 +91,7 @@ square' :: Num a => g :~> a -> g :~> a
 square' x = dMult x x
 
 cube' :: Num a => g :~> a -> g :~> a
-cube' x = x^3 -- dMult x (square' x)
-
-integral :: R.Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
-  :~> CMap g (Interval a)
-integral = linearD E.integral_unit_interval
-
-integral' :: R.Rounded a => d :~> (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
-  -> d :~> CMap g (Interval a)
-integral' = (integral @.)
-
-integral1 :: R.Rounded a => CMap (g, Interval a) (Interval a) :~> CMap g (Interval a)
-integral1 = linearD $ E.secondOrderPrim (E.integral' 16 unitInterval)
-
-constFunc :: Num (CMap (g, b) a) => CMap g a :~> CMap (g, b) a
-constFunc = linearD $ \x -> x <<< arr fst
-
-idFunc :: CMap (g, a) a
-idFunc = arr snd
+cube' x = x^3
 
 absD :: Num a => a :~> a
 absD x = abs (dId x)
@@ -216,16 +187,14 @@ linCompose f g a0 = D c0 (\x -> linCompose c' g x ^+^ linCompose f b' x)
     D b0 b' = g a0
     D c0 c' = f b0
 
--- No longer broken
-brokenExample :: Int -> IO ()
-brokenExample n = E.runAndPrint $ E.asMPFR $ getDerivTower ((((*2) dId) @. ((*2) dId)) (E.asMPFR 1)) !! n
+mult4Example :: Int -> Double
+mult4Example n = getDerivTower ((((*2) dId) @. ((*2) dId)) (1)) !! n
 
+exampleAbsDiff :: Double
+exampleAbsDiff = getDerivTower (absD 0) !! 1
 
-exampleAbsDiff :: IO ()
-exampleAbsDiff = E.runAndPrint $ E.asMPFR $ getDerivTower (absD 0) !! 1
+example2 :: Double
+example2 = getDerivTower ((\x -> abs (x ^ 2)) dId 2) !! 2
 
-example2 :: IO ()
-example2 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs (x ^ 2)) dId 2) !! 2
-
-example3 :: IO ()
-example3 = E.runAndPrint $ E.asMPFR $ getDerivTower ((\x -> abs x) dId (E.dedekind_cut (\x -> x E.< 0 E.|| (x E.^ 2) E.< 2))) !! 1
+example3 :: Double
+example3 = getDerivTower ((\x -> abs x) dId (sqrt 2)) !! 1
