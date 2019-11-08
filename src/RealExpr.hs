@@ -306,11 +306,14 @@ abs1 :: (forall d. CMap d g -> CMap d a -> CMap d b) -> CMap (g, a) b
 abs1 f = f (arr fst) (arr snd)
 
 
-
-
-
-
-
+first_root :: Rounded a => CMap (Interval a -> B) (Interval a)
+first_root = root_at_p 1 (Interval R.zero R.one) where
+  root_at_p p (Interval l u) = CMap $ \f -> let m = R.average l u in
+    if fst f (Interval l m) -- the left interval is to the left of the point
+      then root_at_p (p + 1) (Interval m u) -- refine the right interval
+      else if snd f (Interval m u) -- the right interval is to the right of the point
+        then root_at_p (p + 1) (Interval l m) -- refine the left
+        else root_at_p (p + 1) (Interval l u) -- refine everything!
 
 
 -- I have no idea whether any of these are sensible
