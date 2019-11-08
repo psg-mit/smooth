@@ -33,6 +33,8 @@ import qualified Rounded as R
 data CMap a b = CMap (a -> (b, CMap a b))
 deriving instance Functor (CMap a)
 
+type Point = CMap ()
+
 instance Category CMap where
   id = arr id
   CMap g . CMap f = CMap $ \a ->
@@ -295,9 +297,9 @@ dedekind_cut' = bound 1 R.one where
                               _ -> (l, u))
     in let i' = Interval l' u' in (i', locate p i')
 
-runCMap :: CMap () a -> [a]
-runCMap (CMap f) = let (x, f') = f () in
-  x : runCMap f'
+runPoint :: Point a -> [a]
+runPoint (CMap f) = let (x, f') = f () in
+  x : runPoint f'
 
 integer :: Rounded r => Integer -> CMap g (Interval r)
 integer i = withPrec $ \p _ -> I.rounded (\d -> R.ofInteger p d i)

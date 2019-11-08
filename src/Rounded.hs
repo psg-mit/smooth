@@ -51,10 +51,6 @@ class Ord a => Rounded a where
   pow :: Prec -> RoundDir -> a -> Int -> a
   mulpow2 :: Int -> Prec -> RoundDir -> a -> a
 
-roundDirMPFR :: RoundDir -> M.RoundMode
-roundDirMPFR Up = M.Up
-roundDirMPFR Down = M.Down
-
 instance (Integral a, Read a, Show a) => Rounded (Ratio a) where
   add p d = (+)
   sub p d = (-)

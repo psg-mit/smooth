@@ -10,20 +10,20 @@ of type `(R -> R) -> R`.
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module DiffPSh where
+module FwdPSh where
 
 import Prelude hiding (Real, max)
 import Control.Arrow
 import Control.Category (Category)
 import qualified Control.Category as C
-import RealExpr (CMap (..), Additive (..))
+import RealExpr (CMap (..), Additive (..), Point)
 import Data.Number.MPFR (MPFR)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Expr as E
 import qualified RealExpr as RE
 import Experimental.PSh
-import Diffeo
+import FwdMode
 import qualified MPFR as M
 
 type D = (:~>)
@@ -109,9 +109,6 @@ fwd_deriv :: Additive g => Additive a => Additive b =>
   ((g, a) :~> a -> (g, a) :~> b) -> g :~> a -> g :~> a -> g :~> b
 fwd_deriv f = fwd_deriv' (f sndD)
 
-asMPFR :: g :~> Interval MPFR -> g :~> Interval MPFR
-asMPFR x = x
-
 wkn :: Additive g => Additive a => g :~> a -> (g, x) :~> a
 wkn f = f @. fstD
 
@@ -119,27 +116,26 @@ getDerivTower' :: R.Rounded a => (Interval a :~> Interval a -> Interval a :~> In
   -> CMap g (Interval a) -> [CMap g (Interval a)]
 getDerivTower' f = getDerivTower (f dId)
 
-example :: Int -> CMap () (Interval MPFR)
+example :: Int -> Point (Interval MPFR)
 example n = getDerivTower' (\c -> integral (\x -> sin (wkn c * x))) 3 !! n
 
-example2 :: CMap () (Interval MPFR)
+example2 :: Point (Interval MPFR)
 example2 = getValue $ fwd_deriv (\c -> integral (\x -> abs (x - wkn c))) 0.6 1
 
 -- I think this is right!
-example3 :: CMap () (Interval MPFR) -> Int -> CMap () (Interval MPFR)
-example3 y n = getDerivTower'
-  (\z -> fwd_deriv (\x -> x^2) z z) y !! n
+example3 :: Point (Interval MPFR) -> Int -> Point (Interval MPFR)
+example3 y n = getDerivTower' (\z -> fwd_deriv (\x -> x^2) z z) y !! n
 
 
-absExample :: CMap () (Interval MPFR) -> Int -> CMap () (Interval MPFR)
+absExample :: Point (Interval MPFR) -> Int -> Point (Interval MPFR)
 absExample y n = getDerivTower' (\c -> integral (\x -> abs (x - wkn c))) y !! n
 
-internalDiffExample :: CMap () (Interval MPFR)
+internalDiffExample :: Point (Interval MPFR)
 internalDiffExample = getValue $ derivative (\c -> integral (\x -> abs (x - wkn c))) 0.6
 
-reluIntegralExample :: CMap () (Interval MPFR) -> Int -> CMap () (Interval MPFR)
+reluIntegralExample :: Point (Interval MPFR) -> Int -> Point (Interval MPFR)
 reluIntegralExample y n =
   getDerivTower' (\c -> integral (\x -> max 0 (x - wkn c))) y !! n
 
-reluExample :: CMap () (Interval MPFR) -> Int -> CMap () (Interval MPFR)
+reluExample :: Point (Interval MPFR) -> Int -> Point (Interval MPFR)
 reluExample x n = getDerivTower' (max 0) x !! n

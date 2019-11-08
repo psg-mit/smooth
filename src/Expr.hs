@@ -31,17 +31,15 @@ import GHC.Float (Floating (..))
 import Control.Arrow (Arrow, arr, (<<<), (&&&))
 import Control.Category (Category)
 import qualified Control.Category as C
-import RealExpr (CMap, B, CNum (..), CFractional (..), CFloating (..))
+import RealExpr (CMap, B, CNum (..), CFractional (..), CFloating (..), Point)
 import qualified RealExpr as E
 import Interval (Interval (..), unitInterval)
 import Rounded (Rounded)
 import qualified Rounded as R
 import Data.Number.MPFR (MPFR)
 
-type K = CMap ()
-
 instance Show a => Show (CMap () a) where
-  show = intercalate "\n" . map show . E.runCMap
+  show = intercalate "\n" . map show . E.runPoint
 
 ap2 :: CMap (a, b) c -> CMap g a -> CMap g b -> CMap g c
 ap2 f x y = f <<< x &&& y
@@ -151,11 +149,8 @@ instance CFloating a => Floating (CMap g a) where
 asMPFR :: CMap g (Interval MPFR) -> CMap g (Interval MPFR)
 asMPFR = id
 
-inEmptyCtx :: CMap () a -> CMap () a
+inEmptyCtx :: Point a -> Point a
 inEmptyCtx = id
 
-runAndPrint :: Show a => CMap () a -> IO ()
-runAndPrint = mapM_ (putStrLn . show) . E.runCMap
-
-runAndPrint' :: Show a => Int -> CMap () a -> IO ()
-runAndPrint' n = mapM_ (putStrLn . show) . take 10 . E.runCMap
+showReal' :: Show a => Int -> Point a -> String
+showReal' n = intercalate "\n" . map show . take n . E.runPoint

@@ -18,6 +18,10 @@ import qualified Data.Number.MPFR as M
 import qualified Language.Haskell.HsColour.ANSI as C
 import GHC.Float
 
+roundDirMPFR :: RoundDir -> M.RoundMode
+roundDirMPFR Up = M.Up
+roundDirMPFR Down = M.Down
+
 instance Rounded M.MPFR where
   add p d = M.add (roundDirMPFR d) (fromIntegral p)
   sub p d = M.sub (roundDirMPFR d) (fromIntegral p)
@@ -81,13 +85,13 @@ string_insert s i toInsert = let (s1, s2) = splitAt i s in
 type R = Interval M.MPFR
 
 monotone :: (M.RoundMode -> M.Precision -> M.MPFR -> M.MPFR) -> CMap R R
-monotone f = withPrec $ \p -> I.monotone (\d x -> f (R.roundDirMPFR d) (fromIntegral p) x)
+monotone f = withPrec $ \p -> I.monotone (\d x -> f (roundDirMPFR d) (fromIntegral p) x)
 
 antitone :: (M.RoundMode -> M.Precision -> M.MPFR -> M.MPFR) -> CMap R R
-antitone f = withPrec $ \p -> I.monotone (\d x -> f (R.roundDirMPFR d) (fromIntegral p) x) . I.flip
+antitone f = withPrec $ \p -> I.monotone (\d x -> f (roundDirMPFR d) (fromIntegral p) x) . I.flip
 
 constant :: (M.RoundMode -> M.Precision -> M.MPFR) -> CMap g R
-constant f = withPrec $ \p _ -> I.rounded (\d -> f (R.roundDirMPFR d) (fromIntegral p))
+constant f = withPrec $ \p _ -> I.rounded (\d -> f (roundDirMPFR d) (fromIntegral p))
 
 
 -- Many monotone functions
@@ -150,9 +154,9 @@ sinI prec i@(I.Interval a b)
   | otherwise{- Not sure about the sign of either of the derivatives -}
     = I.Interval R.negativeOne R.one
   where
-  sinMonotone = I.monotone (\d -> M.sin (R.roundDirMPFR d) prec)
-  I.Interval deriva1 deriva2 = I.rounded (\d -> M.cos (R.roundDirMPFR d) prec a)
-  I.Interval derivb1 derivb2 = I.rounded (\d -> M.cos (R.roundDirMPFR d) prec b)
+  sinMonotone = I.monotone (\d -> M.sin (roundDirMPFR d) prec)
+  I.Interval deriva1 deriva2 = I.rounded (\d -> M.cos (roundDirMPFR d) prec a)
+  I.Interval derivb1 derivb2 = I.rounded (\d -> M.cos (roundDirMPFR d) prec b)
 
 cosI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
 cosI prec i@(I.Interval a b)
@@ -171,9 +175,9 @@ cosI prec i@(I.Interval a b)
   | otherwise{- Not sure about the sign of either of the derivatives -}
     = I.Interval R.negativeOne R.one
   where
-  cosMonotone = I.monotone (\d -> M.cos (R.roundDirMPFR d) prec)
-  I.Interval negderiva1 negderiva2 = I.rounded (\d -> M.sin (R.roundDirMPFR d) prec a)
-  I.Interval negderivb1 negderivb2 = I.rounded (\d -> M.sin (R.roundDirMPFR d) prec b)
+  cosMonotone = I.monotone (\d -> M.cos (roundDirMPFR d) prec)
+  I.Interval negderiva1 negderiva2 = I.rounded (\d -> M.sin (roundDirMPFR d) prec a)
+  I.Interval negderivb1 negderivb2 = I.rounded (\d -> M.sin (roundDirMPFR d) prec b)
 
 coshI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
 coshI prec i@(I.Interval a b)
@@ -181,7 +185,7 @@ coshI prec i@(I.Interval a b)
   | R.negative b = I.flip coshi
   | otherwise    = I.Interval R.one (R.max' (fromIntegral prec) R.Up ca cb)
   where
-  coshi@(I.Interval ca cb) = I.monotone (\d -> M.cosh (R.roundDirMPFR d) prec) i
+  coshi@(I.Interval ca cb) = I.monotone (\d -> M.cosh (roundDirMPFR d) prec) i
 
 fact :: Word -> CMap g R
 fact n = constant (\d p -> M.facw d p n)
@@ -251,5 +255,5 @@ showIntervals = go "" ""
     then (replicate (eh - el) '0' ++ sl, sh, eh)
     else (sl, replicate (el - eh) '0' ++ sh, el)
 
-showReal :: CMap () (Interval M.MPFR) -> String
-showReal = showIntervals . runCMap
+printReal :: Point (Interval M.MPFR) -> IO ()
+printReal = putStrLn . showIntervals . runPoint

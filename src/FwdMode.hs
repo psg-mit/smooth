@@ -10,15 +10,14 @@ Admits higher-order derivatives, but not higher-order functions.
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Diffeo where
+module FwdMode where
 
 import Prelude
 import Control.Arrow
 import qualified Control.Category as C
 import Control.Applicative (liftA2)
 import Control.Monad (join)
-import RealExpr (CMap (..), Additive (..))
-import Data.Number.MPFR (MPFR)
+import RealExpr (CMap (..), Additive (..), Point)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Interval as I
@@ -315,5 +314,5 @@ fwdDer (D f) = D (fwdDer' f)
 {-| An example function. Calculates the `n`th derivative of
     (\x -> exp (2 * x)) at x = 0.
 -}
-diffeoExample :: Int -> CMap () M.R
+diffeoExample :: Int -> Point M.R
 diffeoExample n = getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n
