@@ -6,6 +6,7 @@ of type `(R -> R) -> R`.
 -}
 
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -29,7 +30,7 @@ import qualified MPFR as M
 type D = (:~>)
 
 instance ConCat D where
-  type Ok D a = Additive a
+  type Ok D a = Additive CMap a
   id = dId
   (.) = (@.)
 
@@ -49,7 +50,6 @@ instance R.Rounded a => Num (g :~> Interval a) where
   (+) = dap2 add
   D x * D y = D (dMult x y)
   abs = dap1 (lift1 (abs C.id) (signum dId))
-  -- not totally accurate for signum here, it should blow up at 0...
   signum = dap1 (lift1 (signum C.id) signum_deriv')
   fromInteger x = D $ fromInteger x :# dZero
   negate = dap1 negate'
@@ -96,23 +96,23 @@ integral f = integral' (f sndD)
 asReal :: R CMap (Interval MPFR) g -> CMap g (Interval MPFR)
 asReal (R x) = x
 
-derivative :: Additive g => Additive b => R.Rounded a =>
+derivative :: Additive CMap g => Additive CMap b => R.Rounded a =>
   ((g, Interval a) :~> Interval a -> (g, Interval a) :~> b)
   -> g :~> Interval a -> g :~> b
 derivative f x = deriv (f sndD) @. pairD dId x
 
-fwd_deriv' :: Additive g => Additive a => Additive b =>
+fwd_deriv' :: Additive CMap g => Additive CMap a => Additive CMap b =>
   (g, a) :~> b -> g :~> a -> g :~> a -> g :~> b
 fwd_deriv' f x dx = dap2 (fwdDer f) (pairD dId x) (pairD zeroD dx)
 
-fwd_deriv :: Additive g => Additive a => Additive b =>
+fwd_deriv :: Additive CMap g => Additive CMap a => Additive CMap b =>
   ((g, a) :~> a -> (g, a) :~> b) -> g :~> a -> g :~> a -> g :~> b
 fwd_deriv f = fwd_deriv' (f sndD)
 
 asMPFR :: g :~> Interval MPFR -> g :~> Interval MPFR
 asMPFR x = x
 
-wkn :: Additive g => Additive a => g :~> a -> (g, x) :~> a
+wkn :: Additive CMap g => Additive CMap a => g :~> a -> (g, x) :~> a
 wkn f = f @. fstD
 
 getDerivTower' :: R.Rounded a => (Interval a :~> Interval a -> Interval a :~> Interval a)

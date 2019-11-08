@@ -4,6 +4,7 @@ of various special functions.
 -}
 
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module MPFR where
 
@@ -187,7 +188,7 @@ fact :: Word -> CMap g R
 fact n = constant (\d p -> M.facw d p n)
 
 -- TODO: implement tan
-instance CFloating R where
+instance CFloating CMap R where
   cpi = constant M.pi
   cexp = monotone M.exp
   clog = monotone M.log

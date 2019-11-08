@@ -4,6 +4,7 @@ Admits higher-order derivatives, but not higher-order functions.
 -}
 
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
@@ -72,31 +73,31 @@ newtype a :~> b = D (Df a a b ())
     that there is a zero `dZero`, and that you can add
     two derivative towers with `dSum`.
  -}
-dZero :: Additive b => Df a a' b k
+dZero :: Additive CMap b => Df a a' b k
 dZero = zeroV :# dZero
 
-zeroD :: Additive b => a :~> b
+zeroD :: Additive CMap b => a :~> b
 zeroD = D dZero
 
-dSum :: Additive b => Df a a' b k -> Df a a' b k -> Df a a' b k
+dSum :: Additive CMap b => Df a a' b k -> Df a a' b k -> Df a a' b k
 dSum (f :# f') (g :# g') = E.ap2 addV f g :# dSum f' g'
 
 {-| A notion of vector spaces over some scalar type `s`,
     which we use to implement scalar multiplication as
     a smooth function.
 -}
-class Additive v => VectorSpace v s | v -> s where
-  (*^)    :: CMap (s, v) v    -- scale a vector
+class Additive c v => VectorSpace c v s | v -> s where
+  (*^)    :: c (s, v) v    -- scale a vector
 
-instance RE.CNum a => VectorSpace a a where
+instance RE.CNum c a => VectorSpace c a a where
   (*^) = RE.cmul
 
-scalarMult :: VectorSpace v s => Df g g' s k -> Df g g' v k -> Df g g' v k
+scalarMult :: VectorSpace CMap v s => Df g g' s k -> Df g g' v k -> Df g g' v k
 scalarMult s@(s0 :# s') x@(x0 :# x') =
   E.ap2 (*^) s0 x0 :# dSum (scalarMult (dWkn (arr snd) s) x')
                             (scalarMult s' (dWkn (arr snd) x))
 
-dMult :: RE.CNum a => Df g g' a k -> Df g g' a k -> Df g g' a k
+dMult :: RE.CNum CMap a => Df g g' a k -> Df g g' a k -> Df g g' a k
 dMult x@(x0 :# x') y@(y0 :# y') =
   E.ap2 RE.cmul x0 y0 :# dSum (dMult (dWkn (arr snd) x) y')
                               (dMult x' (dWkn (arr snd) y))
@@ -133,10 +134,10 @@ dWknA fa = go (arr id) where
        k <- fk -< k'
        f -< (g, k)
 
-dlinearWkn :: R.Rounded x => Additive b => Df g (a, Interval x) b k -> Df g a b k
+dlinearWkn :: R.Rounded x => Additive CMap b => Df g (a, Interval x) b k -> Df g a b k
 dlinearWkn = dlinearWkn' id
 
-dlinearWkn' :: R.Rounded x => Additive b => (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, Interval x) b k' -> Df g a b k
+dlinearWkn' :: R.Rounded x => Additive CMap b => (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, Interval x) b k' -> Df g a b k
 dlinearWkn' z (f :# f') = z f :# dlinearWkn' z' f'
   where
   -- z' :: forall d. CMap (d, ((a, x), k')) b -> CMap (d, (a, k)) b
@@ -149,20 +150,20 @@ dlinearWkn' z (f :# f') = z f :# dlinearWkn' z' f'
     g1 = z g'
 
 {-| The identity function as a smooth map -}
-dId :: Additive u => u :~> u
+dId :: Additive CMap u => u :~> u
 dId = D $ arr fst :# arr (fst . snd) :# dZero
 
 {-| Given a continuous map `f : u -> v` that is linear,
     its smooth map representation is a derivative tower
     where f' = f and f'' = f''' = ... = 0.
 -}
-linearD :: Additive v => CMap u v -> u :~> v
+linearD :: Additive CMap v => CMap u v -> u :~> v
 linearD f = D $ (f <<< arr fst) :# (f <<< arr (fst . snd)) :# dZero
 
-fstD :: Additive a => (a,b) :~> a
+fstD :: Additive CMap a => (a,b) :~> a
 fstD = linearD (arr fst)
 
-sndD :: Additive b => (a,b) :~> b
+sndD :: Additive CMap b => (a,b) :~> b
 sndD = linearD (arr snd)
 
 pairD' :: Df g g' a k -> Df g g' b k -> Df g g' (a, b) k
@@ -174,11 +175,11 @@ pairD (D f) (D g) = D (pairD' f g)
 add :: R.Rounded a => (Interval a, Interval a) :~> Interval a
 add = linearD RE.add
 
-addD :: Additive a => g :~> a -> g :~> a -> g :~> a
+addD :: Additive CMap a => g :~> a -> g :~> a -> g :~> a
 addD (D x) (D y) = D (dSum x y)
 
 {-| Composition of two smooth maps yields a smooth map -}
-(@.) :: Additive c => (b :~> c) -> (a :~> b) -> (a :~> c)
+(@.) :: Additive CMap c => (b :~> c) -> (a :~> b) -> (a :~> c)
 (D g@(g0 :# g')) @. (D f@(f0 :# f')) = D $
   (g0 <<< (f0 &&& arr snd)) :# linCompose (wknValue (f0 <<< (C.id &&& arr (\_ -> ()))) g') f'
 
@@ -191,7 +192,7 @@ addD (D x) (D y) = D (dSum x y)
 
     But there is some important "bookkeeping" and details beyond this.
 -}
-linCompose :: Additive c => Df g b c (b, ka) -> Df g a b (a, ka) -> Df g a c (a, ka)
+linCompose :: Additive CMap c => Df g b c (b, ka) -> Df g a b (a, ka) -> Df g a c (a, ka)
 linCompose g@(g0 :# g') f@(f0 :# f') =
   (g0 <<< (arr fst &&& f2)) :# dSum (linCompose (dWkn1 f0' g') (dWkn (arr snd) f))
                       (linCompose (dWkn (C.id *** arr snd) g) f')
@@ -204,19 +205,19 @@ linCompose g@(g0 :# g') f@(f0 :# f') =
      returnA -< (b1, b'ka')
 
 {-| Apply a smooth function of 1 variable to a smooth argument. -}
-dap1 :: Additive b => a :~> b -> g :~> a -> g :~> b
+dap1 :: Additive CMap b => a :~> b -> g :~> a -> g :~> b
 dap1 f = (f @.)
 
 {-| Apply a smooth function of 2 variables to two smooth
     arguments at the same stage of definition. -}
-dap2 :: Additive c => (a, b) :~> c -> g :~> a -> g :~> b -> g :~> c
+dap2 :: Additive CMap c => (a, b) :~> c -> g :~> a -> g :~> b -> g :~> c
 dap2 f x y = f @. pairD x y
 
 -- Seems right. Could inline scalarMult if I wanted
-lift1 :: RE.CNum a => CMap a a -> a :~> a -> a :~> a
+lift1 :: RE.CNum CMap a => CMap a a -> a :~> a -> a :~> a
 lift1 f (D f') = D $ (f <<< arr fst) :# dMult (dWkn (arr snd) f') (arr (fst . snd) :# dZero)
 
-negate' :: RE.CNum a => a :~> a
+negate' :: RE.CNum CMap a => a :~> a
 negate' = linearD RE.cnegate
 
 max' :: R.Rounded a => (Interval a, Interval a) :~> Interval a
@@ -228,14 +229,14 @@ max' = D $ (RE.max <<< arr fst) :# (RE.max_deriv <<< arr f)
 signum_deriv' :: R.Rounded a => Interval a :~> Interval a
 signum_deriv' = lift1 RE.signum_deriv signum_deriv'
 
-log', exp', sin', cos' :: RE.CFloating a => a :~> a
+log', exp', sin', cos' :: RE.CFloating CMap a => a :~> a
 log' = lift1 RE.clog recip'
 exp' = lift1 RE.cexp exp'
 sin' = lift1 RE.csin cos'
 cos' = lift1 RE.ccos (negate' @. sin')
-recip' :: RE.CFractional a => a :~> a
+recip' :: RE.CFractional CMap a => a :~> a
 recip' = lift1 RE.crecip (negate' @. recip' @. square')
-square' :: RE.CNum a => a :~> a
+square' :: RE.CNum CMap a => a :~> a
 square' = D $ (\(D x) -> dMult x x) dId
 
 getDerivTower :: R.Rounded a => Interval a :~> Interval a -> CMap g (Interval a) -> [CMap g (Interval a)]
@@ -246,7 +247,7 @@ getDerivTower (D f) x = go (wknValue x f) (arr (\_ -> ())) where
 getValue :: g :~> a -> CMap g a
 getValue (D (f :# f')) = f <<< arr (\x -> (x, ()))
 
-fwdDeriv' :: Additive a => CMap ((g, (a, a)), k') ((g, a), k) -> Df (g, a) (g, a) b k -> Df (g, (a, a)) (g, (a, a)) b k'
+fwdDeriv' :: Additive CMap a => CMap ((g, (a, a)), k') ((g, a), k) -> Df (g, a) (g, a) b k -> Df (g, (a, a)) (g, (a, a)) b k'
 fwdDeriv' g (f :# f') = (f <<< g) :# fwdDeriv' g2 f'
   where
   g2 = proc ((g', (x', dx')), ((g, (x, dx)), k')) -> do
@@ -254,34 +255,34 @@ fwdDeriv' g (f :# f') = (f <<< g) :# fwdDeriv' g2 f'
     k <- g -< ((g, (x, dx2)), k')
     returnA -< ((g', dx'), k)
 
-fwdDeriv :: Additive a => (g, a) :~> b -> (g, (a, a)):~> b
+fwdDeriv :: Additive CMap a => (g, a) :~> b -> (g, (a, a)):~> b
 fwdDeriv (D f) = D (fwdDeriv' (arr (\((g, (a, da)), ()) -> ((g, a), ()))) f)
 
-getDeriv :: Additive g => g :~> a -> g :~> a
+getDeriv :: Additive CMap g => g :~> a -> g :~> a
 getDeriv (D (f :# f')) = D (dWkn1 (zeroV &&& arr snd) f')
 
-justDeriv :: Additive g => Additive a => g :~> a -> g :~> a
+justDeriv :: Additive CMap g => Additive CMap a => g :~> a -> g :~> a
 justDeriv (D f) = D (zeroV :# dWkn zeroV f)
 
-genDeriv' :: Additive d => CMap (g, k) a
+genDeriv' :: Additive CMap d => CMap (g, k) a
   -> Df g (d, a) b k -> Df g (d, a) b k
 genDeriv' dx (f :# f') = dWkn1 ((zeroV &&& dx) &&& arr snd) f'
 
-deriv' :: Additive d => R.Rounded a => Df g (d, Interval a) b k -> Df g (d, Interval a) b k
+deriv' :: Additive CMap d => R.Rounded a => Df g (d, Interval a) b k -> Df g (d, Interval a) b k
 deriv' (f :# f') = dWkn ((zeroV &&& 1) &&& C.id) f'
 
-deriv :: Additive g => R.Rounded a => (g, Interval a) :~> b -> (g, Interval a) :~> b
+deriv :: Additive CMap g => R.Rounded a => (g, Interval a) :~> b -> (g, Interval a) :~> b
 deriv (D f) = D (deriv' f)
 
 -- The continuous map argument is the directional derivative
-genDeriv :: Additive g => (g, a) :~> b -> CMap g a -> (g, a) :~> b
+genDeriv :: Additive CMap g => (g, a) :~> b -> CMap g a -> (g, a) :~> b
 genDeriv (D f) dx = D $ genDeriv' (dx <<< arr (fst . fst)) f
 
 genDeriv'' :: CMap (g, k) a
   -> Df g a b k -> Df g a b k
 genDeriv'' dx (f :# f') = dWkn1 (dx &&& arr snd) f'
 
-fwdDerDU :: Additive b => CMap k' k ->
+fwdDerDU :: Additive CMap b => CMap k' k ->
   Df g g b (g, k) -> Df (g, g) (g, g) b ((g, g), k')
 fwdDerDU fext f@(f0 :# f') = f1 :#
   fwdDerDU fext' f'
@@ -291,25 +292,25 @@ fwdDerDU fext f@(f0 :# f') = f1 :#
     f0 -< (x, (du, k))
   fext' = arr fst *** fext
 
-fwdDerU :: Additive b =>
+fwdDerU :: Additive CMap b =>
   Df g g b (g, k) -> Df (g, g) (g, g) b k
 fwdDerU (f' :# f'') = f1 :# dWkn (arr fst *** arr id) (fwdDerU f'')
   where
   f1 = proc ((x, u), k) -> do
     f' -< (x, (u, k))
 
-fwdDerDUs :: Additive b => CMap k' k ->
+fwdDerDUs :: Additive CMap b => CMap k' k ->
   Df g g b (g, k) -> Df (g, g) (g, g) b ((g, g), k')
 fwdDerDUs fext f'@(_ :# f'') =
   dSum (fwdDerDU fext f')
        (zeroV :# fwdDerDUs (arr fst *** fext) f'')
 
-fwdDer' :: Additive b =>
+fwdDer' :: Additive CMap b =>
   Df g g b k -> Df (g, g) (g, g) b k
 fwdDer' (f :# f'@(f0' :# f'')) =
   dSum (fwdDerU f') (zeroV :# fwdDerDUs (arr id) f')
 
-fwdDer :: Additive b => g :~> b -> (g, g) :~> b
+fwdDer :: Additive CMap b => g :~> b -> (g, g) :~> b
 fwdDer (D f) = D (fwdDer' f)
 
 {-| An example function. Calculates the `n`th derivative of

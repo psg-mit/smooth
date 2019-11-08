@@ -4,6 +4,7 @@
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module RevMode where
 
@@ -29,7 +30,7 @@ data Df g a b k = CMap (g, b) ((a, k) :->: Interval MPFR) :# Df g a b (a, k)
 data a :~> b where
   D  :: CMap (a :->: Interval MPFR) b -> Df (a :->: Interval MPFR) a b () -> a :~> b
 
-instance (HasTrie i, Additive v) => Additive (i :->: v) where
+instance (HasTrie i, Additive CMap v) => Additive CMap (i :->: v) where
   zeroV = RE.tensor0 zeroV
   addV = RE.lift2mt addV
 
@@ -163,7 +164,7 @@ dWkn2 :: Df g a b k -> Df g' a' b' k'
 dWkn2 = undefined
 
 
-linCompose :: HasTrie a => HasTrie b => Additive ka =>
+linCompose :: HasTrie a => HasTrie b => Additive CMap ka =>
   Df g b c ka
   -> Df g a (b :->: Interval MPFR) ka -> Df g a c ka
 linCompose f@(f0 :# f') g@(g0 :# g') = undefined -- g0f0 :# dSum gf' g'f

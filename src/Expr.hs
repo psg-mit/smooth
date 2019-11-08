@@ -9,6 +9,7 @@ which is "equivalent".
 -}
 
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -110,7 +111,7 @@ lett x f = proc g -> do
 wkn :: CMap g a -> CMap (g, x) a
 wkn f = f <<< arr fst
 
-instance CNum a => Num (CMap g a) where
+instance CNum CMap a => Num (CMap g a) where
   (+) = ap2 cadd
   (-) = ap2 csub
   (*) = ap2 cmul
@@ -119,13 +120,13 @@ instance CNum a => Num (CMap g a) where
   signum = ap1 csignum
   fromInteger = cfromInteger
 
-instance CFractional a => Fractional (CMap g a) where
+instance CFractional CMap a => Fractional (CMap g a) where
   (/) = ap2 cdiv
   recip = ap1 crecip
   fromRational = cfromRational
 
 
-instance CFloating a => Floating (CMap g a) where
+instance CFloating CMap a => Floating (CMap g a) where
   pi = cpi
   exp = ap1 cexp
   log = ap1 clog

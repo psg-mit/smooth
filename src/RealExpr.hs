@@ -12,6 +12,9 @@ number type.
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DefaultSignatures #-}
 
 module RealExpr where
 
@@ -102,47 +105,51 @@ withPrec2 op = withPrec $ \p (ix, iy) -> op p ix iy
 {-| A typeclass for the structure of vector spaces
     needed for computing derivatives.
 -}
-class Additive v where
-  zeroV  :: CMap g v         -- the zero vector
-  addV   :: CMap (v, v) v    -- add vectors
+class Additive c v where
+  zeroV  :: c g v         -- the zero vector
+  addV   :: c (v, v) v    -- add vectors
 
-instance Additive () where
+instance Additive CMap () where
   zeroV = arr (\_ -> ())
   addV = arr (\_ -> ())
 
-instance (Additive u, Additive v) => Additive (u, v) where
+instance (Arrow c, Additive c u, Additive c v) => Additive c (u, v) where
   zeroV = zeroV &&& zeroV
   addV = proc ((u1, v1), (u2, v2)) -> do
     u <- addV -< (u1, u2)
     v <- addV -< (v1, v2)
     returnA -< (u, v)
 
-class Additive a => CNum a where
-  cadd, csub, cmul :: CMap (a, a) a
+class Additive c a => CNum c a where
+  cadd, csub, cmul :: c (a, a) a
   cadd = addV
-  cnegate, cabs, csignum :: CMap a a
-  cfromInteger :: Integer -> CMap g a
+  cnegate, cabs, csignum :: c a a
+  cfromInteger :: Integer -> c g a
 
-class CNum a => CFractional a where
-  cdiv :: CMap (a, a) a
-  crecip :: CMap a a
-  cfromRational :: Rational -> CMap g a
+class CNum c a => CFractional c a where
+  cdiv :: c (a, a) a
+  crecip :: c a a
+  cfromRational :: Rational -> c g a
+  default cfromRational :: Arrow c => Rational -> c g a
   cfromRational q = cdiv <<< cfromInteger (numerator q) &&& cfromInteger (denominator q)
 
-class CFractional a => CFloating a where
-  cpi :: CMap g a
+class CFractional c a => CFloating c a where
+  cpi :: c g a
   cexp, clog, csqrt, csin, ccos, ctan, casin, cacos, catan,
     csinh, ccosh, ctanh, casinh, cacosh, catanh,
-    clog1p, cexpm1, clog1pexp, clog1mexp :: CMap a a
+    clog1p, cexpm1, clog1pexp, clog1mexp :: c a a
+  default clog1pexp :: Arrow c => c a a
   clog1pexp = clog1p <<< cexp
+  default clog1mexp :: Arrow c => c a a
   clog1mexp = clog1p <<< cnegate <<< cexp
+  default ctan :: Arrow c => c a a
   ctan = cdiv <<< csin &&& ccos
 
-instance Rounded a => Additive (Interval a) where
+instance Rounded a => Additive CMap (Interval a) where
   addV = add
   zeroV = integer 0
 
-instance Rounded a => CNum (Interval a) where
+instance Rounded a => CNum CMap (Interval a) where
   cadd = add
   cmul = mul
   cnegate = negate
@@ -151,7 +158,7 @@ instance Rounded a => CNum (Interval a) where
   cfromInteger = integer
   csignum = signum
 
-instance Rounded a => CFractional (Interval a) where
+instance Rounded a => CFractional CMap (Interval a) where
   crecip = recip
   cdiv = div
 
