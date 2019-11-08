@@ -9,6 +9,9 @@ of type `(R -> R) -> R`.
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module FwdPSh where
 
@@ -139,3 +142,30 @@ reluIntegralExample y n =
 
 reluExample :: Point (Interval MPFR) -> Int -> Point (Interval MPFR)
 reluExample x n = getDerivTower' (max 0) x !! n
+
+
+
+
+
+-- Tangent spaces
+
+-- Tangent spaces
+data Tan f g where
+   Tan :: Additive d => g :~> (d, d) -> f d -> Tan f g
+
+instance (PSh (:~>) f) => PSh (:~>) (Tan f) where
+  pmap f (Tan gdd fd) = Tan (gdd @. f) fd
+
+tanRto :: (DReal :* DReal) g -> Tan DReal g
+tanRto (R x :* R dx) = Tan (pairD x dx) (R dId)
+
+tanRfrom :: Tan DReal g -> (DReal :* DReal) g
+tanRfrom (Tan gdd (R fd)) = R (fstD @. x) :* R (sndD @. x) where
+  x = fwdWithValue fd @. gdd
+
+fwd1 :: (forall g. a g -> b g) -> Tan a g -> Tan b g
+fwd1 f (Tan gdd fd) = Tan gdd (f fd)
+
+-- Can't figure this out
+-- fwd :: Arr (:~>) a b g -> Arr (:~>) (Tan a) (Tan b) g
+-- fwd (Arr f) = Arr $ \ext (Tan gdd fd) -> Tan gdd (f ext fd)
