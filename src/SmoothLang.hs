@@ -3,9 +3,9 @@ module SmoothLang where
 import Prelude ()
 import Expr
 import RealExpr (runPoint, Point)
-import MPFR (R)
+import MPFR (Real)
 
-sqrt2Example :: Point R
+sqrt2Example :: Point Real
 sqrt2Example = dedekind_cut (\x -> x < 0 || (x ^ 2) < 2)
 
 quantificationExample :: Point Bool

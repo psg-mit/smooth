@@ -20,7 +20,6 @@ import Control.Arrow
 import Control.Category (Category)
 import qualified Control.Category as C
 import RealExpr (CMap (..), Additive (..), Point)
-import Data.Number.MPFR (MPFR)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Expr as E
@@ -28,6 +27,7 @@ import qualified RealExpr as RE
 import Experimental.PSh
 import FwdMode
 import qualified MPFR as M
+import MPFR (Real)
 
 type D = (:~>)
 
@@ -36,10 +36,12 @@ instance ConCat D where
   id = dId
   (.) = (@.)
 
-type Real = R CMap (Interval MPFR)
-type DReal = R D (Interval MPFR)
+type CReal = R CMap Real
+type DReal = R D Real
 
-instance R.Rounded a => Num (R CMap (Interval a) g) where
+data ArrD a b (g :: *) = ArrD (forall d. Additive d => d :~> g -> a d -> b d)
+
+instance RE.CNum a => Num (R CMap a g) where
   R x + R y = R (x + y)
   R x * R y = R (x * y)
   negate (R x) = R (negate x)
@@ -68,7 +70,7 @@ instance R.Rounded a => Fractional (g :~> Interval a) where
 max :: R.Rounded a => g :~> Interval a -> g :~> Interval a -> g :~> Interval a
 max = dap2 max'
 
-instance Floating (g :~> Interval MPFR) where
+instance Floating (g :~> Real) where
   pi = D $ pi :# dZero
   log = dap1 log'
   exp = dap1 exp'
@@ -96,7 +98,7 @@ integral :: R.Rounded a => ((g, Interval a) :~> Interval a -> (g, Interval a) :~
   -> g :~> (Interval a)
 integral f = integral' (f sndD)
 
-asReal :: R CMap (Interval MPFR) g -> CMap g (Interval MPFR)
+asReal :: R CMap Real g -> CMap g Real
 asReal (R x) = x
 
 derivative :: Additive g => Additive b => R.Rounded a =>
@@ -112,6 +114,12 @@ fwd_deriv :: Additive g => Additive a => Additive b =>
   ((g, a) :~> a -> (g, a) :~> b) -> g :~> a -> g :~> a -> g :~> b
 fwd_deriv f = fwd_deriv' (f sndD)
 
+fwd_deriv1 :: Additive g => Additive a => Additive b =>
+  (ArrD (R D a) (R D b) g) -> g :~> a -> g :~> a -> g :~> b
+fwd_deriv1 (ArrD f) = fwd_deriv' (let R b = f fstD (R sndD) in b)
+
+-- fwd_deriv1' :: Additive g => Additive a => Additive b =>
+
 wkn :: Additive g => Additive a => g :~> a -> (g, x) :~> a
 wkn f = f @. fstD
 
@@ -119,28 +127,28 @@ getDerivTower' :: R.Rounded a => (Interval a :~> Interval a -> Interval a :~> In
   -> CMap g (Interval a) -> [CMap g (Interval a)]
 getDerivTower' f = getDerivTower (f dId)
 
-example :: Int -> Point (Interval MPFR)
+example :: Int -> Point Real
 example n = getDerivTower' (\c -> integral (\x -> sin (wkn c * x))) 3 !! n
 
-example2 :: Point (Interval MPFR)
+example2 :: Point Real
 example2 = getValue $ fwd_deriv (\c -> integral (\x -> abs (x - wkn c))) 0.6 1
 
 -- I think this is right!
-example3 :: Point (Interval MPFR) -> Int -> Point (Interval MPFR)
+example3 :: Point Real -> Int -> Point Real
 example3 y n = getDerivTower' (\z -> fwd_deriv (\x -> x^2) z z) y !! n
 
 
-absExample :: Point (Interval MPFR) -> Int -> Point (Interval MPFR)
+absExample :: Point Real -> Int -> Point Real
 absExample y n = getDerivTower' (\c -> integral (\x -> abs (x - wkn c))) y !! n
 
-internalDiffExample :: Point (Interval MPFR)
+internalDiffExample :: Point Real
 internalDiffExample = getValue $ derivative (\c -> integral (\x -> abs (x - wkn c))) 0.6
 
-reluIntegralExample :: Point (Interval MPFR) -> Int -> Point (Interval MPFR)
+reluIntegralExample :: Point Real -> Int -> Point Real
 reluIntegralExample y n =
   getDerivTower' (\c -> integral (\x -> max 0 (x - wkn c))) y !! n
 
-reluExample :: Point (Interval MPFR) -> Int -> Point (Interval MPFR)
+reluExample :: Point Real -> Int -> Point Real
 reluExample x n = getDerivTower' (max 0) x !! n
 
 
@@ -152,6 +160,9 @@ reluExample x n = getDerivTower' (max 0) x !! n
 -- Tangent spaces
 data Tan f g where
    Tan :: Additive d => g :~> (d, d) -> f d -> Tan f g
+
+data RTan f g where
+  RTan :: (forall d. Additive d => g :~> (d, d) -> f d) -> RTan f g
 
 instance (PSh (:~>) f) => PSh (:~>) (Tan f) where
   pmap f (Tan gdd fd) = Tan (gdd @. f) fd
@@ -166,6 +177,6 @@ tanRfrom (Tan gdd (R fd)) = R (fstD @. x) :* R (sndD @. x) where
 fwd1 :: (forall g. a g -> b g) -> Tan a g -> Tan b g
 fwd1 f (Tan gdd fd) = Tan gdd (f fd)
 
--- Can't figure this out
--- fwd :: Arr (:~>) a b g -> Arr (:~>) (Tan a) (Tan b) g
--- fwd (Arr f) = Arr $ \ext (Tan gdd fd) -> Tan gdd (f ext fd)
+-- Can't figure out how to not require the input to be representable
+-- fwd2 :: ArrD (R (:~>) a) b g -> ArrD (R (:~>) (a, a)) (Tan b) g
+-- fwd2 (ArrD f) = ArrD $ \ext (R xdx) -> let f' = f ext in Tan xdx (f' (R (sndD @. xdx)))

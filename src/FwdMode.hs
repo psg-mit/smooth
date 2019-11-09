@@ -170,8 +170,8 @@ pairD' (f :# f') (g :# g') = (f &&& g) :# (pairD' f' g')
 pairD :: g :~> a -> g :~> b -> g :~> (a, b)
 pairD (D f) (D g) = D (pairD' f g)
 
-add :: R.Rounded a => (Interval a, Interval a) :~> Interval a
-add = linearD RE.add
+add :: RE.CNum a => (a, a) :~> a
+add = linearD RE.cadd
 
 addD :: Additive a => g :~> a -> g :~> a -> g :~> a
 addD (D x) (D y) = D (dSum x y)
@@ -317,5 +317,5 @@ fwdWithValue f = pairD (fwdDer f) (f @. fstD)
 {-| An example function. Calculates the `n`th derivative of
     (\x -> exp (2 * x)) at x = 0.
 -}
-diffeoExample :: Int -> Point M.R
+diffeoExample :: Int -> Point M.Real
 diffeoExample n = getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n

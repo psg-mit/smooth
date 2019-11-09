@@ -8,7 +8,7 @@ of various special functions.
 module MPFR where
 
 import Control.Arrow (first)
-import Prelude
+import Prelude hiding (Real)
 import qualified Interval as I
 import Interval (Interval)
 import RealExpr
@@ -82,62 +82,62 @@ string_insert :: String -> Int -> String -> String
 string_insert s i toInsert = let (s1, s2) = splitAt i s in
   s1 ++ toInsert ++ s2
 
-type R = Interval M.MPFR
+type Real = Interval M.MPFR
 
-monotone :: (M.RoundMode -> M.Precision -> M.MPFR -> M.MPFR) -> CMap R R
+monotone :: (M.RoundMode -> M.Precision -> M.MPFR -> M.MPFR) -> CMap Real Real
 monotone f = withPrec $ \p -> I.monotone (\d x -> f (roundDirMPFR d) (fromIntegral p) x)
 
-antitone :: (M.RoundMode -> M.Precision -> M.MPFR -> M.MPFR) -> CMap R R
+antitone :: (M.RoundMode -> M.Precision -> M.MPFR -> M.MPFR) -> CMap Real Real
 antitone f = withPrec $ \p -> I.monotone (\d x -> f (roundDirMPFR d) (fromIntegral p) x) . I.flip
 
-constant :: (M.RoundMode -> M.Precision -> M.MPFR) -> CMap g R
+constant :: (M.RoundMode -> M.Precision -> M.MPFR) -> CMap g Real
 constant f = withPrec $ \p _ -> I.rounded (\d -> f (roundDirMPFR d) (fromIntegral p))
 
 
 -- Many monotone functions
 
-exp2' :: CMap R R
+exp2' :: CMap Real Real
 exp2' = monotone M.exp2
 
-exp2 :: CMap g R -> CMap g R
+exp2 :: CMap g Real -> CMap g Real
 exp2 = ap1 exp2'
 
-exp10' :: CMap R R
+exp10' :: CMap Real Real
 exp10' = monotone M.exp10
 
-exp10 :: CMap g R -> CMap g R
+exp10 :: CMap g Real -> CMap g Real
 exp10 = ap1 exp10'
 
-log2' :: CMap R R
+log2' :: CMap Real Real
 log2' = monotone M.log2
 
-log2 :: CMap g R -> CMap g R
+log2 :: CMap g Real -> CMap g Real
 log2 = ap1 log2'
 
-log10' :: CMap R R
+log10' :: CMap Real Real
 log10' = monotone M.log10
 
-log10 :: CMap g R -> CMap g R
+log10 :: CMap g Real -> CMap g Real
 log10 = ap1 log10'
 
--- log1p :: CMap g R -> CMap g R
+-- log1p :: CMap g Real -> CMap g Real
 -- log1p = ap1 log1p'
 
-expm1 :: CMap g R -> CMap g R
+expm1 :: CMap g Real -> CMap g Real
 expm1 = ap1 cexpm1
 
 -- Constants
 
-log2c :: CMap g R
+log2c :: CMap g Real
 log2c = constant M.log2c
 
-euler :: CMap g R
+euler :: CMap g Real
 euler = constant M.euler
 
-catalan :: CMap g R
+catalan :: CMap g Real
 catalan = constant M.catalan
 
-sinI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
+sinI :: M.Precision -> Real -> Real
 sinI prec i@(I.Interval a b)
   | R.ofInteger (fromIntegral prec) R.Down 3 < I.lower (I.width (fromIntegral prec) i)
     = I.Interval R.negativeOne R.one
@@ -158,7 +158,7 @@ sinI prec i@(I.Interval a b)
   I.Interval deriva1 deriva2 = I.rounded (\d -> M.cos (roundDirMPFR d) prec a)
   I.Interval derivb1 derivb2 = I.rounded (\d -> M.cos (roundDirMPFR d) prec b)
 
-cosI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
+cosI :: M.Precision -> Real -> Real
 cosI prec i@(I.Interval a b)
   | R.ofInteger (fromIntegral prec) R.Down 3 < I.lower (I.width (fromIntegral prec) i)
     = I.Interval R.negativeOne R.one
@@ -179,7 +179,7 @@ cosI prec i@(I.Interval a b)
   I.Interval negderiva1 negderiva2 = I.rounded (\d -> M.sin (roundDirMPFR d) prec a)
   I.Interval negderivb1 negderivb2 = I.rounded (\d -> M.sin (roundDirMPFR d) prec b)
 
-coshI :: M.Precision -> Interval M.MPFR -> Interval M.MPFR
+coshI :: M.Precision -> Real -> Real
 coshI prec i@(I.Interval a b)
   | R.positive a = coshi
   | R.negative b = I.flip coshi
@@ -187,11 +187,11 @@ coshI prec i@(I.Interval a b)
   where
   coshi@(I.Interval ca cb) = I.monotone (\d -> M.cosh (roundDirMPFR d) prec) i
 
-fact :: Word -> CMap g R
+fact :: Word -> CMap g Real
 fact n = constant (\d p -> M.facw d p n)
 
 -- TODO: implement tan
-instance CFloating R where
+instance CFloating Real where
   cpi = constant M.pi
   cexp = monotone M.exp
   clog = monotone M.log
@@ -226,7 +226,7 @@ extendFromTo xs [] = (length xs, "")
 
 
 -- this code is really gross
-showIntervals :: [Interval M.MPFR] -> String
+showIntervals :: [Real] -> String
 showIntervals = go "" ""
   where
   hl = C.highlight [C.Foreground C.Red]
@@ -255,5 +255,5 @@ showIntervals = go "" ""
     then (replicate (eh - el) '0' ++ sl, sh, eh)
     else (sl, replicate (el - eh) '0' ++ sh, el)
 
-printReal :: Point (Interval M.MPFR) -> IO ()
+printReal :: Point Real -> IO ()
 printReal = putStrLn . showIntervals . runPoint
