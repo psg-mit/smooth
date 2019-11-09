@@ -59,6 +59,15 @@ instance R.Rounded a => Num (g :~> Interval a) where
   fromInteger x = D $ fromInteger x :# dZero
   negate = dap1 negate'
 
+instance R.Rounded a => Num (R D (Interval a) g) where
+  R x + R y = R (x + y)
+  R x * R y = R (x * y)
+  negate (R x) = R (negate x)
+  R x - R y = R (x - y)
+  abs (R x) = R (abs x)
+  fromInteger = R Prelude.. fromInteger
+  signum (R x) = R (signum x)
+
 instance R.Rounded a => Fractional (R CMap (Interval a) g) where
   recip (R x) = R (recip x)
   fromRational = R Prelude.. fromRational
@@ -188,3 +197,18 @@ exponentialMapRn xdx c = addD (fstD @. xdx) (scalarMultD c (sndD @. xdx))
 fwd :: Additive g => PShD a => ArrD a b g -> ArrD (Tan a) (Tan b) g
 fwd (ArrD f) = ArrD $ \ext (Tan xdx ax) -> let f1 = f fstD (dmap sndD ax) in
   Tan (pairD (pairD ext (fstD @. xdx)) (pairD zeroD (sndD @. xdx))) f1
+
+tanProdfrom :: Tan (a :* b) g -> (Tan a :* Tan b) g
+tanProdfrom (Tan xdx (a :* b)) = Tan xdx a :* Tan xdx b
+
+tanProdto :: PShD a => PShD b => (Tan a :* Tan b) g -> Tan (a :* b) g
+tanProdto (Tan xdx a :* Tan ydy b) = Tan (pairD xy dxdy) (a' :* b') where
+  xy = pairD (fstD @. xdx) (fstD @. ydy)
+  dxdy = pairD (sndD @. xdx) (sndD @. ydy)
+  a' = dmap fstD a
+  b' = dmap sndD b
+
+tanToRto :: Additive g => ArrD a (DReal :* DReal) g -> Tan (ArrD a DReal) g
+tanToRto (ArrD f) = Tan (pairD (pairD dId 0) (pairD zeroD 1))
+  (ArrD $ \ext a -> let g :* dg = f (fstD @. ext) a in
+    g + (R (sndD @. ext)) * dg)
