@@ -157,15 +157,14 @@ reluExample x n = getDerivTower' (max 0) x !! n
 
 -- Tangent spaces
 
--- Tangent spaces
 data Tan f g where
    Tan :: Additive d => g :~> (d, d) -> f d -> Tan f g
 
-data RTan f g where
-  RTan :: (forall d. Additive d => g :~> (d, d) -> f d) -> RTan f g
+class PShD f where
+  dmap :: Additive d => Additive g => d :~> g -> f g -> f d
 
-instance (PSh (:~>) f) => PSh (:~>) (Tan f) where
-  pmap f (Tan gdd fd) = Tan (gdd @. f) fd
+instance (PShD f) => PShD (Tan f) where
+  dmap f (Tan gdd fd) = Tan (gdd @. f) fd
 
 tanRto :: (DReal :* DReal) g -> Tan DReal g
 tanRto (R x :* R dx) = Tan (pairD x dx) (R dId)
@@ -174,9 +173,18 @@ tanRfrom :: Tan DReal g -> (DReal :* DReal) g
 tanRfrom (Tan gdd (R fd)) = R (fstD @. x) :* R (sndD @. x) where
   x = fwdWithValue fd @. gdd
 
-fwd1 :: (forall g. a g -> b g) -> Tan a g -> Tan b g
-fwd1 f (Tan gdd fd) = Tan gdd (f fd)
+fwdGlobal :: (forall g. a g -> b g) -> Tan a g -> Tan b g
+fwdGlobal f (Tan gdd fd) = Tan gdd (f fd)
 
--- Can't figure out how to not require the input to be representable
--- fwd2 :: ArrD (R (:~>) a) b g -> ArrD (R (:~>) (a, a)) (Tan b) g
--- fwd2 (ArrD f) = ArrD $ \ext (R xdx) -> let f' = f ext in Tan xdx (f' (R (sndD @. xdx)))
+scaleDerivRn :: VectorSpace v s => g :~> (v, v) -> g :~> s -> g :~> (v, v)
+scaleDerivRn xdx c = pairD (fstD @. xdx) (scalarMultD c (sndD @. xdx))
+
+exponentialMapRn :: VectorSpace v s => g :~> (v, v) -> g :~> s -> g :~> v
+exponentialMapRn xdx c = addD (fstD @. xdx) (scalarMultD c (sndD @. xdx))
+
+-- scaleDerivTan :: Tan f g -> g :~> Real -> Tan f g
+-- scaleDerivTan (Tan xdx f) c = Tan (scaleDerivRn xdx c) f
+
+fwd :: Additive g => PShD a => ArrD a b g -> ArrD (Tan a) (Tan b) g
+fwd (ArrD f) = ArrD $ \ext (Tan xdx ax) -> let f1 = f fstD (dmap sndD ax) in
+  Tan (pairD (pairD ext (fstD @. xdx)) (pairD zeroD (sndD @. xdx))) f1

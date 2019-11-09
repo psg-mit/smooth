@@ -176,6 +176,9 @@ add = linearD RE.cadd
 addD :: Additive a => g :~> a -> g :~> a -> g :~> a
 addD (D x) (D y) = D (dSum x y)
 
+scalarMultD :: VectorSpace v s => g :~> s -> g :~> v -> g :~> v
+scalarMultD (D c) (D x) = D (scalarMult c x)
+
 {-| Composition of two smooth maps yields a smooth map -}
 (@.) :: Additive c => (b :~> c) -> (a :~> b) -> (a :~> c)
 (D g@(g0 :# g')) @. (D f@(f0 :# f')) = D $
