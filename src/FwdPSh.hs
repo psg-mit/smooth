@@ -95,6 +95,7 @@ instance Floating (g :~> Real) where
   -- asinh    = lift1 asinh $ \x -> recip (sqrt (1 + join (*) x))
   -- acosh    = lift1 acosh $ \x -> recip (sqrt (join (*) x - 1))
   -- atanh    = lift1 atanh $ \x -> recip (1 - join (*) x)
+  sqrt = dap1 sqrt'
 
 -- Maybe this is working!!!
 integral' :: R.Rounded a => ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
@@ -223,3 +224,8 @@ tanToRfrom (Tan xdx (ArrD f)) = ArrD $ \ext a ->
   let R z = f fstD (dmap sndD a) in
   let x = fwdWithValue z @. (pairD (pairD (fstD @. xdx @. ext) dId) (pairD (sndD @. xdx @. ext) zeroD)) in
   R (fstD @. x) :* R (sndD @. x)
+
+-- a test of using `fromFwd`. Appears to be working properly!
+testSqrt :: Real :~> Real
+testSqrt = fromFwd RE.csqrt $
+  recip (2 * (testSqrt @. fstD)) * sndD

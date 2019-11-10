@@ -239,6 +239,8 @@ recip' :: RE.CFractional a => a :~> a
 recip' = lift1 RE.crecip (negate' @. recip' @. square')
 square' :: RE.CNum a => a :~> a
 square' = D $ (\(D x) -> dMult x x) dId
+sqrt' :: RE.CFloating a => a :~> a
+sqrt' = lift1 RE.csqrt (recip' @. linearD ((2 *) (arr id)) @. sqrt')
 
 getDerivTower :: R.Rounded a => Interval a :~> Interval a -> CMap g (Interval a) -> [CMap g (Interval a)]
 getDerivTower (D f) x = go (wknValue x f) (arr (\_ -> ())) where
@@ -322,3 +324,28 @@ fwdWithValue f = pairD (fwdDer f) (f @. fstD)
 -}
 diffeoExample :: Int -> Point M.Real
 diffeoExample n = getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n
+
+
+
+-- Below is experimental! It may be wrong! Be warned!
+
+
+-- I am not sure this is correct at all!
+-- A generalization of lift1. Give a continuous map for the value,
+-- and a smooth map of the derivative for the rest.
+fromFwd :: Additive a => CMap a b -> (a, a) :~> b -> a :~> b
+fromFwd f (D f') = D $ (f <<< arr fst) :# convertFwdDeriv f'
+
+convertFwdDeriv :: Additive a => Df (a, a) (a, a) b () -> Df a a b (a, ())
+convertFwdDeriv = convertFwdDeriv' (arr id)
+
+-- I am setting some derivatives to 0. Is that okay?
+convertFwdDeriv' :: Additive a => CMap k' k -> Df (a, a) (a, a) b k -> Df a a b (a, k')
+convertFwdDeriv' k'k (f :# f') = f1 :# convertFwdDeriv' k'knew f' where
+  f1 = proc (x, (dx, k')) -> do
+    k <- k'k -< k'
+    f -< ((x, dx), k)
+  k'knew = proc (a, k') -> do
+    k <- k'k -< k'
+    z <- zeroV -< ()
+    returnA -< ((a, z), k)
