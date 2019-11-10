@@ -175,6 +175,9 @@ class PShD f where
 instance (PShD f) => PShD (Tan f) where
   dmap f (Tan gdd fd) = Tan (gdd @. f) fd
 
+tangentValue :: Additive g => PShD f => Tan f g -> f g
+tangentValue (Tan xdx f) = dmap (fstD @. xdx) f
+
 tanRto :: (DReal :* DReal) g -> Tan DReal g
 tanRto (R x :* R dx) = Tan (pairD x dx) (R dId)
 
@@ -212,3 +215,11 @@ tanToRto :: Additive g => ArrD a (DReal :* DReal) g -> Tan (ArrD a DReal) g
 tanToRto (ArrD f) = Tan (pairD (pairD dId 0) (pairD zeroD 1))
   (ArrD $ \ext a -> let g :* dg = f (fstD @. ext) a in
     g + (R (sndD @. ext)) * dg)
+
+-- Haven't thought about this one too carefully,
+-- so I should make sure it's correct
+tanToRfrom :: Additive g => PShD a => Tan (ArrD a DReal) g -> (ArrD a (DReal :* DReal)) g
+tanToRfrom (Tan xdx (ArrD f)) = ArrD $ \ext a ->
+  let R z = f fstD (dmap sndD a) in
+  let x = fwdWithValue z @. (pairD (pairD (fstD @. xdx @. ext) dId) (pairD (sndD @. xdx @. ext) zeroD)) in
+  R (fstD @. x) :* R (sndD @. x)
