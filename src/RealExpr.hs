@@ -293,19 +293,23 @@ dedekind_cut' :: Rounded a => CMap (Interval a -> B) (Interval a)
 dedekind_cut' = bound 1 R.one where
   bound p b = CMap $ \f -> let negb = R.neg p R.Down b in
     if fst (f (I.lift negb)) && snd (f (I.lift b))
-      then let i = Interval negb b in (i, locate p i)
+      then let i = Interval negb b in (i, loc p i)
       else (I.realLine, bound (p + 1) (R.mulpow2 1 p R.Down b))
-  locate p (Interval l u) = CMap $ \f ->
-    let (l', u') = (let m = R.average l u in
-                        case f (I.lift m) of
-                          (True, _) -> (m, u)
-                          (_, True) -> (l, m)
-                          _ -> let mu = R.average m u in
-                            case f (I.lift mu) of
-                              (True, _) -> (mu, u)
-                              (_, True) -> (l, mu)
-                              _ -> (l, u))
-    in let i' = Interval l' u' in (i', locate p i')
+  loc p i = CMap $ \f -> let i' = locate p i f in
+    (i', loc (p + 5) i')
+
+locate :: Rounded a => Word -> Interval a -> (Interval a -> B) -> Interval a
+locate p (Interval l u) f =
+  let (l', u') = (let m = R.average l u in
+                      case f (I.lift m) of
+                        (True, _) -> (m, u)
+                        (_, True) -> (l, m)
+                        _ -> let mu = R.average m u in
+                          case f (I.lift mu) of
+                            (True, _) -> (mu, u)
+                            (_, True) -> (l, mu)
+                            _ -> (l, u))
+  in Interval l' u'
 
 runPoint :: Point a -> [a]
 runPoint (CMap f) = let (x, f') = f () in
@@ -318,9 +322,25 @@ abs1 :: (forall d. CMap d g -> CMap d a -> CMap d b) -> CMap (g, a) b
 abs1 f = f (arr fst) (arr snd)
 
 
-
-
-
+-- Assumption: f is monotone decreasing and has a single isolated root.
+newton_cut' :: Rounded r => CMap (Interval r -> (Interval r, Interval r)) (Interval r)
+newton_cut' = bound 1 R.one where
+  bound :: Rounded r => Word -> r -> CMap (Interval r -> (Interval r, Interval r)) (Interval r)
+  bound p b = CMap $ \f -> let negb = R.neg p R.Down b in
+    if I.lower (fst (f (I.lift negb))) > R.zero && I.upper (fst (f (I.lift b))) < R.zero
+      then let i = Interval negb b in (i, loc p i)
+      else (I.realLine, bound (p + 1) (R.mulpow2 1 p R.Down b))
+  loc p i@(Interval l u) = CMap $ \f ->
+    let (fx1, _) = f (I.lift l) in
+    let (fx2, _) = f (I.lift u) in
+    let (_, f'x) = f i in
+    let i1 = I.sub p (I.lift l) (I.div p fx1 f'x) in
+    let i2 = I.sub p (I.lift u) (I.div p fx2 f'x) in
+    let i' = i `I.join` i1 `I.join` i2 in
+    if I.lower i' > I.lower i || I.upper i' < I.upper i -- we made progress
+      then (i', loc (p + 5) i')
+      else let i' = locate p i (\x -> let Interval a b = fst (f x) in (a > R.zero, b < R.zero))
+           in (i', loc (p + 5) i')
 
 
 

@@ -6,7 +6,7 @@ number types with operations that permit rounding up and down.
 
 module Interval where
 
-import Prelude hiding (flip)
+import Prelude hiding (flip, recip)
 import Rounded (Rounded, Prec, RoundDir (Up, Down))
 import qualified Rounded as R
 
@@ -65,6 +65,9 @@ recip p i@(Interval a b)
   | R.zero <= a = monotone (\d -> R.div p d R.one) i
   | b <= R.zero = monotone (\d -> R.div p d R.one) (flip i)
   | otherwise  = realLine
+
+div :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
+div p n d = mul p n (recip p d)
 
 maybe_cut_bisection :: Rounded a => (a -> Maybe Ordering) -> Interval a -> Interval a
 maybe_cut_bisection f i@(Interval a b) = let x = R.average a b in
