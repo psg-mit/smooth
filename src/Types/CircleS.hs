@@ -1,6 +1,7 @@
+
 {-# LANGUAGE TypeOperators #-}
 
-module Types.Circle where
+module Types.CircleS where
 
 import Prelude hiding (Real)
 import FwdMode ((:~>), pairD, fstD, sndD)
@@ -9,35 +10,37 @@ import MPFR (Real)
 
 
 -- Circle = { (x, y) : R^2 | x^2 + y^2 = 1 }
-data Circle g = Circle (DReal g) (DReal g)
+-- Equivalently, implementing the Circle as the
+-- image of `cossin : R -> R^2`
+newtype Circle g = Circle {
+  toXY :: (DReal :* DReal) g
+  }
 
 fromAngle :: DReal g -> Circle g
-fromAngle theta = Circle (cos theta) (sin theta)
+fromAngle theta = Circle (cos theta :* sin theta)
 
 rotate :: DReal g -> Circle g -> Circle g
-rotate theta (Circle x y) = Circle (cos theta * x + sin theta * y)
-                                   (cos theta * y - sin theta * x)
+rotate theta (Circle (x :* y)) = Circle $
+     (cos theta * x + sin theta * y)
+  :* (cos theta * y - sin theta * x)
 
-toXY :: Circle g -> (DReal :* DReal) g
-toXY (Circle x y) = x :* y
+-- The tangent bundle for the circle is just
+-- a point on the circle plus a change in angle
+tangent :: Tan Circle g :== (Circle :* DReal) g
+tangent = Bijection fromTan toTan where
+  fromTan (Tan udu (Circle (x' :* y'))) = Circle (x :* y) :* theta  where
+    xdx :* ydy = from tanProd (Tan udu (x' :* y'))
+    x :* dx = from tanR xdx
+    y :* dy = from tanR ydy
+    theta = x * dy - y * dx
+  toTan (Circle (R x :* R y) :* R dtheta) = Tan (pairD (pairD x y) (pairD dx dy))
+    (Circle (R fstD :* R sndD))
+    where
+    dx = -y * dtheta
+    dy =  x * dtheta
 
--- Point on circle plus change in angle to tangent bundle
-toTan :: Circle g -> DReal g -> Tan Circle g
-toTan (Circle (R x) (R y)) (R dtheta) = Tan (pairD (pairD x y) (pairD dx dy))
-  (Circle (R fstD) (R sndD))
-  where
-  dx = -y * dtheta
-  dy =  x * dtheta
-
--- From tangent bundle to point on circle plus angle
-fromTan :: Tan Circle g -> (Circle :* DReal) g
-fromTan (Tan udu (Circle x' y')) = Circle x y :* theta  where
-  xdx :* ydy = tanProdfrom (Tan udu (x' :* y'))
-  x :* dx = tanRfrom xdx
-  y :* dy = tanRfrom ydy
-  theta = x * dy - y * dx
 
 -- The exponential map for the circle
 exponentialMap :: Tan Circle g -> Circle g
-exponentialMap t = rotate theta (Circle x y) where
-  Circle x y :* theta = fromTan t
+exponentialMap t = rotate theta (Circle xy) where
+  Circle xy :* theta = from tangent t

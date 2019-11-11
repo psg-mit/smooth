@@ -114,16 +114,16 @@ instance Floating (DReal g) where
   exp (R x) = R (exp x)
   sin (R x) = R (sin x)
   cos (R x) = R (cos x)
-  -- tan      = lift1 tan $ recip . join (*) . cos
-  -- asin     = lift1 asin $ \x -> recip (sqrt (1 - join (*) x))
-  -- acos     = lift1 acos $ \x -> negate (recip (sqrt (1 - join (*) x)))
-  -- atan     = lift1 atan $ \x -> recip (1 + join (*) x)
-  -- sinh     = lift1 sinh cosh
-  -- cosh     = lift1 cosh sinh
-  -- tanh     = lift1 tanh $ recip . join (*) . cosh
-  -- asinh    = lift1 asinh $ \x -> recip (sqrt (1 + join (*) x))
-  -- acosh    = lift1 acosh $ \x -> recip (sqrt (join (*) x - 1))
-  -- atanh    = lift1 atanh $ \x -> recip (1 - join (*) x)
+  tan (R x) = R (tan x)
+  asin (R x) = R (asin x)
+  acos (R x) = R (cos x)
+  atan (R x) = R (atan x)
+  sinh (R x) = R (sinh x)
+  cosh (R x) = R (cosh x)
+  tanh (R x) = R (tanh x)
+  asinh (R x) = R (asinh x)
+  acosh (R x) = R (acosh x)
+  atanh (R x) = R (atanh x)
   sqrt (R x) = R (sqrt x)
 
 -- Maybe this is working!!!
@@ -192,6 +192,12 @@ reluExample x n = getDerivTower' (max 0) x !! n
 
 
 
+infix 2 :==
+
+data (:==) a b = Bijection
+  { from :: a -> b
+  , to :: b -> a
+  }
 
 
 -- Tangent spaces
@@ -202,18 +208,20 @@ data Tan f g where
 class PShD f where
   dmap :: Additive d => Additive g => d :~> g -> f g -> f d
 
+instance Additive a => PShD (R (:~>) a) where
+  dmap f (R x) = R (x @. f)
+
 instance (PShD f) => PShD (Tan f) where
   dmap f (Tan gdd fd) = Tan (gdd @. f) fd
 
 tangentValue :: Additive g => PShD f => Tan f g -> f g
 tangentValue (Tan xdx f) = dmap (fstD @. xdx) f
 
-tanRto :: (DReal :* DReal) g -> Tan DReal g
-tanRto (R x :* R dx) = Tan (pairD x dx) (R dId)
-
-tanRfrom :: Tan DReal g -> (DReal :* DReal) g
-tanRfrom (Tan gdd (R fd)) = R (fstD @. x) :* R (sndD @. x) where
-  x = fwdWithValue fd @. gdd
+tanR :: Tan DReal g :== (DReal :* DReal) g
+tanR = Bijection from to where
+  from (Tan gdd (R fd)) = R (fstD @. x) :* R (sndD @. x) where
+    x = fwdWithValue fd @. gdd
+  to (R x :* R dx) = Tan (pairD x dx) (R dId)
 
 fwdGlobal :: (forall g. a g -> b g) -> Tan a g -> Tan b g
 fwdGlobal f (Tan gdd fd) = Tan gdd (f fd)
@@ -231,28 +239,28 @@ fwd :: Additive g => PShD a => ArrD a b g -> ArrD (Tan a) (Tan b) g
 fwd (ArrD f) = ArrD $ \ext (Tan xdx ax) -> let f1 = f fstD (dmap sndD ax) in
   Tan (pairD (pairD ext (fstD @. xdx)) (pairD zeroD (sndD @. xdx))) f1
 
-tanProdfrom :: Tan (a :* b) g -> (Tan a :* Tan b) g
-tanProdfrom (Tan xdx (a :* b)) = Tan xdx a :* Tan xdx b
+tanProd :: PShD a => PShD b => Tan (a :* b) g :== (Tan a :* Tan b) g
+tanProd = Bijection from to where
+  from (Tan xdx (a :* b)) = Tan xdx a :* Tan xdx b
+  to (Tan xdx a :* Tan ydy b) = Tan (pairD xy dxdy) (a' :* b') where
+    xy = pairD (fstD @. xdx) (fstD @. ydy)
+    dxdy = pairD (sndD @. xdx) (sndD @. ydy)
+    a' = dmap fstD a
+    b' = dmap sndD b
 
-tanProdto :: PShD a => PShD b => (Tan a :* Tan b) g -> Tan (a :* b) g
-tanProdto (Tan xdx a :* Tan ydy b) = Tan (pairD xy dxdy) (a' :* b') where
-  xy = pairD (fstD @. xdx) (fstD @. ydy)
-  dxdy = pairD (sndD @. xdx) (sndD @. ydy)
-  a' = dmap fstD a
-  b' = dmap sndD b
-
-tanToRto :: Additive g => ArrD a (DReal :* DReal) g -> Tan (ArrD a DReal) g
-tanToRto (ArrD f) = Tan (pairD (pairD dId 0) (pairD zeroD 1))
-  (ArrD $ \ext a -> let g :* dg = f (fstD @. ext) a in
-    g + (R (sndD @. ext)) * dg)
-
--- Haven't thought about this one too carefully,
--- so I should make sure it's correct
-tanToRfrom :: Additive g => PShD a => Tan (ArrD a DReal) g -> (ArrD a (DReal :* DReal)) g
-tanToRfrom (Tan xdx (ArrD f)) = ArrD $ \ext a ->
-  let R z = f fstD (dmap sndD a) in
-  let x = fwdWithValue z @. (pairD (pairD (fstD @. xdx @. ext) dId) (pairD (sndD @. xdx @. ext) zeroD)) in
-  R (fstD @. x) :* R (sndD @. x)
+tanToR :: Additive g => PShD a =>
+  Tan (ArrD a DReal) g :== ArrD a (DReal :* DReal) g
+tanToR = Bijection from to where
+  -- Haven't thought about this one too carefully,
+  -- so I should make sure it's correct
+  from (Tan xdx (ArrD f)) = ArrD $ \ext a ->
+    let R z = f fstD (dmap sndD a) in
+    let x = fwdWithValue z @. (pairD (pairD (fstD @. xdx @. ext) dId) (pairD (sndD @. xdx @. ext) zeroD)) in
+    R (fstD @. x) :* R (sndD @. x)
+  to :: Additive g => PShD a => ArrD a (DReal :* DReal) g -> Tan (ArrD a DReal) g
+  to (ArrD f) = Tan (pairD (pairD dId 0) (pairD zeroD 1))
+    (ArrD $ \ext a -> let g :* dg = f (fstD @. ext) a in
+      g + (R (sndD @. ext)) * dg)
 
 -- a test of using `fromFwd`. Appears to be working properly!
 testSqrt :: Real :~> Real
