@@ -6,7 +6,6 @@ of type `(R -> R) -> R`.
 -}
 
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GADTs #-}
@@ -15,6 +14,7 @@ of type `(R -> R) -> R`.
 
 module FwdPSh (
   module FwdPSh,
+  module Types.Bijection,
   (:*) (..),
   R (..)
 ) where
@@ -23,6 +23,7 @@ import Prelude hiding (Real, max, min)
 import Control.Arrow
 import Control.Category (Category)
 import qualified Control.Category as C
+
 import RealExpr (CMap (..), Additive (..), Point)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
@@ -32,6 +33,7 @@ import Experimental.PSh
 import FwdMode
 import qualified MPFR as M
 import MPFR (Real)
+import Types.Bijection
 
 type D = (:~>)
 
@@ -191,13 +193,6 @@ reluExample :: Point Real -> Int -> Point Real
 reluExample x n = getDerivTower' (max 0) x !! n
 
 
-
-infix 2 :==
-
-data (:==) a b = Bijection
-  { from :: a -> b
-  , to :: b -> a
-  }
 
 
 -- Tangent spaces

@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeOperators #-}
 
 module Types.SmoothBool where
 

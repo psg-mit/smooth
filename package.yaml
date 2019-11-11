@@ -27,6 +27,7 @@ dependencies:
 
 library:
   source-dirs: src
+  default-extensions: TypeOperators
 
 executables:
   runtest:

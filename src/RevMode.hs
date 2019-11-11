@@ -1,5 +1,4 @@
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}

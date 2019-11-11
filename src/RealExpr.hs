@@ -11,7 +11,6 @@ number type.
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
-{-# LANGUAGE TypeOperators #-}
 
 module RealExpr where
 

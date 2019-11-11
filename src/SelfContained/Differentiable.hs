@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving, RankNTypes #-}
-{-# LANGUAGE TypeOperators, TypeFamilies, FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies, FlexibleContexts #-}
 module SelfContained.Differentiable where
 
 import Control.Category

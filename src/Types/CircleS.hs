@@ -1,5 +1,4 @@
 
-{-# LANGUAGE TypeOperators #-}
 
 module Types.CircleS where
 

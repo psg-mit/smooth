@@ -5,7 +5,6 @@ automatic differentiation a la
 -}
 
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances, IncoherentInstances #-}
 
 module SelfContained.Fwd where

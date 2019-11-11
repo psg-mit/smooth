@@ -4,7 +4,6 @@ Admits higher-order derivatives, but not higher-order functions.
 -}
 
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
