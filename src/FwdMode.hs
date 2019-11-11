@@ -227,6 +227,12 @@ max' = D $ (RE.max <<< arr fst) :# (RE.max_deriv <<< arr f)
   where
   f (x, (dx, ())) = (x, dx)
 
+min' :: R.Rounded a => (Interval a, Interval a) :~> Interval a
+min' = D $ (RE.min <<< arr fst) :# (RE.min_deriv <<< arr f)
+  :# restrictReal RE.neq dZero
+  where
+  f (x, (dx, ())) = (x, dx)
+
 signum_deriv' :: R.Rounded a => Interval a :~> Interval a
 signum_deriv' = lift1 RE.signum_deriv signum_deriv'
 

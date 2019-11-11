@@ -13,9 +13,13 @@ of type `(R -> R) -> R`.
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module FwdPSh where
+module FwdPSh (
+  module FwdPSh,
+  (:*) (..),
+  R (..)
+) where
 
-import Prelude hiding (Real, max)
+import Prelude hiding (Real, max, min)
 import Control.Arrow
 import Control.Category (Category)
 import qualified Control.Category as C
@@ -76,8 +80,15 @@ instance R.Rounded a => Fractional (g :~> Interval a) where
   recip = dap1 recip'
   fromRational x = D $ fromRational x :# dZero
 
+instance R.Rounded a => Fractional (R D (Interval a) g) where
+  recip (R x) = R (recip x)
+  fromRational = R Prelude.. fromRational
+
 max :: R.Rounded a => g :~> Interval a -> g :~> Interval a -> g :~> Interval a
 max = dap2 max'
+
+min :: R.Rounded a => g :~> Interval a -> g :~> Interval a -> g :~> Interval a
+min = dap2 min'
 
 instance Floating (g :~> Real) where
   pi = D $ pi :# dZero
@@ -96,6 +107,24 @@ instance Floating (g :~> Real) where
   -- acosh    = lift1 acosh $ \x -> recip (sqrt (join (*) x - 1))
   -- atanh    = lift1 atanh $ \x -> recip (1 - join (*) x)
   sqrt = dap1 sqrt'
+
+instance Floating (DReal g) where
+  pi = R pi
+  log (R x) = R (log x)
+  exp (R x) = R (exp x)
+  sin (R x) = R (sin x)
+  cos (R x) = R (cos x)
+  -- tan      = lift1 tan $ recip . join (*) . cos
+  -- asin     = lift1 asin $ \x -> recip (sqrt (1 - join (*) x))
+  -- acos     = lift1 acos $ \x -> negate (recip (sqrt (1 - join (*) x)))
+  -- atan     = lift1 atan $ \x -> recip (1 + join (*) x)
+  -- sinh     = lift1 sinh cosh
+  -- cosh     = lift1 cosh sinh
+  -- tanh     = lift1 tanh $ recip . join (*) . cosh
+  -- asinh    = lift1 asinh $ \x -> recip (sqrt (1 + join (*) x))
+  -- acosh    = lift1 acosh $ \x -> recip (sqrt (join (*) x - 1))
+  -- atanh    = lift1 atanh $ \x -> recip (1 - join (*) x)
+  sqrt (R x) = R (sqrt x)
 
 -- Maybe this is working!!!
 integral' :: R.Rounded a => ((g, Interval a) :~> Interval a) -> (g :~> Interval a)

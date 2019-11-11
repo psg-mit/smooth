@@ -180,6 +180,9 @@ pow k = withPrec (\p x -> I.pow p x k)
 max :: Rounded a => CMap (Interval a, Interval a) (Interval a)
 max = withPrec2 (\p -> I.max)
 
+min :: Rounded a => CMap (Interval a, Interval a) (Interval a)
+min = withPrec2 (\p -> I.min)
+
 negate :: Rounded a => CMap (Interval a) (Interval a)
 negate = withPrec I.negate
 
@@ -227,6 +230,14 @@ max_deriv = arr $ \((Interval xl xu, Interval yl yu), (dx, dy)) ->
     then dy
   else if yu < xl
     then dx
+  else I.union dx dy
+
+min_deriv :: Rounded a => CMap ((Interval a, Interval a), (Interval a, Interval a)) (Interval a)
+min_deriv = arr $ \((Interval xl xu, Interval yl yu), (dx, dy)) ->
+  if xu < yl
+    then dx
+  else if yu < xl
+    then dy
   else I.union dx dy
 
 type B = (Bool, Bool)

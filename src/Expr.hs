@@ -50,6 +50,9 @@ ap1 f = (f <<<)
 max :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g (Interval a)
 max = ap2 E.max
 
+min :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g (Interval a)
+min = ap2 E.min
+
 infixr 3 &&
 (&&) :: CMap g B -> CMap g B -> CMap g B
 (&&) = ap2 E.and
