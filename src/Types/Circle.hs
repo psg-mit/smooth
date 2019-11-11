@@ -7,6 +7,8 @@ import FwdMode ((:~>), pairD, fstD, sndD)
 import FwdPSh
 import MPFR (Real)
 
+
+-- Circle = { (x, y) : R^2 | x^2 + y^2 = 1 }
 data Circle g = Circle (DReal g) (DReal g)
 
 fromAngle :: DReal g -> Circle g

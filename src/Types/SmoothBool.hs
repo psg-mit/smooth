@@ -7,6 +7,8 @@ import FwdMode ((:~>))
 import FwdPSh
 import MPFR (Real)
 
+-- SBool = quotient of the reals by the smooth equivalence relation
+-- x ~ y :=   x = y \/ (x < 0 /\ y < 0) \/ (x > 0 /\ y > 0)
 newtype SBool g = SBool (DReal g)
 
 true :: SBool g
@@ -32,3 +34,7 @@ x < y = SBool (y - x)
 
 (>) :: DReal g -> DReal g -> SBool g
 x > y = SBool (x - y)
+
+-- Currently, we have no nontrivial maps out of the smooth Booleans.
+-- We should be able to have
+-- dedekind_cut : (DReal => SBool) => DReal
