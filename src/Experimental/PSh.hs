@@ -24,7 +24,7 @@ data (a :+ b) g = Inl (a g) | Inr (b g)
 
 data Arr k a b (g :: *) = Arr (forall d. k d g -> a d -> b d)
 
-newtype R k a g = R (k g a)
+newtype R k a g = R { unR :: k g a }
 
 class PSh k f where
   pmap :: k d g -> f g -> f d

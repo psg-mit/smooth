@@ -48,6 +48,8 @@ instance ConCat D where
 type CReal = R CMap Real
 type DReal = R D Real
 
+newtype K a g = K a
+
 infixr 2 :=>
 data (:=>) a b (g :: *) = ArrD (forall d. Additive d => d :~> g -> a d -> b d)
 
@@ -210,6 +212,9 @@ data Tan f g where
 
 class PShD f where
   dmap :: Additive d => Additive g => d :~> g -> f g -> f d
+
+instance PShD (K a) where
+  dmap _ (K x) = K x
 
 instance Additive a => PShD (R (:~>) a) where
   dmap f (R x) = R (x @. f)
