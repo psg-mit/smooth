@@ -271,7 +271,7 @@ integral' p i@(Interval a b) = CMap $ \f ->
 integral1' :: R.Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 integral1' = secondOrderPrim (integral' 16 I.unitInterval)
 
-forall_interval' :: (Show a, Rounded a) => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
+forall_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
 forall_interval' p i@(Interval a b) = CMap $ \f ->
   let m = R.average a b in
   -- traceShow p $
@@ -280,7 +280,7 @@ forall_interval' p i@(Interval a b) = CMap $ \f ->
     t2 <- forall_interval' (p + 5) (Interval m b) -< f'
     returnA -< t1 && t2)
 
-exists_interval' :: (Show a, Rounded a) => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
+exists_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
 exists_interval' p i@(Interval a b) = CMap $ \f ->
   let m = R.average a b in
   -- traceShow p $
@@ -288,6 +288,14 @@ exists_interval' p i@(Interval a b) = CMap $ \f ->
     t1 <- exists_interval' (p + 5) (Interval a m) -< f'
     t2 <- exists_interval' (p + 5) (Interval m b) -< f'
     returnA -< t1 || t2)
+
+max01' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
+max01' p i@(Interval a b) = CMap $ \f ->
+  let m = R.average a b in
+  (f (I.lift m), proc f' -> do
+    t1 <- max01' (p + 5) (Interval a m) -< f'
+    t2 <- max01' (p + 5) (Interval m b) -< f'
+    returnA -< t1 `I.max` t2)
 
 dedekind_cut' :: Rounded a => CMap (Interval a -> B) (Interval a)
 dedekind_cut' = bound 1 R.one where
