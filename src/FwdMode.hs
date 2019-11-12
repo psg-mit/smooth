@@ -322,7 +322,7 @@ fwdDer :: Additive b => g :~> b -> (g, g) :~> b
 fwdDer (D f) = D (fwdDer' f)
 
 fwdWithValue :: Additive g => Additive b => g :~> b -> (g, g) :~> (b, b)
-fwdWithValue f = pairD (fwdDer f) (f @. fstD)
+fwdWithValue f = pairD (f @. fstD) (fwdDer f)
 
 {-| An example function. Calculates the `n`th derivative of
     (\x -> exp (2 * x)) at x = 0.

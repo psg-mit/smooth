@@ -16,7 +16,10 @@ module FwdPSh (
   module FwdPSh,
   module Types.Bijection,
   (:*) (..),
-  R (..)
+  R (..),
+  Real,
+  Additive,
+  Point
 ) where
 
 import Prelude hiding (Real, max, min)
@@ -261,3 +264,21 @@ tanToR = Bijection from to where
 testSqrt :: Real :~> Real
 testSqrt = fromFwd RE.csqrt $
   recip (2 * (testSqrt @. fstD)) * sndD
+
+
+newton_cut' :: Additive g => R.Rounded a =>
+  ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+newton_cut' f = let fwdf = fwdWithValue f in
+  let ff' = getValue (dap2 fwdf dId (pairD zeroD 1)) in
+  let (g, dg) = (fstD, sndD) in
+  let f' x = sndD @. dap2 fwdf (pairD g (dap1 (newton_cut' f) g)) x in
+  fromFwd (E.newton_cut' ff')
+    (scalarMultD (recip (f' (pairD zeroD 1))) (f' (pairD dg 0)))
+
+newton_cut :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+    -> g :~> (Interval a)
+newton_cut f = newton_cut' (f sndD)
+
+testNewtonSqrt :: Point Real -> [Point Real]
+testNewtonSqrt z = getDerivTower'
+  (\c -> newton_cut (\x -> max (-x) (wkn c - x * x))) z

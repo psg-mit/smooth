@@ -17,6 +17,7 @@ import Rounded as R
 import qualified Data.Number.MPFR as M
 import qualified Language.Haskell.HsColour.ANSI as C
 import GHC.Float
+import Debug.Trace
 
 roundDirMPFR :: RoundDir -> M.RoundMode
 roundDirMPFR Up = M.Up
@@ -35,9 +36,13 @@ instance Rounded M.MPFR where
   min a b = case M.cmp a b of
     Just LT -> a
     Just _ -> b
+     -- NaN gives Nothing! Not sure if this is the right thing to do
+    Nothing -> M.minD  M.Down (M.getPrec a `Prelude.max` M.getPrec b) a b
   max a b = case M.cmp a b of
     Just GT -> a
     Just _ -> b
+     -- NaN gives Nothing! Not sure if this is the right thing to do
+    Nothing -> M.minD M.Down (M.getPrec a `Prelude.max` M.getPrec b) a b
   min' p d = M.minD (roundDirMPFR d) (fromIntegral p)
   max' p d = M.maxD (roundDirMPFR d) (fromIntegral p)
   neg p d = M.neg (roundDirMPFR d) (fromIntegral p)

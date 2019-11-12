@@ -9,6 +9,7 @@ module Interval where
 import Prelude hiding (flip, recip)
 import Rounded (Rounded, Prec, RoundDir (Up, Down))
 import qualified Rounded as R
+import Debug.Trace
 
 data Interval a = Interval
   { lower :: a
@@ -46,7 +47,7 @@ mulpow2 i p = monotone (R.mulpow2 i p)
 
 -- union and widen
 union :: Rounded a => Interval a -> Interval a -> Interval a
-union (Interval l1 u1) (Interval l2 u2) =
+union (Interval l1 u1) (Interval l2 u2) = -- trace ("union" ++ show (Interval l1 u1, Interval l2 u2)) $
   Interval (R.min l1 l2) (R.max u1 u2)
 
 -- intersection: combine information from two sources
@@ -62,8 +63,8 @@ cmp (Interval l1 u1) (Interval l2 u2)
 
 recip :: Rounded a => Prec -> Interval a -> Interval a
 recip p i@(Interval a b)
-  | R.zero <= a = monotone (\d -> R.div p d R.one) i
-  | b <= R.zero = monotone (\d -> R.div p d R.one) (flip i)
+  | R.zero < a = monotone (\d -> R.div p d R.one) i
+  | b < R.zero = monotone (\d -> R.div p d R.one) (flip i)
   | otherwise  = realLine
 
 div :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
@@ -91,7 +92,8 @@ min (Interval l1 u1) (Interval l2 u2) =
 
 -- Kaucher multiplication
 mul :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
-mul p (Interval a b) (Interval c d) = Interval l u
+mul p (Interval a b) (Interval c d) = -- trace ("mul" ++ show (Interval a b, Interval c d, Interval l u))
+  Interval l u
   where
   lmul = R.mul p Down
   l = if R.negative a then
