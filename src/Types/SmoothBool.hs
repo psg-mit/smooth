@@ -37,10 +37,9 @@ infix 4 >
 (>) :: DReal g -> DReal g -> SBool g
 x > y = SBool (x - y)
 
--- Currently, we have no nontrivial maps out of the smooth Booleans.
--- We should be able to have
--- dedekind_cut : (DReal => SBool) => DReal
-
+-- Describe a real number by a predicate saying what it means
+-- to be less than it.
+-- x < dedekind_cut P  iff P x
 dedekind_cut :: Additive g => (ArrD DReal SBool) g -> DReal g
 dedekind_cut (ArrD f) = R (FwdPSh.newton_cut' (let SBool (R b) = f fstD (R sndD) in b))
 
