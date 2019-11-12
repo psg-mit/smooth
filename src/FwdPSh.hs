@@ -48,7 +48,12 @@ instance ConCat D where
 type CReal = R CMap Real
 type DReal = R D Real
 
-data ArrD a b (g :: *) = ArrD (forall d. Additive d => d :~> g -> a d -> b d)
+infixr 2 :=>
+data (:=>) a b (g :: *) = ArrD (forall d. Additive d => d :~> g -> a d -> b d)
+
+infixl 8 #
+(#) :: Additive g => (a :=> b) g -> a g -> b g
+ArrD f # x = f dId x
 
 instance RE.CNum a => Num (R CMap a g) where
   R x + R y = R (x + y)
@@ -159,7 +164,7 @@ fwd_deriv :: Additive g => Additive a => Additive b =>
 fwd_deriv f = fwd_deriv' (f sndD)
 
 fwd_deriv1 :: Additive g => Additive a => Additive b =>
-  (ArrD (R D a) (R D b) g) -> g :~> a -> g :~> a -> g :~> b
+  ((R D a :=> R D b) g) -> g :~> a -> g :~> a -> g :~> b
 fwd_deriv1 (ArrD f) = fwd_deriv' (let R b = f fstD (R sndD) in b)
 
 -- fwd_deriv1' :: Additive g => Additive a => Additive b =>
@@ -209,6 +214,9 @@ class PShD f where
 instance Additive a => PShD (R (:~>) a) where
   dmap f (R x) = R (x @. f)
 
+instance PShD (a :=> b) where
+  dmap wk (ArrD f) = ArrD $ \wk' -> f (wk @. wk')
+
 instance (PShD f) => PShD (Tan f) where
   dmap f (Tan gdd fd) = Tan (gdd @. f) fd
 
@@ -233,7 +241,7 @@ exponentialMapRn xdx c = addD (fstD @. xdx) (scalarMultD c (sndD @. xdx))
 -- scaleDerivTan :: Tan f g -> g :~> Real -> Tan f g
 -- scaleDerivTan (Tan xdx f) c = Tan (scaleDerivRn xdx c) f
 
-fwd :: Additive g => PShD a => ArrD a b g -> ArrD (Tan a) (Tan b) g
+fwd :: Additive g => PShD a => (a :=> b) g -> (Tan a :=> Tan b) g
 fwd (ArrD f) = ArrD $ \ext (Tan xdx ax) -> let f1 = f fstD (dmap sndD ax) in
   Tan (pairD (pairD ext (fstD @. xdx)) (pairD zeroD (sndD @. xdx))) f1
 
@@ -247,7 +255,7 @@ tanProd = Bijection from to where
     b' = dmap sndD b
 
 tanToR :: Additive g => PShD a =>
-  Tan (ArrD a DReal) g :== ArrD a (DReal :* DReal) g
+  Tan (a :=> DReal) g :== (a :=> (DReal :* DReal)) g
 tanToR = Bijection from to where
   -- Haven't thought about this one too carefully,
   -- so I should make sure it's correct
@@ -255,7 +263,7 @@ tanToR = Bijection from to where
     let R z = f fstD (dmap sndD a) in
     let x = fwdWithValue z @. (pairD (pairD (fstD @. xdx @. ext) dId) (pairD (sndD @. xdx @. ext) zeroD)) in
     R (fstD @. x) :* R (sndD @. x)
-  to :: Additive g => PShD a => ArrD a (DReal :* DReal) g -> Tan (ArrD a DReal) g
+  to :: Additive g => PShD a => (a :=> (DReal :* DReal)) g -> Tan (a :=> DReal) g
   to (ArrD f) = Tan (pairD (pairD dId 0) (pairD zeroD 1))
     (ArrD $ \ext a -> let g :* dg = f (fstD @. ext) a in
       g + (R (sndD @. ext)) * dg)

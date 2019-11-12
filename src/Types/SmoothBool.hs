@@ -1,4 +1,3 @@
-
 module Types.SmoothBool where
 
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..))
@@ -18,11 +17,11 @@ false = SBool (-1)
 not :: SBool g -> SBool g
 not (SBool x) = SBool (- x)
 
-infix 3 &&
+infixr 3 &&
 (&&) :: SBool g -> SBool g -> SBool g
 SBool (R x) && SBool (R y) = SBool (R (min x y))
 
-infix 2 ||
+infixr 2 ||
 (||) :: SBool g -> SBool g -> SBool g
 SBool (R x) || SBool (R y) = SBool (R (max x y))
 
@@ -40,7 +39,7 @@ x > y = SBool (x - y)
 -- Describe a real number by a predicate saying what it means
 -- to be less than it.
 -- x < dedekind_cut P  iff P x
-dedekind_cut :: Additive g => (ArrD DReal SBool) g -> DReal g
+dedekind_cut :: Additive g => (DReal :=> SBool) g -> DReal g
 dedekind_cut (ArrD f) = R (FwdPSh.newton_cut' (let SBool (R b) = f fstD (R sndD) in b))
 
 testBSqrt :: Point Real -> [Point Real]
