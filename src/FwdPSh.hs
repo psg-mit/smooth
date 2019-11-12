@@ -281,7 +281,7 @@ newton_cut' f = let fwdf = fwdWithValue f in
   let (g, dg) = (fstD, sndD) in
   let f' x = sndD @. dap2 fwdf (pairD g (dap1 (newton_cut' f) g)) x in
   fromFwd (E.newton_cut' ff')
-    (scalarMultD (recip (f' (pairD zeroD 1))) (f' (pairD dg 0)))
+    (scalarMultD (- recip (f' (pairD zeroD 1))) (f' (pairD dg 0)))
 
 newton_cut :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
