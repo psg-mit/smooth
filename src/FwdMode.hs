@@ -16,7 +16,7 @@ import Control.Arrow
 import qualified Control.Category as C
 import Control.Applicative (liftA2)
 import Control.Monad (join)
-import RealExpr (CMap (..), Additive (..), Point)
+import RealExpr (CMap (..), Additive (..), CPoint)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Interval as I
@@ -327,7 +327,7 @@ fwdWithValue f = pairD (f @. fstD) (fwdDer f)
 {-| An example function. Calculates the `n`th derivative of
     (\x -> exp (2 * x)) at x = 0.
 -}
-diffeoExample :: Int -> Point M.Real
+diffeoExample :: Int -> CPoint M.Real
 diffeoExample n = getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n
 
 

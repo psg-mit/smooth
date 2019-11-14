@@ -31,7 +31,7 @@ import GHC.Float (Floating (..))
 import Control.Arrow (Arrow, arr, (<<<), (&&&))
 import Control.Category (Category)
 import qualified Control.Category as C
-import RealExpr (CMap, B, CNum (..), CFractional (..), CFloating (..), Point)
+import RealExpr (CMap, B, CNum (..), CFractional (..), CFloating (..), CPoint)
 import qualified RealExpr as E
 import Interval (Interval (..), unitInterval)
 import Rounded (Rounded)
@@ -160,8 +160,8 @@ instance CFloating a => Floating (CMap g a) where
 asMPFR :: CMap g (Interval MPFR) -> CMap g (Interval MPFR)
 asMPFR = id
 
-inEmptyCtx :: Point a -> Point a
+inEmptyCtx :: CPoint a -> CPoint a
 inEmptyCtx = id
 
-showReal' :: Show a => Int -> Point a -> String
+showReal' :: Show a => Int -> CPoint a -> String
 showReal' n = intercalate "\n" . map show . take n . E.runPoint

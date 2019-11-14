@@ -19,7 +19,7 @@ module FwdPSh (
   R (..),
   Real,
   Additive,
-  Point
+  CPoint
 ) where
 
 import Prelude hiding (Real, max, min)
@@ -27,7 +27,7 @@ import Control.Arrow
 import Control.Category (Category)
 import qualified Control.Category as C
 
-import RealExpr (CMap (..), Additive (..), Point)
+import RealExpr (CMap (..), Additive (..), CPoint)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Expr as E
@@ -49,6 +49,11 @@ type CReal = R CMap Real
 type DReal = R D Real
 
 newtype K a g = K a
+
+type Point a = () :~> a
+
+instance Show a => Show (() :~> a) where
+  show = show Prelude.. getValue
 
 infixr 2 :=>
 data (:=>) a b (g :: *) = ArrD (forall d. Additive d => d :~> g -> a d -> b d)
@@ -178,28 +183,28 @@ getDerivTower' :: R.Rounded a => (Interval a :~> Interval a -> Interval a :~> In
   -> CMap g (Interval a) -> [CMap g (Interval a)]
 getDerivTower' f = getDerivTower (f dId)
 
-example :: Int -> Point Real
+example :: Int -> CPoint Real
 example n = getDerivTower' (\c -> integral (\x -> sin (wkn c * x))) 3 !! n
 
 example2 :: Point Real
-example2 = getValue $ fwd_deriv (\c -> integral (\x -> abs (x - wkn c))) 0.6 1
+example2 = fwd_deriv (\c -> integral (\x -> abs (x - wkn c))) 0.6 1
 
 -- I think this is right!
-example3 :: Point Real -> Int -> Point Real
+example3 :: CPoint Real -> Int -> CPoint Real
 example3 y n = getDerivTower' (\z -> fwd_deriv (\x -> x^2) z z) y !! n
 
 
-absExample :: Point Real -> Int -> Point Real
+absExample :: CPoint Real -> Int -> CPoint Real
 absExample y n = getDerivTower' (\c -> integral (\x -> abs (x - wkn c))) y !! n
 
 internalDiffExample :: Point Real
-internalDiffExample = getValue $ derivative (\c -> integral (\x -> abs (x - wkn c))) 0.6
+internalDiffExample = derivative (\c -> integral (\x -> abs (x - wkn c))) 0.6
 
-reluIntegralExample :: Point Real -> Int -> Point Real
+reluIntegralExample :: CPoint Real -> Int -> CPoint Real
 reluIntegralExample y n =
   getDerivTower' (\c -> integral (\x -> max 0 (x - wkn c))) y !! n
 
-reluExample :: Point Real -> Int -> Point Real
+reluExample :: CPoint Real -> Int -> CPoint Real
 reluExample x n = getDerivTower' (max 0) x !! n
 
 
@@ -292,6 +297,6 @@ newton_cut :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g
     -> g :~> (Interval a)
 newton_cut f = newton_cut' (f sndD)
 
-testNewtonSqrt :: Point Real -> [Point Real]
+testNewtonSqrt :: CPoint Real -> [CPoint Real]
 testNewtonSqrt z = getDerivTower'
   (\c -> newton_cut (\x -> max (-x) (wkn c - x * x))) z

@@ -1,12 +1,26 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Types.SmoothBool where
 
+import qualified Prelude
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..))
-import FwdMode ((:~>), fstD, sndD, getDerivTower)
+import FwdMode ((:~>), fstD, sndD, getDerivTower, getValue)
 import FwdPSh
+import Interval (Interval (..))
+import Data.List (intercalate)
+import RealExpr (runPoint)
+import qualified Rounded as R
 
 -- SBool = quotient of the reals by the smooth equivalence relation
 -- x ~ y :=   x = y \/ (x < 0 /\ y < 0) \/ (x > 0 /\ y > 0)
 newtype SBool g = SBool (DReal g)
+
+instance Show (SBool ()) where
+  show (SBool (R x)) = go . runPoint $ getValue x where
+    go (Interval a b : xs)
+      | a Prelude.> R.zero = "true"
+      | b Prelude.< R.zero = "false"
+      | otherwise = "?\n" ++ go xs
 
 true :: SBool g
 true = SBool 1
@@ -42,6 +56,6 @@ x > y = SBool (x - y)
 dedekind_cut :: Additive g => (DReal :=> SBool) g -> DReal g
 dedekind_cut (ArrD f) = R (FwdPSh.newton_cut' (let SBool (R b) = f fstD (R sndD) in b))
 
-testBSqrt :: Point Real -> [Point Real]
-testBSqrt c = let R z = dedekind_cut (ArrD (\c x -> x < 0 || x^2 < R c)) in
-    getDerivTower z c
+testBSqrt :: CPoint Real -> [CPoint Real]
+testBSqrt z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^2 < R c)) in
+    getDerivTower f z

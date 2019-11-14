@@ -45,5 +45,5 @@ simpleBetaBernoulli = normalize $
   dirac (dmap wk' p)))
 
 simpleBetaBernoulliExpectation :: Point Real
-simpleBetaBernoulliExpectation = getValue . unR $
+simpleBetaBernoulliExpectation = unR $
   simpleBetaBernoulli # ArrD (\_ x -> x)

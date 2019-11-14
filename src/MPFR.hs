@@ -260,5 +260,5 @@ showIntervals = go "" ""
     then (replicate (eh - el) '0' ++ sl, sh, eh)
     else (sl, replicate (el - eh) '0' ++ sh, el)
 
-printReal :: Point Real -> IO ()
+printReal :: CPoint Real -> IO ()
 printReal = putStrLn . showIntervals . runPoint

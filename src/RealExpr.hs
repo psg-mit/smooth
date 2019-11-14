@@ -32,7 +32,7 @@ import qualified Rounded as R
 data CMap a b = CMap (a -> (b, CMap a b))
 deriving instance Functor (CMap a)
 
-type Point = CMap ()
+type CPoint = CMap ()
 
 instance Category CMap where
   id = arr id
@@ -95,7 +95,7 @@ secondOrderPrim (CMap abc) (CMap gab) = CMap $ \g ->
 
 withPrec :: (Prec -> a -> b) -> CMap a b
 withPrec f = withPrec' 32 where
-  withPrec' p = CMap $ \x -> (f p x, withPrec' (p + 1))
+  withPrec' p = CMap $ \x -> (f p x, withPrec' (p + 5))
 
 withPrec2 :: (Prec -> a -> b -> c) -> CMap (a, b) c
 withPrec2 op = withPrec $ \p (ix, iy) -> op p ix iy
@@ -271,15 +271,6 @@ integral' p i@(Interval a b) = CMap $ \f ->
 integral1' :: R.Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 integral1' = secondOrderPrim (integral' 16 I.unitInterval)
 
-forall_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
-forall_interval' p i@(Interval a b) = CMap $ \f ->
-  let m = R.average a b in
-  -- traceShow p $
-  (f i, proc f' -> do
-    t1 <- forall_interval' (p + 5) (Interval a m) -< f'
-    t2 <- forall_interval' (p + 5) (Interval m b) -< f'
-    returnA -< t1 && t2)
-
 exists_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
 exists_interval' p i@(Interval a b) = CMap $ \f ->
   let m = R.average a b in
@@ -289,13 +280,23 @@ exists_interval' p i@(Interval a b) = CMap $ \f ->
     t2 <- exists_interval' (p + 5) (Interval m b) -< f'
     returnA -< t1 || t2)
 
-max01' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
-max01' p i@(Interval a b) = CMap $ \f ->
-  let m = R.average a b in
-  (f (I.lift m), proc f' -> do
-    t1 <- max01' (p + 5) (Interval a m) -< f'
-    t2 <- max01' (p + 5) (Interval m b) -< f'
-    returnA -< t1 `I.max` t2)
+recurseOnIntervals :: Rounded a => (b -> b -> b) -> Prec -> Interval a -> CMap (Interval a -> b) b
+recurseOnIntervals combine = go where
+  go p i@(Interval a b) = CMap $ \f ->
+    let m = R.average a b in
+    (f (I.lift m), proc f' -> do
+      t1 <- go (p + 5) (Interval a m) -< f'
+      t2 <- go (p + 5) (Interval m b) -< f'
+      returnA -< combine t1 t2)
+
+forall_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
+forall_interval' = recurseOnIntervals (&&)
+
+max_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
+max_interval' = recurseOnIntervals I.max
+
+min_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
+min_interval' = recurseOnIntervals I.min
 
 dedekind_cut' :: Rounded a => CMap (Interval a -> B) (Interval a)
 dedekind_cut' = bound 1 R.one where
@@ -319,7 +320,7 @@ locate p (Interval l u) f =
                             _ -> (l, u))
   in Interval l' u'
 
-runPoint :: Point a -> [a]
+runPoint :: CPoint a -> [a]
 runPoint (CMap f) = let (x, f') = f () in
   x : runPoint f'
 
