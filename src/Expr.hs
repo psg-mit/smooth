@@ -81,6 +81,9 @@ isFalse = ap1 (arr snd)
 mkInterval :: Rounded a => CMap g (Interval a) -> CMap g (Interval a) -> CMap g (Interval a)
 mkInterval = ap2 E.mkInterval
 
+dedekind_cut1 :: Rounded a => (CMap (g, Interval a) B) -> CMap g (Interval a)
+dedekind_cut1 f = E.secondOrderPrim E.dedekind_cut' f
+
 dedekind_cut :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) B)
              -> CMap g (Interval a)
 dedekind_cut f = E.secondOrderPrim E.dedekind_cut' (f (arr snd))

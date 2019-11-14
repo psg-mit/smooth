@@ -305,16 +305,36 @@ integer i = withPrec $ \p _ -> I.rounded (\d -> R.ofInteger p d i)
 abs1 :: (forall d. CMap d g -> CMap d a -> CMap d b) -> CMap (g, a) b
 abs1 f = f (arr fst) (arr snd)
 
+firstRoot :: Rounded a => CMap (Interval a -> B) (Interval a)
+firstRoot = rootAtP 1 (Interval R.zero R.one) where
+  rootAtP p i@(Interval l u) = CMap $ \f -> let m = R.average l u in
+    if fst (f (Interval l m)) -- the left interval is to the left of the point
+      then let i' = (Interval m u) in (i', rootAtP p i') -- refine the right interval
+      else if snd (f (I.lift m)) -- the middle of the interval is to the right of the point
+        then let i' = (Interval l m) in (i', rootAtP p i') -- refine the left
+        else let i' = (computeOverSubintervals f (splitIntervals p i)) in (i', rootAtP (p + 1) i') -- refine everything!
 
-first_root :: Rounded a => CMap (Interval a -> B) (Interval a)
-first_root = root_at_p 1 (Interval R.zero R.one) where
-  root_at_p p (Interval l u) = CMap $ \f -> let m = R.average l u in
-    if fst f (Interval l m) -- the left interval is to the left of the point
-      then root_at_p (p + 1) (Interval m u) -- refine the right interval
-      else if snd f (Interval m u) -- the right interval is to the right of the point
-        then root_at_p (p + 1) (Interval l m) -- refine the left
-        else root_at_p (p + 1) (Interval l u) -- refine everything!
+  -- Split the given interval into 2^k intervals
+  splitIntervals :: Rounded a => Int -> Interval a -> [Interval a]
+  splitIntervals k i@(Interval l u) = if k==0 then [i]
+                                        else let m = R.average l u in
+                                          (splitIntervals (k - 1) (Interval l m)) ++
+                                          (splitIntervals (k - 1) (Interval m u))
 
+  computeOverSubintervals f intervals = let prefix = (removeBeginning f intervals) in
+    (Interval (I.lower (head prefix)) (I.upper (last (removeEnd f prefix))))
+
+  removeBeginning :: Rounded a => (Interval a -> B) -> [Interval a] -> [Interval a]
+  removeBeginning f intervals = if fst (f (head intervals))
+                              then (removeBeginning f (tail intervals))
+                              else intervals
+
+  removeEnd :: Rounded a => (Interval a -> B) -> [Interval a] -> [Interval a]
+  removeEnd f intervals = if snd (f (I.lift (R.average (I.lower (last intervals)) (I.upper (last intervals)))))
+                              then intervals
+                              else (removeEnd f (tail intervals))
+
+-- step forward until we reach where fst (f (Interval l m)) fails to hold
 
 -- I have no idea whether any of these are sensible
 collapse1 :: CMap a (b -> c) -> CMap (a, b) c
