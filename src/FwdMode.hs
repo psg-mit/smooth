@@ -4,21 +4,19 @@ Admits higher-order derivatives, but not higher-order functions.
 -}
 
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Diffeo where
+module FwdMode where
 
 import Prelude
 import Control.Arrow
 import qualified Control.Category as C
 import Control.Applicative (liftA2)
 import Control.Monad (join)
-import RealExpr (CMap (..), Additive (..))
-import Data.Number.MPFR (MPFR)
+import RealExpr (CMap (..), Additive (..), CPoint)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Interval as I
@@ -171,11 +169,14 @@ pairD' (f :# f') (g :# g') = (f &&& g) :# (pairD' f' g')
 pairD :: g :~> a -> g :~> b -> g :~> (a, b)
 pairD (D f) (D g) = D (pairD' f g)
 
-add :: R.Rounded a => (Interval a, Interval a) :~> Interval a
-add = linearD RE.add
+add :: RE.CNum a => (a, a) :~> a
+add = linearD RE.cadd
 
 addD :: Additive a => g :~> a -> g :~> a -> g :~> a
 addD (D x) (D y) = D (dSum x y)
+
+scalarMultD :: VectorSpace v s => g :~> s -> g :~> v -> g :~> v
+scalarMultD (D c) (D x) = D (scalarMult c x)
 
 {-| Composition of two smooth maps yields a smooth map -}
 (@.) :: Additive c => (b :~> c) -> (a :~> b) -> (a :~> c)
@@ -225,6 +226,12 @@ max' = D $ (RE.max <<< arr fst) :# (RE.max_deriv <<< arr f)
   where
   f (x, (dx, ())) = (x, dx)
 
+min' :: R.Rounded a => (Interval a, Interval a) :~> Interval a
+min' = D $ (RE.min <<< arr fst) :# (RE.min_deriv <<< arr f)
+  :# restrictReal RE.neq dZero
+  where
+  f (x, (dx, ())) = (x, dx)
+
 signum_deriv' :: R.Rounded a => Interval a :~> Interval a
 signum_deriv' = lift1 RE.signum_deriv signum_deriv'
 
@@ -237,6 +244,8 @@ recip' :: RE.CFractional a => a :~> a
 recip' = lift1 RE.crecip (negate' @. recip' @. square')
 square' :: RE.CNum a => a :~> a
 square' = D $ (\(D x) -> dMult x x) dId
+sqrt' :: RE.CFloating a => a :~> a
+sqrt' = lift1 RE.csqrt (recip' @. linearD ((2 *) (arr id)) @. sqrt')
 
 getDerivTower :: R.Rounded a => Interval a :~> Interval a -> CMap g (Interval a) -> [CMap g (Interval a)]
 getDerivTower (D f) x = go (wknValue x f) (arr (\_ -> ())) where
@@ -312,8 +321,36 @@ fwdDer' (f :# f'@(f0' :# f'')) =
 fwdDer :: Additive b => g :~> b -> (g, g) :~> b
 fwdDer (D f) = D (fwdDer' f)
 
+fwdWithValue :: Additive g => Additive b => g :~> b -> (g, g) :~> (b, b)
+fwdWithValue f = pairD (f @. fstD) (fwdDer f)
+
 {-| An example function. Calculates the `n`th derivative of
     (\x -> exp (2 * x)) at x = 0.
 -}
-diffeoExample :: Int -> CMap () M.R
+diffeoExample :: Int -> CPoint M.Real
 diffeoExample n = getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n
+
+
+
+-- Below is experimental! It may be wrong! Be warned!
+
+
+-- I am not sure this is correct at all!
+-- A generalization of lift1. Give a continuous map for the value,
+-- and a smooth map of the derivative for the rest.
+fromFwd :: Additive a => CMap a b -> (a, a) :~> b -> a :~> b
+fromFwd f (D f') = D $ (f <<< arr fst) :# convertFwdDeriv f'
+
+convertFwdDeriv :: Additive a => Df (a, a) (a, a) b () -> Df a a b (a, ())
+convertFwdDeriv = convertFwdDeriv' (arr id)
+
+-- I am setting some derivatives to 0. Is that okay?
+convertFwdDeriv' :: Additive a => CMap k' k -> Df (a, a) (a, a) b k -> Df a a b (a, k')
+convertFwdDeriv' k'k (f :# f') = f1 :# convertFwdDeriv' k'knew f' where
+  f1 = proc (x, (dx, k')) -> do
+    k <- k'k -< k'
+    f -< ((x, dx), k)
+  k'knew = proc (a, k') -> do
+    k <- k'k -< k'
+    z <- zeroV -< ()
+    returnA -< ((a, z), k)

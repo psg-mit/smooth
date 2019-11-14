@@ -1,11 +1,10 @@
 {-|
-A module for higher-order, higher-dimensional
+A module for higher-order, higher-dimensional forward-mode
 automatic differentiation a la
 <http://conal.net/blog/posts/higher-dimensional-higher-order-derivatives-functionally>
 -}
 
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances, IncoherentInstances #-}
 
 module SelfContained.Fwd where

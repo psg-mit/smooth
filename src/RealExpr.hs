@@ -11,7 +11,6 @@ number type.
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
-{-# LANGUAGE TypeOperators #-}
 
 module RealExpr where
 
@@ -32,6 +31,8 @@ import qualified Rounded as R
 
 data CMap a b = CMap (a -> (b, CMap a b))
 deriving instance Functor (CMap a)
+
+type CPoint = CMap ()
 
 instance Category CMap where
   id = arr id
@@ -94,7 +95,7 @@ secondOrderPrim (CMap abc) (CMap gab) = CMap $ \g ->
 
 withPrec :: (Prec -> a -> b) -> CMap a b
 withPrec f = withPrec' 32 where
-  withPrec' p = CMap $ \x -> (f p x, withPrec' (p + 1))
+  withPrec' p = CMap $ \x -> (f p x, withPrec' (p + 5))
 
 withPrec2 :: (Prec -> a -> b -> c) -> CMap (a, b) c
 withPrec2 op = withPrec $ \p (ix, iy) -> op p ix iy
@@ -178,6 +179,9 @@ pow k = withPrec (\p x -> I.pow p x k)
 max :: Rounded a => CMap (Interval a, Interval a) (Interval a)
 max = withPrec2 (\p -> I.max)
 
+min :: Rounded a => CMap (Interval a, Interval a) (Interval a)
+min = withPrec2 (\p -> I.min)
+
 negate :: Rounded a => CMap (Interval a) (Interval a)
 negate = withPrec I.negate
 
@@ -227,6 +231,14 @@ max_deriv = arr $ \((Interval xl xu, Interval yl yu), (dx, dy)) ->
     then dx
   else I.union dx dy
 
+min_deriv :: Rounded a => CMap ((Interval a, Interval a), (Interval a, Interval a)) (Interval a)
+min_deriv = arr $ \((Interval xl xu, Interval yl yu), (dx, dy)) ->
+  if xu < yl
+    then dx
+  else if yu < xl
+    then dy
+  else I.union dx dy
+
 type B = (Bool, Bool)
 
 restrictReal :: Rounded a => CMap (Bool, Interval a) (Interval a)
@@ -259,16 +271,7 @@ integral' p i@(Interval a b) = CMap $ \f ->
 integral1' :: R.Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 integral1' = secondOrderPrim (integral' 16 I.unitInterval)
 
-forall_interval' :: (Show a, Rounded a) => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
-forall_interval' p i@(Interval a b) = CMap $ \f ->
-  let m = R.average a b in
-  -- traceShow p $
-  (f i, proc f' -> do
-    t1 <- forall_interval' (p + 5) (Interval a m) -< f'
-    t2 <- forall_interval' (p + 5) (Interval m b) -< f'
-    returnA -< t1 && t2)
-
-exists_interval' :: (Show a, Rounded a) => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
+exists_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
 exists_interval' p i@(Interval a b) = CMap $ \f ->
   let m = R.average a b in
   -- traceShow p $
@@ -277,27 +280,49 @@ exists_interval' p i@(Interval a b) = CMap $ \f ->
     t2 <- exists_interval' (p + 5) (Interval m b) -< f'
     returnA -< t1 || t2)
 
+recurseOnIntervals :: Rounded a => (b -> b -> b) -> Prec -> Interval a -> CMap (Interval a -> b) b
+recurseOnIntervals combine = go where
+  go p i@(Interval a b) = CMap $ \f ->
+    let m = R.average a b in
+    (f (I.lift m), proc f' -> do
+      t1 <- go (p + 5) (Interval a m) -< f'
+      t2 <- go (p + 5) (Interval m b) -< f'
+      returnA -< combine t1 t2)
+
+forall_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
+forall_interval' = recurseOnIntervals (&&)
+
+max_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
+max_interval' = recurseOnIntervals I.max
+
+min_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
+min_interval' = recurseOnIntervals I.min
+
 dedekind_cut' :: Rounded a => CMap (Interval a -> B) (Interval a)
 dedekind_cut' = bound 1 R.one where
   bound p b = CMap $ \f -> let negb = R.neg p R.Down b in
     if fst (f (I.lift negb)) && snd (f (I.lift b))
-      then let i = Interval negb b in (i, locate p i)
+      then let i = Interval negb b in (i, loc p i)
       else (I.realLine, bound (p + 1) (R.mulpow2 1 p R.Down b))
-  locate p (Interval l u) = CMap $ \f ->
-    let (l', u') = (let m = R.average l u in
-                        case f (I.lift m) of
-                          (True, _) -> (m, u)
-                          (_, True) -> (l, m)
-                          _ -> let mu = R.average m u in
-                            case f (I.lift mu) of
-                              (True, _) -> (mu, u)
-                              (_, True) -> (l, mu)
-                              _ -> (l, u))
-    in let i' = Interval l' u' in (i', locate p i')
+  loc p i = CMap $ \f -> let i' = locate p i f in
+    (i', loc (p + 5) i')
 
-runCMap :: CMap () a -> [a]
-runCMap (CMap f) = let (x, f') = f () in
-  x : runCMap f'
+locate :: Rounded a => Word -> Interval a -> (Interval a -> B) -> Interval a
+locate p (Interval l u) f =
+  let (l', u') = (let m = R.average l u in
+                      case f (I.lift m) of
+                        (True, _) -> (m, u)
+                        (_, True) -> (l, m)
+                        _ -> let mu = R.average m u in
+                          case f (I.lift mu) of
+                            (True, _) -> (mu, u)
+                            (_, True) -> (l, mu)
+                            _ -> (l, u))
+  in Interval l' u'
+
+runPoint :: CPoint a -> [a]
+runPoint (CMap f) = let (x, f') = f () in
+  x : runPoint f'
 
 integer :: Rounded r => Integer -> CMap g (Interval r)
 integer i = withPrec $ \p _ -> I.rounded (\d -> R.ofInteger p d i)
@@ -334,7 +359,29 @@ firstRoot = rootAtP 1 (Interval R.zero R.one) where
                               then intervals
                               else (removeEnd f (tail intervals))
 
--- step forward until we reach where fst (f (Interval l m)) fails to hold
+
+-- Assumption: f is monotone decreasing and has a single isolated root.
+newton_cut' :: Rounded r => CMap (Interval r -> (Interval r, Interval r)) (Interval r)
+newton_cut' = bound 1 R.one where
+  bound :: Rounded r => Word -> r -> CMap (Interval r -> (Interval r, Interval r)) (Interval r)
+  bound p b = CMap $ \f -> let negb = R.neg p R.Down b in
+    if I.lower (fst (f (I.lift negb))) > R.zero && I.upper (fst (f (I.lift b))) < R.zero
+      then let i = Interval negb b in (i, loc p i)
+      else (I.realLine, bound (p + 1) (R.mulpow2 1 p R.Down b))
+  loc p i@(Interval l u) = CMap $ \f ->
+    let (fx1, _) = f (I.lift l) in
+    let (fx2, _) = f (I.lift u) in
+    let (_, f'x) = f i in
+    let i1 = I.sub p (I.lift l) (I.div p fx1 f'x) in
+    let i2 = I.sub p (I.lift u) (I.div p fx2 f'x) in
+    let i' = i `I.join` i1 `I.join` i2 in
+    if I.lower i' > I.lower i || I.upper i' < I.upper i -- we made progress
+      then (i', loc (p + 5) i')
+      else let i' = locate p i (\x -> let Interval a b = fst (f x) in (a > R.zero, b < R.zero))
+           in (i', loc (p + 5) i')
+
+
+
 
 -- I have no idea whether any of these are sensible
 collapse1 :: CMap a (b -> c) -> CMap (a, b) c

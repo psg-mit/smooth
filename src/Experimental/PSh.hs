@@ -1,5 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE KindSignatures, TypeOperators, MultiParamTypeClasses #-}
+{-# LANGUAGE KindSignatures, MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -17,12 +17,14 @@ class ConCat k where
   id :: Ok k a => k a a
   (.) :: Ok k c => k b c -> k a b -> k a c
 
+infixl 7 :*
 data (a :* b) g = a g :* b g
+infixl 6 :+
 data (a :+ b) g = Inl (a g) | Inr (b g)
 
 data Arr k a b (g :: *) = Arr (forall d. k d g -> a d -> b d)
 
-newtype R k a g = R (k g a)
+newtype R k a g = R { unR :: k g a }
 
 class PSh k f where
   pmap :: k d g -> f g -> f d
