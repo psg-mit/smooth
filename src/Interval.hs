@@ -63,8 +63,7 @@ cmp (Interval l1 u1) (Interval l2 u2)
 
 recip :: Rounded a => Prec -> Interval a -> Interval a
 recip p i@(Interval a b)
-  | R.zero < a = monotone (\d -> R.div p d R.one) i
-  | b < R.zero = monotone (\d -> R.div p d R.one) (flip i)
+  | b < R.zero || R.zero < a = monotone (\d -> R.div p d R.one) (flip i)
   | otherwise  = realLine
 
 div :: Rounded a => Prec -> Interval a -> Interval a -> Interval a
