@@ -278,6 +278,12 @@ tanToR = Bijection from to where
     (ArrD $ \ext a -> let g :* dg = f (fstD @. ext) a in
       g + (R (sndD @. ext)) * dg)
 
+arrProdIso :: (a :=> b :* c) g :== ((a :=> b) :* (a :=> c)) g
+arrProdIso = Bijection f g where
+  f (ArrD f) = ArrD (\ext x -> let (a :* _) = f ext x in a)
+            :* ArrD (\ext x -> let (_ :* b) = f ext x in b)
+  g (ArrD ab :* ArrD ac) = ArrD $ \ext x -> ab ext x :* ac ext x
+
 -- a test of using `fromFwd`. Appears to be working properly!
 testSqrt :: Real :~> Real
 testSqrt = fromFwd RE.csqrt $

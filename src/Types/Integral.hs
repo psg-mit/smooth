@@ -2,9 +2,13 @@ module Types.Integral where
 
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), product, map, Integral)
 import FwdMode ((:~>), fstD, sndD, getDerivTower, (@.), getValue)
+import qualified Control.Category as C
 import FwdPSh
 
 type Integral a = (a :=> DReal) :=> DReal
+
+tangent :: Additive g => Tan (Integral a) g :== (Integral a :* Integral a) g
+tangent = arrProdIso C.. tanToR
 
 dirac :: Additive g => PShD a => a g -> Integral a g
 dirac x = ArrD $ \wk f -> f # dmap wk x
