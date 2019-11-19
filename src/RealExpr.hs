@@ -337,7 +337,7 @@ firstRoot = rootAtP 1 (Interval R.zero R.one) where
       then let i' = (Interval m u) in (i', rootAtP p i') -- refine the right interval
       else if snd (f (I.lift m)) -- the middle of the interval is to the right of the point
         then let i' = (Interval l m) in (i', rootAtP p i') -- refine the left
-        else let i' = (computeOverSubintervals f (splitIntervals p i)) in (i', rootAtP (p + 1) i') -- refine everything!
+      else let i' = (computeOverSubintervals f (splitIntervals p i)) in (i', rootAtP (p + 1) i') -- refine everything!
 
   -- Split the given interval into 2^k intervals
   splitIntervals :: Rounded a => Int -> Interval a -> [Interval a]
@@ -347,17 +347,21 @@ firstRoot = rootAtP 1 (Interval R.zero R.one) where
                                           (splitIntervals (k - 1) (Interval m u))
 
   computeOverSubintervals f intervals = let prefix = (removeBeginning f intervals) in
-    (Interval (I.lower (head prefix)) (I.upper (last (removeEnd f prefix))))
+    (Interval (I.lower (head prefix)) (I.upper (removeEnd f prefix)))
 
   removeBeginning :: Rounded a => (Interval a -> B) -> [Interval a] -> [Interval a]
-  removeBeginning f intervals = if fst (f (head intervals))
-                              then (removeBeginning f (tail intervals))
-                              else intervals
+  removeBeginning f intervals = case intervals of
+      [i] -> i
+      is -> if fst (f (head is))
+              then (removeBeginning f (tail is))
+              else is
 
-  removeEnd :: Rounded a => (Interval a -> B) -> [Interval a] -> [Interval a]
-  removeEnd f intervals = if snd (f (I.lift (R.average (I.lower (last intervals)) (I.upper (last intervals)))))
-                              then intervals
-                              else (removeEnd f (tail intervals))
+  removeEnd :: Rounded a => (Interval a -> B) -> [Interval a] -> Interval a
+  removeEnd f intervals = case intervals of
+    [i] -> i
+    is -> if snd (f (I.lift (R.average (I.lower (last is)) (I.upper (last is)))))
+                            then (head is)
+                            else (removeEnd f (init is))
 
 
 -- Assumption: f is monotone decreasing and has a single isolated root.
