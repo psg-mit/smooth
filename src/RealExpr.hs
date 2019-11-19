@@ -351,7 +351,7 @@ firstRoot = rootAtP 1 (Interval R.zero R.one) where
 
   removeBeginning :: Rounded a => (Interval a -> B) -> [Interval a] -> [Interval a]
   removeBeginning f intervals = case intervals of
-      [i] -> i
+      [i] -> [i]
       is -> if fst (f (head is))
               then (removeBeginning f (tail is))
               else is
