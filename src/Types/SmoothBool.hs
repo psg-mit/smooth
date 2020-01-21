@@ -56,6 +56,9 @@ x > y = SBool (x - y)
 dedekind_cut :: Additive g => (DReal :=> SBool) g -> DReal g
 dedekind_cut (ArrD f) = R (FwdPSh.newton_cut' (let SBool (R b) = f fstD (R sndD) in b))
 
+dedekind_cubert :: Additive g => DReal g -> DReal g
+dedekind_cubert z = dedekind_cut (ArrD (\wk x -> x < 0 || x^3 < dmap wk z))
+
 testBSqrt :: CPoint Real -> [CPoint Real]
 testBSqrt z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^2 < R c)) in
     getDerivTower f z

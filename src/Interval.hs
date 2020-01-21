@@ -156,3 +156,9 @@ pow prec i@(Interval a b) k
             Interval (R.min (lpow a) (lpow b)) R.zero -- Marshall uses `max` here, I'm not sure why, seems potentially wrong
           else {- non-negative [b] -}
             monotonePow i
+
+midpoint :: Rounded a => Interval a -> a
+midpoint (Interval a b) = R.average a b
+
+split :: Rounded a => Interval a -> (Interval a, Interval a)
+split (Interval a b) = let m = R.average a b in (Interval a m, Interval m b)

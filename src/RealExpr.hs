@@ -268,7 +268,7 @@ integral' p i@(Interval a b) = CMap $ \f ->
      x2 <- integral' (p + 5) (Interval m b) -< f'
      returnA -< I.add (p + 5) x1 x2)
 
-integral1' :: R.Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
+integral1' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 integral1' = secondOrderPrim (integral' 16 I.unitInterval)
 
 exists_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
@@ -288,6 +288,16 @@ recurseOnIntervals combine = go where
       t1 <- go (p + 5) (Interval a m) -< f'
       t2 <- go (p + 5) (Interval m b) -< f'
       returnA -< combine t1 t2)
+
+argmaxIntervals :: Rounded a => [Interval a] -> CMap (Interval a -> Interval a) (Interval a)
+argmaxIntervals xs = CMap $ \f ->
+  let ys = [ (x, f x) | x <- xs ] in
+  let maxyl = maximum [ yl | (_, Interval yl yh) <- ys ] in
+  let potentialxs = map fst (filter (\(x, Interval yl yh) -> maxyl < yh) ys) in
+  (foldr1 I.union potentialxs, argmaxIntervals [ i | (i1, i2) <- map I.split potentialxs, i <- [i1, i2]])
+
+argmax_interval' :: Rounded a => Interval a -> CMap (Interval a -> Interval a) (Interval a)
+argmax_interval' i = argmaxIntervals [i]
 
 forall_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
 forall_interval' = recurseOnIntervals (&&)

@@ -106,6 +106,18 @@ exists_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a
              -> CMap g Bool
 exists_unit_interval f = E.secondOrderPrim (E.exists_interval' 16 unitInterval) (f (arr snd))
 
+max_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
+             -> CMap g (Interval a)
+max_unit_interval f = E.secondOrderPrim (E.max_interval' 16 unitInterval) (f (arr snd))
+
+min_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
+             -> CMap g (Interval a)
+min_unit_interval f = E.secondOrderPrim (E.min_interval' 16 unitInterval) (f (arr snd))
+
+argmax_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
+             -> CMap g (Interval a)
+argmax_unit_interval f = E.secondOrderPrim (E.argmax_interval' unitInterval) (f (arr snd))
+
 restrictReal :: Rounded a => CMap g Bool -> CMap g (Interval a) -> CMap g (Interval a)
 restrictReal = ap2 E.restrictReal
 

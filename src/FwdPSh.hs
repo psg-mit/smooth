@@ -55,6 +55,9 @@ type Point a = () :~> a
 instance Show a => Show (() :~> a) where
   show = show Prelude.. getValue
 
+instance Show (DReal ()) where
+  show (R x) = show x
+
 infixr 2 :=>
 data (:=>) a b (g :: *) = ArrD (forall d. Additive d => d :~> g -> a d -> b d)
 
