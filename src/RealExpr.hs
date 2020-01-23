@@ -340,6 +340,39 @@ integer i = withPrec $ \p _ -> I.rounded (\d -> R.ofInteger p d i)
 abs1 :: (forall d. CMap d g -> CMap d a -> CMap d b) -> CMap (g, a) b
 abs1 f = f (arr fst) (arr snd)
 
+firstRoot :: Rounded a => CMap (Interval a -> B) (Interval a)
+firstRoot = rootAtP 1 (Interval R.zero R.one) where
+  rootAtP p i@(Interval l u) = CMap $ \f -> let m = R.average l u in
+    if fst (f (Interval l m)) -- the left interval is to the left of the point
+      then let i' = (Interval m u) in (i', rootAtP p i') -- refine the right interval
+      else if snd (f (I.lift m)) -- the middle of the interval is to the right of the point
+        then let i' = (Interval l m) in (i', rootAtP p i') -- refine the left
+      else let i' = (computeOverSubintervals f (splitIntervals p i)) in (i', rootAtP (p + 1) i') -- refine everything!
+
+  -- Split the given interval into 2^k intervals
+  splitIntervals :: Rounded a => Int -> Interval a -> [Interval a]
+  splitIntervals k i@(Interval l u) = if k==0 then [i]
+                                        else let m = R.average l u in
+                                          (splitIntervals (k - 1) (Interval l m)) ++
+                                          (splitIntervals (k - 1) (Interval m u))
+
+  computeOverSubintervals f intervals = let prefix = (removeBeginning f intervals) in
+    (Interval (I.lower (head prefix)) (I.upper (removeEnd f prefix)))
+
+  removeBeginning :: Rounded a => (Interval a -> B) -> [Interval a] -> [Interval a]
+  removeBeginning f intervals = case intervals of
+      [i] -> [i]
+      is -> if fst (f (head is))
+              then (removeBeginning f (tail is))
+              else is
+
+  removeEnd :: Rounded a => (Interval a -> B) -> [Interval a] -> Interval a
+  removeEnd f intervals = case intervals of
+    [i] -> i
+    is -> if snd (f (I.lift (R.average (I.lower (last is)) (I.upper (last is)))))
+                            then (head is)
+                            else (removeEnd f (init is))
+
 
 -- Assumption: f is monotone decreasing and has a single isolated root.
 newton_cut' :: Rounded r => CMap (Interval r -> (Interval r, Interval r)) (Interval r)
