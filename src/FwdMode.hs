@@ -106,14 +106,17 @@ wknValueF :: (forall k. CMap (g, k) b -> CMap (g', k) b) -> Df g a b k -> Df g' 
 wknValueF g (f :# f') = g f :# wknValueF g f'
 
 dWkn :: CMap k' k -> Df g a b k -> Df g a b k'
-dWkn ext = dWkn1 (ext <<< arr snd)
+dWkn ext = dWkn1' (C.id *** ext)
 
 dWkn1 :: CMap (g, k') k -> Df g a b k -> Df g a b k'
-dWkn1 ext (f :# f') = (f <<< (arr fst &&& ext)) :# dWkn1 ext' f'
+dWkn1 ext = dWkn1' (arr fst &&& ext)
+
+dWkn1':: CMap (g', k') (g, k) -> Df g a b k -> Df g' a b k'
+dWkn1' ext (f :# f') = (f <<< ext) :# dWkn1' ext' f'
   where
-  ext' = proc (g, (a, k')) -> do
-    k <- ext -< (g, k')
-    returnA -< (a, k)
+  ext' = proc (g', (a, k')) -> do
+    (g, k) <- ext -< (g', k')
+    returnA -< (g, (a, k))
 
 restrictReal :: R.Rounded b => CMap g Bool -> Df g a (Interval b) k -> Df g a (Interval b) k
 restrictReal mustHold (f :# f') = f1 :# restrictReal mustHold f'
@@ -323,6 +326,10 @@ fwdDer (D f) = D (fwdDer' f)
 
 fwdWithValue :: Additive g => Additive b => g :~> b -> (g, g) :~> (b, b)
 fwdWithValue f = pairD (f @. fstD) (fwdDer f)
+
+fwdSecondDer :: Additive g => Additive b => g :~> b -> (g, (g, g)) :~> b
+fwdSecondDer f = let f' = fwdDer f in
+  fwdDer f' @. pairD (pairD fstD (fstD @. sndD)) (pairD (sndD @. sndD) zeroD)
 
 {-| An example function. Calculates the `n`th derivative of
     (\x -> exp (2 * x)) at x = 0.

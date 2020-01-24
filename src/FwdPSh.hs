@@ -306,6 +306,24 @@ newton_cut :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g
     -> g :~> (Interval a)
 newton_cut f = newton_cut' (f sndD)
 
+argmax01' :: Additive g => R.Rounded a =>
+  ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+argmax01' f = let fwd2f = fwdSecondDer f in
+  let (g, dg) = (fstD, sndD) in
+  let f'' x = dap2 fwd2f (pairD g (dap1 (argmax01' f) g)) (pairD (pairD zeroD 1) x) in
+  fromFwd (E.argmax_unit_interval' (getValue f))
+  (scalarMultD (- recip (f'' (pairD zeroD 1))) (f'' (pairD dg 0)))
+
+argmax01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+    -> g :~> (Interval a)
+argmax01 f = argmax01' (f sndD)
+
+
 testNewtonSqrt :: CPoint Real -> [CPoint Real]
 testNewtonSqrt z = getDerivTower'
   (\c -> newton_cut (\x -> max (-x) (wkn c - x * x))) z
+
+-- Should test that this is giving correct answers!
+testArgMax :: CPoint Real -> [CPoint Real]
+testArgMax z = getDerivTower'
+  (\c -> argmax01 (\x -> 0.5 - (x - wkn c)^2 + 0.3 * wkn c^3 * x)) z
