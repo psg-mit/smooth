@@ -65,3 +65,6 @@ separationDist :: Additive g => PShD a =>
   (a :* a :=> DReal) g -> KShape a g -> KShape a g -> DReal g
 separationDist d k k' =
   inf k' (ArrD (\wk x' -> inf (dmap wk k ) (ArrD (\wk' x  -> dmap (wk @. wk') d # (x :* dmap wk' x')))))
+
+unit_interval :: Additive g => KShape DReal g
+unit_interval = ArrD $ \_ -> forall01

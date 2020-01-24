@@ -119,9 +119,12 @@ max_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g,
              -> CMap g (Interval a)
 max_unit_interval f = max_unit_interval' (f (arr snd))
 
+min_unit_interval' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
+min_unit_interval' = E.secondOrderPrim (E.min_interval' 16 unitInterval)
+
 min_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)
-min_unit_interval f = E.secondOrderPrim (E.min_interval' 16 unitInterval) (f (arr snd))
+min_unit_interval f = min_unit_interval' (f (arr snd))
 
 argmax_unit_interval' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 argmax_unit_interval' = E.secondOrderPrim (E.argmax_interval' unitInterval)
@@ -129,6 +132,13 @@ argmax_unit_interval' = E.secondOrderPrim (E.argmax_interval' unitInterval)
 argmax_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)
 argmax_unit_interval f = argmax_unit_interval' (f (arr snd))
+
+argmin_unit_interval' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
+argmin_unit_interval' = E.secondOrderPrim (E.argmin_interval' unitInterval)
+
+argmin_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
+             -> CMap g (Interval a)
+argmin_unit_interval f = argmin_unit_interval' (f (arr snd))
 
 restrictReal :: Rounded a => CMap g Bool -> CMap g (Interval a) -> CMap g (Interval a)
 restrictReal = ap2 E.restrictReal

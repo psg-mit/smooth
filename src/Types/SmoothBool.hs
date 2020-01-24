@@ -56,6 +56,12 @@ x > y = SBool (x - y)
 dedekind_cut :: Additive g => (DReal :=> SBool) g -> DReal g
 dedekind_cut (ArrD f) = R (FwdPSh.newton_cut' (let SBool (R b) = f fstD (R sndD) in b))
 
+forall01 :: Additive g => (DReal :=> SBool) g -> SBool g
+forall01 (ArrD f) = positive (R (FwdPSh.min01' (let SBool (R b) = f fstD (R sndD) in b)))
+
+exists01 :: Additive g => (DReal :=> SBool) g -> SBool g
+exists01 (ArrD f) = positive (R (FwdPSh.max01' (let SBool (R b) = f fstD (R sndD) in b)))
+
 dedekind_cubert :: Additive g => DReal g -> DReal g
 dedekind_cubert z = dedekind_cut (ArrD (\wk x -> x < 0 || x^3 < dmap wk z))
 

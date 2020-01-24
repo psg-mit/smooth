@@ -296,8 +296,18 @@ argmaxIntervals xs = CMap $ \f ->
   let potentialxs = map fst (filter (\(x, Interval yl yh) -> maxyl < yh) ys) in
   (foldr1 I.union potentialxs, argmaxIntervals [ i | (i1, i2) <- map I.split potentialxs, i <- [i1, i2]])
 
+argminIntervals :: Rounded a => [Interval a] -> CMap (Interval a -> Interval a) (Interval a)
+argminIntervals xs = CMap $ \f ->
+  let ys = [ (x, f x) | x <- xs ] in
+  let minyh = minimum [ yh | (_, Interval yl yh) <- ys ] in
+  let potentialxs = map fst (filter (\(x, Interval yl yh) -> yl < minyh) ys) in
+  (foldr1 I.union potentialxs, argminIntervals [ i | (i1, i2) <- map I.split potentialxs, i <- [i1, i2]])
+
 argmax_interval' :: Rounded a => Interval a -> CMap (Interval a -> Interval a) (Interval a)
 argmax_interval' i = argmaxIntervals [i]
+
+argmin_interval' :: Rounded a => Interval a -> CMap (Interval a -> Interval a) (Interval a)
+argmin_interval' i = argminIntervals [i]
 
 forall_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
 forall_interval' = recurseOnIntervals (&&)

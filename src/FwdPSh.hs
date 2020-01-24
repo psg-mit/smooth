@@ -348,6 +348,29 @@ max01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Int
     -> g :~> (Interval a)
 max01 f = max01' (f sndD)
 
+argmin01' :: Additive g => R.Rounded a =>
+  ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+argmin01' f = let fwd2f = fwdSecondDer f in
+  let (g, dg) = (fstD, sndD) in
+  let f'' x = dap2 fwd2f (pairD g (dap1 (argmin01' f) g)) (pairD (pairD zeroD 1) x) in
+  fromFwd (E.argmin_unit_interval' (getValue f))
+  (- f'' (pairD dg 0) / f'' (pairD zeroD 1))
+
+argmin01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+    -> g :~> (Interval a)
+argmin01 f = argmin01' (f sndD)
+
+-- We could just say that max01 = f . argmax01 f, but
+-- this would be slower for the evaluation map
+min01' :: Additive g => R.Rounded a =>
+  ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+min01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmax01' f) in
+   D ((E.min_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
+
+min01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+    -> g :~> (Interval a)
+min01 f = min01' (f sndD)
+
 firstRoot :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
 firstRoot f = firstRoot' (f sndD)

@@ -23,6 +23,9 @@ zero = ArrD $ \_ p -> 0
 sum :: Additive g => Integral a g -> Integral a g -> Integral a g
 sum k k' = ArrD $ \wk p -> dmap wk k # p + dmap wk k' # p
 
+scale :: Additive g => DReal g -> Integral a g -> Integral a g
+scale c k = ArrD $ \wk p -> dmap wk c * dmap wk k # p
+
 map :: Additive g => (a :=> b) g -> Integral a g -> Integral b g
 map f k = ArrD $ \wk p -> dmap wk k # ArrD (\wk' x -> dmap wk' p # (dmap (wk @. wk') f # x))
 
@@ -38,6 +41,14 @@ bernoulli p = ArrD $ \wk f -> let p' = dmap wk p in
 
 uniform :: Integral DReal g
 uniform = ArrD $ \wk (ArrD f) -> R (integral' (let R y = f fstD (R sndD) in y))
+
+-- total mass 1
+uniformAB :: Additive g => DReal g -> DReal g -> Integral DReal g
+uniformAB a b = map (ArrD (\wk x -> dmap wk a + x * (dmap wk (b - a)))) uniform
+
+-- total mass (b - a)
+lebesgueAB :: Additive g => DReal g -> DReal g -> Integral DReal g
+lebesgueAB a b = scale (b - a) (uniformAB a b)
 
 bernoulliObs :: Additive g => DReal g -> Bool -> Integral (K ()) g
 bernoulliObs p b = factor (if b then p else (1 - p))
