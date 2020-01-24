@@ -309,7 +309,7 @@ newton_cut' f = let fwdf = fwdWithValue f in
   -- Pick out the right derivatives from the linear map f'
   -- and take the derivative using the implicit function theorem.
   fromFwd (E.newton_cut' ff')
-    (scalarMultD (- recip (f' (pairD zeroD 1))) (f' (pairD dg 0)))
+    (- f' (pairD dg 0) / f' (pairD zeroD 1))
 
 
 firstRoot' :: Additive g => R.Rounded a =>
@@ -318,7 +318,7 @@ firstRoot' f = let fwdf = fwdWithValue f in
   let (g, dg) = (fstD, sndD) in
   let f' x = sndD @. dap2 fwdf (pairD g (dap1 (firstRoot' f) g)) x in
     fromFwd (E.firstRoot1 (getValue f E.> 0))
-      (scalarMultD (- recip (f' (pairD zeroD 1))) (f' (pairD dg 0)))
+      (- f' (pairD dg 0) / f' (pairD zeroD 1))
 
 
 newton_cut :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
@@ -331,11 +331,22 @@ argmax01' f = let fwd2f = fwdSecondDer f in
   let (g, dg) = (fstD, sndD) in
   let f'' x = dap2 fwd2f (pairD g (dap1 (argmax01' f) g)) (pairD (pairD zeroD 1) x) in
   fromFwd (E.argmax_unit_interval' (getValue f))
-  (scalarMultD (- recip (f'' (pairD zeroD 1))) (f'' (pairD dg 0)))
+  (- f'' (pairD dg 0) / f'' (pairD zeroD 1))
 
 argmax01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
 argmax01 f = argmax01' (f sndD)
+
+-- We could just say that max01 = f . argmax01 f, but
+-- this would be slower for the evaluation map
+max01' :: Additive g => R.Rounded a =>
+  ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+max01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmax01' f) in
+   D ((E.max_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
+
+max01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+    -> g :~> (Interval a)
+max01 f = max01' (f sndD)
 
 firstRoot :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
@@ -353,7 +364,7 @@ testArgMax z = getDerivTower'
 
 testArgMax2 :: CPoint Real -> [CPoint Real]
 testArgMax2 z = getDerivTower'
-  (\c -> argmax01 (\x -> 0.5 - (x - wkn c)^2)) z
+  (\c -> argmax01 (\x -> -x)) z
 
 testFirstRootForArgmax :: CPoint Real -> [CPoint Real]
 testFirstRootForArgmax z = getDerivTower'
@@ -361,3 +372,11 @@ testFirstRootForArgmax z = getDerivTower'
 
 testFirstRootSqrt :: CPoint Real -> [CPoint Real]
 testFirstRootSqrt z = getDerivTower' (\c -> firstRoot (\x -> max (-x) (wkn c - x * x))) z
+
+testMax :: CPoint Real -> [CPoint Real]
+testMax z = getDerivTower'
+  (\c -> max01 (\x -> wkn c / 4 - (x - wkn c)^2 )) z
+
+testMaxArgmax :: CPoint Real -> [CPoint Real]
+testMaxArgmax z = getDerivTower'
+  (\c -> argmax01 (\x -> wkn c / 4 - (x - wkn c)^2 )) z
