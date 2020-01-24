@@ -296,11 +296,30 @@ testSqrt = fromFwd RE.csqrt $
 newton_cut' :: Additive g => R.Rounded a =>
   ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
 newton_cut' f = let fwdf = fwdWithValue f in
+  -- value-level function, value-level derivative
   let ff' = getValue (dap2 fwdf dId (pairD zeroD 1)) in
+
+  -- value context, derivative context
   let (g, dg) = (fstD, sndD) in
+
+  -- the root of f is: (dap1 (newton_cut' f) g)
+  -- f' x is the derivative of f composed with the vector x e.g. x = e0 then f' x = df/dx_0
   let f' x = sndD @. dap2 fwdf (pairD g (dap1 (newton_cut' f) g)) x in
+
+  -- Pick out the right derivatives from the linear map f'
+  -- and take the derivative using the implicit function theorem.
   fromFwd (E.newton_cut' ff')
     (scalarMultD (- recip (f' (pairD zeroD 1))) (f' (pairD dg 0)))
+
+
+firstRoot' :: Additive g => R.Rounded a =>
+  ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+firstRoot' f = let fwdf = fwdWithValue f in
+  let (g, dg) = (fstD, sndD) in
+  let f' x = sndD @. dap2 fwdf (pairD g (dap1 (firstRoot' f) g)) x in
+    fromFwd (E.firstRoot1 (getValue f E.> 0))
+      (scalarMultD (- recip (f' (pairD zeroD 1))) (f' (pairD dg 0)))
+
 
 newton_cut :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
@@ -318,6 +337,9 @@ argmax01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, 
     -> g :~> (Interval a)
 argmax01 f = argmax01' (f sndD)
 
+firstRoot :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+    -> g :~> (Interval a)
+firstRoot f = firstRoot' (f sndD)
 
 testNewtonSqrt :: CPoint Real -> [CPoint Real]
 testNewtonSqrt z = getDerivTower'
@@ -327,3 +349,6 @@ testNewtonSqrt z = getDerivTower'
 testArgMax :: CPoint Real -> [CPoint Real]
 testArgMax z = getDerivTower'
   (\c -> argmax01 (\x -> 0.5 - (x - wkn c)^2 + 0.3 * wkn c^3 * x)) z
+
+testFirstRootSqrt :: CPoint Real -> [CPoint Real]
+testFirstRootSqrt z = getDerivTower' (\c -> firstRoot (\x -> max (-x) (wkn c - x * x))) z
