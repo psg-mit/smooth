@@ -68,3 +68,7 @@ dedekind_cubert z = dedekind_cut (ArrD (\wk x -> x < 0 || x^3 < dmap wk z))
 testBSqrt :: CPoint Real -> [CPoint Real]
 testBSqrt z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^2 < R c)) in
     getDerivTower f z
+
+testBCubert :: CPoint Real -> [CPoint Real]
+testBCubert z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^3 < R c)) in
+    getDerivTower f z
