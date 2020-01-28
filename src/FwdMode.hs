@@ -3,7 +3,7 @@ Forward-mode AD over `CMap`.
 Admits higher-order derivatives, but not higher-order functions.
 -}
 
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
@@ -83,15 +83,21 @@ dSum (f :# f') (g :# g') = E.ap2 addV f g :# dSum f' g'
     which we use to implement scalar multiplication as
     a smooth function.
 -}
-class Additive v => VectorSpace v s | v -> s where
-  (*^)    :: CMap (s, v) v    -- scale a vector
+class Additive v => VectorSpace v where
+  mulV    :: CMap (M.Real, v) v    -- scale a vector
 
-instance RE.CNum a => VectorSpace a a where
-  (*^) = RE.cmul
+instance VectorSpace M.Real where
+  mulV = RE.cmul
 
-scalarMult :: VectorSpace v s => Df g g' s k -> Df g g' v k -> Df g g' v k
+instance (VectorSpace v1, VectorSpace v2) => VectorSpace (v1, v2) where
+  mulV = proc (s, (v1, v2)) -> do
+    v1' <- mulV -< (s, v1)
+    v2' <- mulV -< (s, v2)
+    returnA -< (v1', v2')
+
+scalarMult :: VectorSpace v => Df g g' M.Real k -> Df g g' v k -> Df g g' v k
 scalarMult s@(s0 :# s') x@(x0 :# x') =
-  E.ap2 (*^) s0 x0 :# dSum (scalarMult (dWkn (arr snd) s) x')
+  E.ap2 mulV s0 x0 :# dSum (scalarMult (dWkn (arr snd) s) x')
                             (scalarMult s' (dWkn (arr snd) x))
 
 dMult :: RE.CNum a => Df g g' a k -> Df g g' a k -> Df g g' a k
@@ -178,7 +184,7 @@ add = linearD RE.cadd
 addD :: Additive a => g :~> a -> g :~> a -> g :~> a
 addD (D x) (D y) = D (dSum x y)
 
-scalarMultD :: VectorSpace v s => g :~> s -> g :~> v -> g :~> v
+scalarMultD :: VectorSpace v => g :~> M.Real -> g :~> v -> g :~> v
 scalarMultD (D c) (D x) = D (scalarMult c x)
 
 {-| Composition of two smooth maps yields a smooth map -}

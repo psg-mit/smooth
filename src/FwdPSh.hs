@@ -216,7 +216,7 @@ reluExample x n = getDerivTower' (max 0) x !! n
 -- Tangent spaces
 
 data Tan f g where
-   Tan :: Additive d => g :~> (d, d) -> f d -> Tan f g
+   Tan :: VectorSpace d => g :~> (d, d) -> f d -> Tan f g
 
 class PShD f where
   dmap :: Additive d => Additive g => d :~> g -> f g -> f d
@@ -236,11 +236,14 @@ instance (PShD f) => PShD (Tan f) where
 tangentValue :: Additive g => PShD f => Tan f g -> f g
 tangentValue (Tan xdx f) = dmap (fstD @. xdx) f
 
-tangentZero :: Additive g => f g -> Tan f g
+tangentZero :: VectorSpace g => f g -> Tan f g
 tangentZero f = Tan (pairD dId zeroD) f
 
 -- Both tangent bundles should be based on the same point
 -- tangentAdd :: Additive g => Tan f g -> Tan f g -> Tan f g
+
+tangentScalarMult :: g :~> Real -> Tan f g -> Tan f g
+tangentScalarMult c (Tan xdx f) = Tan (pairD (fstD @. xdx) (scalarMultD c (sndD @. xdx))) f
 
 tanR :: Tan DReal g :== (DReal :* DReal) g
 tanR = Bijection from to where
@@ -251,16 +254,16 @@ tanR = Bijection from to where
 fwdGlobal :: (forall g. a g -> b g) -> Tan a g -> Tan b g
 fwdGlobal f (Tan gdd fd) = Tan gdd (f fd)
 
-scaleDerivRn :: VectorSpace v s => g :~> (v, v) -> g :~> s -> g :~> (v, v)
+scaleDerivRn :: VectorSpace v => g :~> (v, v) -> g :~> Real -> g :~> (v, v)
 scaleDerivRn xdx c = pairD (fstD @. xdx) (scalarMultD c (sndD @. xdx))
 
-exponentialMapRn :: VectorSpace v s => g :~> (v, v) -> g :~> s -> g :~> v
+exponentialMapRn :: VectorSpace v => g :~> (v, v) -> g :~> Real -> g :~> v
 exponentialMapRn xdx c = addD (fstD @. xdx) (scalarMultD c (sndD @. xdx))
 
 -- scaleDerivTan :: Tan f g -> g :~> Real -> Tan f g
 -- scaleDerivTan (Tan xdx f) c = Tan (scaleDerivRn xdx c) f
 
-fwd :: Additive g => PShD a => (a :=> b) g -> (Tan a :=> Tan b) g
+fwd :: VectorSpace g => PShD a => (a :=> b) g -> (Tan a :=> Tan b) g
 fwd (ArrD f) = ArrD $ \ext (Tan xdx ax) -> let f1 = f fstD (dmap sndD ax) in
   Tan (pairD (pairD ext (fstD @. xdx)) (pairD zeroD (sndD @. xdx))) f1
 
@@ -273,7 +276,7 @@ tanProd = Bijection from to where
     a' = dmap fstD a
     b' = dmap sndD b
 
-tanToR :: Additive g => PShD a =>
+tanToR :: VectorSpace g => PShD a =>
   Tan (a :=> DReal) g :== (a :=> (DReal :* DReal)) g
 tanToR = Bijection from to where
   -- Haven't thought about this one too carefully,
@@ -282,7 +285,7 @@ tanToR = Bijection from to where
     let R z = f fstD (dmap sndD a) in
     let x = fwdWithValue z @. (pairD (pairD (fstD @. xdx @. ext) dId) (pairD (sndD @. xdx @. ext) zeroD)) in
     R (fstD @. x) :* R (sndD @. x)
-  to :: Additive g => PShD a => (a :=> (DReal :* DReal)) g -> Tan (a :=> DReal) g
+  to :: VectorSpace g => PShD a => (a :=> (DReal :* DReal)) g -> Tan (a :=> DReal) g
   to (ArrD f) = Tan (pairD (pairD dId 0) (pairD zeroD 1))
     (ArrD $ \ext a -> let g :* dg = f (fstD @. ext) a in
       g + (R (sndD @. ext)) * dg)
