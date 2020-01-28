@@ -236,6 +236,12 @@ instance (PShD f) => PShD (Tan f) where
 tangentValue :: Additive g => PShD f => Tan f g -> f g
 tangentValue (Tan xdx f) = dmap (fstD @. xdx) f
 
+tangentZero :: Additive g => f g -> Tan f g
+tangentZero f = Tan (pairD dId zeroD) f
+
+-- Both tangent bundles should be based on the same point
+-- tangentAdd :: Additive g => Tan f g -> Tan f g -> Tan f g
+
 tanR :: Tan DReal g :== (DReal :* DReal) g
 tanR = Bijection from to where
   from (Tan gdd (R fd)) = R (fstD @. x) :* R (sndD @. x) where
@@ -325,6 +331,8 @@ newton_cut :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g
     -> g :~> (Interval a)
 newton_cut f = newton_cut' (f sndD)
 
+-- Need to fix this to account for the special cases where
+-- the argmax might be 0 or 1.
 argmax01' :: Additive g => R.Rounded a =>
   ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
 argmax01' f = let fwd2f = fwdSecondDer f in
