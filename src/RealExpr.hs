@@ -351,6 +351,7 @@ integer i = withPrec $ \p _ -> I.rounded (\d -> R.ofInteger p d i)
 abs1 :: (forall d. CMap d g -> CMap d a -> CMap d b) -> CMap (g, a) b
 abs1 f = f (arr fst) (arr snd)
 
+-- TODO: Consider flattening these signatures and changing Bottom
 data Perhaps a = Bottom (Interval MPFR) | Known a
 data RootResult = NoRoot | Root (Interval MPFR)
 
@@ -379,6 +380,10 @@ firstRoot = rootAtP 1 (Bottom (Interval M.zero M.one)) where
                   (state, rootAtP p state)
               else
                 let state = Bottom i' in
+                -- TODO: Consider only increasing precision when the
+                -- interval doesn't change to be consistent with
+                -- the "Known Root" implementation.
+                -- Alternately, change that implementation
                 (state, rootAtP (p + 1) state)
 
   -- If there is no root in [0, 1], there will never be a root!
