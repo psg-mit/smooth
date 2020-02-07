@@ -76,6 +76,11 @@ dZero = zeroV :# dZero
 zeroD :: Additive b => a :~> b
 zeroD = D dZero
 
+bang :: g :~> ()
+bang = D x where
+  x :: Df g a () k
+  x = RE.bang :# x
+
 dSum :: Additive b => Df a a' b k -> Df a a' b k -> Df a a' b k
 dSum (f :# f') (g :# g') = E.ap2 addV f g :# dSum f' g'
 
@@ -85,6 +90,9 @@ dSum (f :# f') (g :# g') = E.ap2 addV f g :# dSum f' g'
 -}
 class Additive v => VectorSpace v where
   mulV    :: CMap (M.Real, v) v    -- scale a vector
+
+instance VectorSpace () where
+  mulV = arr (\(_, ()) -> ())
 
 instance VectorSpace M.Real where
   mulV = RE.cmul

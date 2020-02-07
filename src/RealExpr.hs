@@ -47,6 +47,9 @@ instance Arrow CMap where
   CMap f1 &&& CMap f2 = CMap $ \i ->
     let (a, f1') = f1 i in let (b, f2') = f2 i in ((a, b), f1' &&& f2')
 
+bang :: CMap g ()
+bang = arr (\_ -> ())
+
 toDiscrete :: Traversable t => t (CMap a b) -> CMap a (t b)
 toDiscrete fs = CMap $ \x -> let res = fmap (\(CMap f) -> f x) fs in
   (fmap fst res, toDiscrete (fmap snd res))

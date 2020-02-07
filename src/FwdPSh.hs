@@ -52,6 +52,9 @@ newtype K a g = K a
 
 type Point a = () :~> a
 
+fromCPoint :: Additive a => CPoint a -> Point a
+fromCPoint f = D ((f <<< arr (\((), ()) -> ())) :# dZero)
+
 instance Show a => Show (() :~> a) where
   show = show Prelude.. getValue
 
@@ -209,9 +212,6 @@ reluIntegralExample y n =
 
 reluExample :: CPoint Real -> Int -> CPoint Real
 reluExample x n = getDerivTower' (max 0) x !! n
-
-
-
 
 -- Tangent spaces
 

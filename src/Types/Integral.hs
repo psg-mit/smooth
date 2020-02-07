@@ -1,17 +1,21 @@
 module Types.Integral where
 
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), product, map, Integral)
-import FwdMode ((:~>), fstD, sndD, getDerivTower, (@.), getValue)
+import FwdMode ((:~>), fstD, sndD, getDerivTower, (@.), getValue, VectorSpace)
 import qualified Control.Category as C
 import FwdPSh
+import Types.Discrete (Box (..))
 
 type Integral a = (a :=> DReal) :=> DReal
 
-tangent :: Additive g => Tan (Integral a) g :== (Integral a :* Integral a) g
+tangent :: VectorSpace g => Tan (Integral a) g :== (Integral a :* Integral a) g
 tangent = arrProdIso C.. tanToR
 
 dirac :: Additive g => PShD a => a g -> Integral a g
 dirac x = ArrD $ \wk f -> f # dmap wk x
+
+diracInternal :: Additive g => PShD a => (a :=> Integral a) g
+diracInternal = ArrD $ \_ -> dirac
 
 bind :: Additive g => Integral a g -> (a :=> Integral b) g -> Integral b g
 bind i f = ArrD $ \wk p ->
@@ -62,3 +66,15 @@ simpleBetaBernoulli = normalize $
 simpleBetaBernoulliExpectation :: Point Real
 simpleBetaBernoulliExpectation = unR $
   simpleBetaBernoulli # ArrD (\_ x -> x)
+
+
+fwdDelta ::  VectorSpace g => PShD a => (Tan a :=> Tan (Integral a)) g
+fwdDelta = fwd diracInternal
+
+fwdDeltaExample :: VectorSpace g => DReal g -> Integral DReal g
+fwdDeltaExample x = dmu where
+  (mu :* dmu) = from tangent (fwdDelta # (to tanR (x :* 1)))
+
+-- "Pretend" that we can't compute derivatives of our sampling primitive
+sampleuniformAB :: Box DReal g -> Box DReal g -> Box (Integral DReal) g
+sampleuniformAB (Box a) (Box b) = Box (uniformAB a b)
