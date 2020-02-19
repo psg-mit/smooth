@@ -53,13 +53,11 @@ firstRootBoundaryLeft = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (ar
 firstRootBoundaryRight :: CPoint RootResult
 firstRootBoundaryRight = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.5) * (arr snd - asMPFR 0.7) > 0))
 
--- Approaches 1 as is correct
--- Should be NoRoot?!
+-- NoRoot
 firstRootAllNegative :: CPoint RootResult
 firstRootAllNegative = firstRoot1 ((arr snd - asMPFR 10) < 0)
 
--- Approaches 0 as is correct
--- Should be NoRoot?!
+-- NoRoot
 firstRootAllPositive :: CPoint RootResult
 firstRootAllPositive = firstRoot1 ((arr snd - asMPFR 10) > 0)
 
