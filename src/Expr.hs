@@ -89,9 +89,6 @@ dedekind_cut :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Inte
              -> CMap g (Interval a)
 dedekind_cut f = E.secondOrderPrim E.dedekind_cut' (f (arr snd))
 
-firstRoot1 :: Rounded a => (CMap (g, Interval a) B) -> CMap g (Interval a)
-firstRoot1 f = E.secondOrderPrim E.firstRoot f
-
 newton_cut' :: Rounded a => (CMap (g, Interval a) (Interval a, Interval a))
              -> CMap g (Interval a)
 newton_cut' = E.secondOrderPrim E.newton_cut'

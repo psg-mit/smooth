@@ -237,32 +237,24 @@ firstRoot :: CMap (Interval MPFR -> B) RootResult
 firstRoot = rootAtP 1 (Undetermined (Interval M.zero M.one)) where
 
   -- Search for a root at precision p.
-  rootAtP p (Undetermined i@(Interval l u)) = CMap $ \f ->
+  rootAtP p (Undetermined i) = CMap $ \f ->
     if (I.lower i > M.zero) && (I.upper i < M.one)
       then (Root i, rootAtP p (Root i))
     else
-      let prec_interval = refineInterval f p i computeOverSubintervals in
-      case snd prec_interval of
+      let interval = refineInterval f p i in
+      case interval of
         Nothing -> (NoRoot, rootAtP p NoRoot)
-        Just i' -> (Undetermined i', rootAtP (fst prec_interval) (Undetermined i'))
+        Just i' -> (Undetermined i', rootAtP (p+1) (Undetermined i'))
 
   -- If there is no root in [0, 1], there will never be a root!
   rootAtP p NoRoot = arr $ \f -> NoRoot
 
   -- Keep refining the root.
   rootAtP p (Root i@(Interval l u)) = CMap $ \f ->
-    let prec_interval = refineInterval f p i computeOverSubintervalsWithRoot in
-    let Just i' = snd prec_interval in
-    (Root i', rootAtP (fst prec_interval) (Root i'))
+    let Just i' = refineInterval f p i in
+    (Root i', rootAtP (p+1) (Root i'))
 
-  refineInterval f p i@(Interval l u) computeSubintervals =
-    let m = average l u in
-    let prec_interval = if fst (f (Interval l m)) -- the left interval is to the left of the point
-                          then (p, Just (Interval m u)) -- refine the right interval
-                        else if snd (f (I.lift m)) -- the middle of the interval is to the right of the point
-                          then (p, Just (Interval l m)) -- refine the left
-                        else (p + 1, computeSubintervals f (splitIntervals p i)) -- refine everything!
-      in prec_interval
+  refineInterval f p i = computeOverSubintervals f (splitIntervals p i)
 
   -- Split the given interval into 2^k intervals
   splitIntervals :: Int -> Interval MPFR -> [Interval MPFR]
@@ -277,31 +269,24 @@ firstRoot = rootAtP 1 (Undetermined (Interval M.zero M.one)) where
       case prefix of
         [] -> Nothing
         is ->
-          let end = removeEnd f is in
+          let end = removeEnd f (tail is) in
             case end of
-              Nothing -> Nothing
-              Just e -> Just (Interval (I.lower (head is)) (I.upper e))
-
-  computeOverSubintervalsWithRoot :: (Interval MPFR -> B) -> [Interval MPFR] -> Maybe (Interval MPFR)
-  computeOverSubintervalsWithRoot f intervals = let prefix = (removeBeginning f intervals) in
-    let Just end = removeEnd f prefix in
-    Just (Interval (I.lower (head prefix)) (I.upper end))
+              [] -> if snd (f (head is)) then Nothing else Just (head is)
+              end_is -> Just (Interval (I.lower (head is)) (I.upper (last end_is)))
 
   removeBeginning :: (Interval MPFR -> B) -> [Interval MPFR] -> [Interval MPFR]
   removeBeginning f intervals = case intervals of
       [] -> []
-      [i] -> [i]
       is -> if fst (f (head is))
               then (removeBeginning f (tail is))
               else is
 
-  removeEnd :: (Interval MPFR -> B) -> [Interval MPFR] -> Maybe (Interval MPFR)
+  removeEnd :: (Interval MPFR -> B) -> [Interval MPFR] -> [Interval MPFR]
   removeEnd f intervals = case intervals of
-    [] -> Nothing
-    [i] -> Just i
-    is -> if snd (f (I.lift (average (I.lower (last is)) (I.upper (last is)))))
-                            then Just (head is)
-                            else (removeEnd f (init is))
+    [] -> []
+    _  -> if snd (f (I.lift (I.lower (head intervals))))
+            then []
+            else (head intervals):(removeEnd f (tail intervals))
 
 
 firstRoot1 :: (CMap (g, Interval MPFR) B) -> CMap g RootResult

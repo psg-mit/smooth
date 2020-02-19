@@ -321,13 +321,13 @@ newton_cut' f = let fwdf = fwdWithValue f in
     (- f' (pairD dg 0) / f' (pairD zeroD 1))
 
 
-firstRoot' :: Additive g => R.Rounded a =>
-  ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
-firstRoot' f = let fwdf = fwdWithValue f in
-  let (g, dg) = (fstD, sndD) in
-  let f' x = sndD @. dap2 fwdf (pairD g (dap1 (firstRoot' f) g)) x in
-    fromFwd (E.firstRoot1 (getValue f E.> 0))
-      (- f' (pairD dg 0) / f' (pairD zeroD 1))
+-- firstRoot' :: Additive g => R.Rounded a =>
+--   ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+-- firstRoot' f = let fwdf = fwdWithValue f in
+--   let (g, dg) = (fstD, sndD) in
+--   let f' x = sndD @. dap2 fwdf (pairD g (dap1 (firstRoot' f) g)) x in
+--     fromFwd (E.firstRoot1 (getValue f E.> 0))
+--       (- f' (pairD dg 0) / f' (pairD zeroD 1))
 
 
 newton_cut :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
@@ -382,9 +382,9 @@ min01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Int
     -> g :~> (Interval a)
 min01 f = min01' (f sndD)
 
-firstRoot :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
-    -> g :~> (Interval a)
-firstRoot f = firstRoot' (f sndD)
+-- firstRoot :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+--     -> g :~> (Interval a)
+-- firstRoot f = firstRoot' (f sndD)
 
 testNewtonSqrt :: CPoint Real -> [CPoint Real]
 testNewtonSqrt z = getDerivTower'
@@ -400,12 +400,12 @@ testArgMax2 :: CPoint Real -> [CPoint Real]
 testArgMax2 z = getDerivTower'
   (\c -> argmax01 (\x -> -x)) z
 
-testFirstRootForArgmax :: CPoint Real -> [CPoint Real]
-testFirstRootForArgmax z = getDerivTower'
-  (\c -> firstRoot (\x -> - (2 * (x - wkn c) + 0.3 * (wkn c ^ 3)))) z
+-- testFirstRootForArgmax :: CPoint Real -> [CPoint Real]
+-- testFirstRootForArgmax z = getDerivTower'
+--   (\c -> firstRoot (\x -> - (2 * (x - wkn c) + 0.3 * (wkn c ^ 3)))) z
 
-testFirstRootSqrt :: CPoint Real -> [CPoint Real]
-testFirstRootSqrt z = getDerivTower' (\c -> firstRoot (\x -> max (-x) (wkn c - x * x))) z
+-- testFirstRootSqrt :: CPoint Real -> [CPoint Real]
+-- testFirstRootSqrt z = getDerivTower' (\c -> firstRoot (\x -> max (-x) (wkn c - x * x))) z
 
 testMax :: CPoint Real -> [CPoint Real]
 testMax z = getDerivTower'

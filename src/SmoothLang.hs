@@ -28,30 +28,46 @@ firstRootExample :: CPoint RootResult
 firstRootExample = firstRoot <<< arr (\() -> f)
 
 -- Approaches 0.5 as is correct
+firstRootp5 :: CPoint RootResult
+firstRootp5 = firstRoot1 (arr snd < 0.5)
+
+-- Undetermined to 0
+firstRootpg5 :: CPoint RootResult
+firstRootpg5 = firstRoot1 (arr snd > 0.5)
+
+-- Root 0.5
 firstRootInTheMiddle :: CPoint RootResult
-firstRootInTheMiddle = firstRoot1 (arr snd < 0 || (arr snd ^ 2) < 0.25)
+firstRootInTheMiddle = firstRoot1 (arr snd < 0 || (arr snd ^ 2) < 1/4)
 
--- biddle :: CPoint Real
--- biddle = firstRoot1 ((arr snd - 1.1) < 0)
+-- Should go to zero?
+firstRootOfDoublePM :: CPoint RootResult
+firstRootOfDoublePM = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (arr snd - asMPFR 0.7) < 0))
 
--- -- Should go to zero?
--- firstRootOfDoublePM :: CPoint Real
--- firstRootOfDoublePM = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (arr snd - asMPFR 0.7) < 0))
+-- Should go to 0.3
+firstRootOfDoubleMP :: CPoint RootResult
+firstRootOfDoubleMP = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (arr snd - asMPFR 0.7) > 0))
 
--- -- Should go to 0.3
--- firstRootOfDoubleMP :: CPoint Real
--- firstRootOfDoubleMP = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (arr snd - asMPFR 0.7) > 0))
+firstRootBoundaryLeft :: CPoint RootResult
+firstRootBoundaryLeft = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (arr snd - asMPFR 0.5) > 0))
 
--- firstRootBoundaryLeft :: CPoint Real
--- firstRootBoundaryLeft = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (arr snd - asMPFR 0.5) > 0))
+firstRootBoundaryRight :: CPoint RootResult
+firstRootBoundaryRight = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.5) * (arr snd - asMPFR 0.7) > 0))
 
--- firstRootBoundaryRight :: CPoint Real
--- firstRootBoundaryRight = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.5) * (arr snd - asMPFR 0.7) > 0))
+-- Approaches 1 as is correct
+-- Should be NoRoot?!
+firstRootAllNegative :: CPoint RootResult
+firstRootAllNegative = firstRoot1 ((arr snd - asMPFR 10) < 0)
 
--- -- Approaches 1 as is correct
--- firstRootAllNegative :: CPoint Real
--- firstRootAllNegative = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 10) < 0))
+-- Approaches 0 as is correct
+-- Should be NoRoot?!
+firstRootAllPositive :: CPoint RootResult
+firstRootAllPositive = firstRoot1 ((arr snd - asMPFR 10) > 0)
 
--- -- Approaches 0 as is correct
--- firstRootAllPositive :: CPoint Real
--- firstRootAllPositive = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 10) > 0))
+-- Approaches 0 as is correct
+-- but frozen at [0,1] is also okay
+firstRootToZero :: CPoint RootResult
+firstRootToZero = firstRoot1 (arr snd < 0 || ((arr snd) > 0))
+
+-- Approaches 0 as is correct
+firstRootToOne :: CPoint RootResult
+firstRootToOne = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 1) < 0))
