@@ -25,10 +25,11 @@ dependencies:
 - MemoTrie
 - hscolour
 
+default-extensions:
+  - TypeOperators
+
 library:
   source-dirs: src
-  default-extensions:
-    - TypeOperators
 
 executables:
   runtest:
