@@ -90,51 +90,51 @@ dedekind_cut :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Inte
 dedekind_cut f = E.secondOrderPrim E.dedekind_cut' (f (arr snd))
 
 firstRoot1 :: Rounded a => (CMap (g, Interval a) B) -> CMap g (Interval a)
-firstRoot1 f = E.secondOrderPrim E.firstRoot f
+firstRoot1 f = E.secondOrderPrim' unitInterval E.firstRoot f
 
 newton_cut' :: Rounded a => (CMap (g, Interval a) (Interval a, Interval a))
              -> CMap g (Interval a)
-newton_cut' = E.secondOrderPrim E.newton_cut'
+newton_cut' = E.newton_cut'
 
 newton_cut :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a, Interval a))
              -> CMap g (Interval a)
-newton_cut f = E.secondOrderPrim E.newton_cut' (f (arr snd))
+newton_cut f = E.newton_cut' (f (arr snd))
 
 integral_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)
-integral_unit_interval f = E.secondOrderPrim (E.integral' 16 unitInterval) (f (arr snd))
+integral_unit_interval f = (E.integral' 16 unitInterval) (f (arr snd))
 
 forall_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) Bool)
              -> CMap g Bool
-forall_unit_interval f = E.secondOrderPrim (E.forall_interval' 16 unitInterval) (f (arr snd))
+forall_unit_interval f = E.forall_interval' 16 unitInterval (f (arr snd))
 
 exists_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) Bool)
              -> CMap g Bool
-exists_unit_interval f = E.secondOrderPrim (E.exists_interval' 16 unitInterval) (f (arr snd))
+exists_unit_interval f = E.exists_interval' 16 unitInterval (f (arr snd))
 
 max_unit_interval' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-max_unit_interval' = E.secondOrderPrim (E.max_interval' 16 unitInterval)
+max_unit_interval' = E.max_interval' 16 unitInterval
 
 max_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)
 max_unit_interval f = max_unit_interval' (f (arr snd))
 
 min_unit_interval' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-min_unit_interval' = E.secondOrderPrim (E.min_interval' 16 unitInterval)
+min_unit_interval' = E.min_interval' 16 unitInterval
 
 min_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)
 min_unit_interval f = min_unit_interval' (f (arr snd))
 
 argmax_unit_interval' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-argmax_unit_interval' = E.secondOrderPrim (E.argmax_interval' unitInterval)
+argmax_unit_interval' = E.argmax_interval' unitInterval
 
 argmax_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)
 argmax_unit_interval f = argmax_unit_interval' (f (arr snd))
 
 argmin_unit_interval' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-argmin_unit_interval' = E.secondOrderPrim (E.argmin_interval' unitInterval)
+argmin_unit_interval' = E.argmin_interval' unitInterval
 
 argmin_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)

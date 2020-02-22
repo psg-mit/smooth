@@ -16,6 +16,13 @@ compactUnion :: Additive g => KShape a g -> (a :=> KShape b) g -> KShape b g
 compactUnion i f = ArrD $ \wk p ->
   dmap wk i # (ArrD $ \wk' x -> (dmap (wk @. wk') f # x) # dmap wk' p)
 
+product :: PShD a => Additive g => KShape a g -> KShape b g -> KShape (a :* b) g
+product ka kb = ArrD $ \wk p ->
+  dmap wk          ka # (ArrD $ \wk' a ->
+  dmap (wk @. wk') kb # (ArrD $ \wk'' b ->
+    dmap (wk' @. wk'') p # (dmap wk'' a :* b)))
+
+
 empty :: KShape a g
 empty = ArrD $ \_ p -> true
 
@@ -68,3 +75,21 @@ separationDist d k k' =
 
 unit_interval :: Additive g => KShape DReal g
 unit_interval = ArrD $ \_ -> forall01
+
+unit_square :: Additive g => KShape (DReal :* DReal) g
+unit_square = product unit_interval unit_interval
+
+quarter_disk :: Additive g => KShape (DReal :* DReal) g
+quarter_disk = intersect unit_square O.unitDisk
+
+d_R2 :: ((DReal :* DReal) :* (DReal :* DReal) :=> DReal) g
+d_R2 = ArrD $ \_ ((x :* y) :* (x' :* y')) -> sqrt ((x - x')^2 + (y - y')^2)
+
+d_R1 :: (DReal :* DReal :=> DReal) g
+d_R1 = ArrD $ \_ (x :* x') -> abs (x - x')
+
+exampleHausdorffDist :: Additive g => DReal g
+exampleHausdorffDist = hausdorffDist d_R2 unit_square quarter_disk
+
+exampleHausdorffDist2 :: Additive g => DReal g
+exampleHausdorffDist2 = hausdorffDist d_R1 (point 0) unit_interval

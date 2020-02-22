@@ -72,3 +72,16 @@ testBSqrt z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^2 < R c)) in
 testBCubert :: CPoint Real -> [CPoint Real]
 testBCubert z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^3 < R c)) in
     getDerivTower f z
+
+testOpt :: () :~> Real
+testOpt = FwdPSh.newton_cut (\q -> FwdPSh.min01 (\x -> x - wkn q))
+
+testOptHelp :: CPoint Real -> [CPoint Real]
+testOptHelp = getDerivTower' (\q -> FwdPSh.argmin01 (\x -> x - wkn q) - q)
+
+-- Not converging as it should
+testOpt2 :: () :~> Real
+testOpt2 = FwdPSh.argmin01 (\x -> FwdPSh.newton_cut (\q -> wkn x - q))
+
+testOpt2Help :: CPoint Real -> [CPoint Real]
+testOpt2Help = getDerivTower' (\x -> FwdPSh.newton_cut (\q -> wkn x - q))

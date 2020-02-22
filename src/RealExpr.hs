@@ -89,12 +89,21 @@ curryTrie f = trie $ \i -> trie $ \j -> untrie f (i, j)
 uncurryTrie :: HasTrie i => HasTrie j => i :->: (j :->: a) -> (i, j) :->: a
 uncurryTrie f = trie $ \(i, j) -> untrie (untrie f i) j
 
+class HasBottom a where
+  bottom :: a
+
+instance Rounded a => HasBottom (Interval a) where
+  bottom = I.realLine
+
 -- Not sure that this is right with the increasing precision in gab'
-secondOrderPrim :: CMap (a -> b) c -> CMap (g, a) b -> CMap g c
-secondOrderPrim (CMap abc) (CMap gab) = CMap $ \g ->
+secondOrderPrim :: HasBottom a => CMap (a -> b) c -> CMap (g, a) b -> CMap g c
+secondOrderPrim = secondOrderPrim' bottom
+
+secondOrderPrim' :: a -> CMap (a -> b) c -> CMap (g, a) b -> CMap g c
+secondOrderPrim' bot (CMap abc) (CMap gab) = CMap $ \g ->
     let (c, abc') = abc (\a -> let (b, gab') = gab (g, a) in b) in
-    let (_, gab') = gab (g, undefined) in
-    (c, secondOrderPrim abc' gab')
+    let (_, gab') = gab (g, bot) in
+    (c, secondOrderPrim' bot abc' gab')
 
 withPrec :: (Prec -> a -> b) -> CMap a b
 withPrec f = withPrec' 32 where
@@ -151,7 +160,7 @@ instance Rounded a => CNum (Interval a) where
   cmul = mul
   cnegate = negate
   csub = sub
-  cabs = error "TBD"
+  cabs = RealExpr.max <<< (C.id &&& cnegate)
   cfromInteger = integer
   csignum = signum
 
@@ -275,63 +284,68 @@ neg = arr (\(x, y) -> (y, x))
 neq :: Rounded a => CMap (Interval a, Interval a) Bool
 neq = arr $ \(Interval l1 u1, Interval l2 u2) -> u1 < l2 || u2 < l1
 
-integral' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
-integral' p i@(Interval a b) = CMap $ \f ->
+integral' :: Rounded a => Prec -> Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
+integral' p i@(Interval a b) (CMap f) = CMap $ \g ->
   let m = R.average a b in
+  let (y, frefined) = f (g, i) in
   -- traceShow p $
-  (I.mul p (I.sub p (I.lift b) (I.lift a)) (f i), proc f' -> do
-     x1 <- integral' (p + 5) (Interval a m) -< f'
-     x2 <- integral' (p + 5) (Interval m b) -< f'
+  (I.mul p (I.sub p (I.lift b) (I.lift a)) y, proc g -> do
+     x1 <- integral' (p + 5) (Interval a m) frefined -< g
+     x2 <- integral' (p + 5) (Interval m b) frefined -< g
      returnA -< I.add (p + 5) x1 x2)
 
 integral1' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-integral1' = secondOrderPrim (integral' 16 I.unitInterval)
+integral1' = integral' 16 I.unitInterval
 
-exists_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
-exists_interval' p i@(Interval a b) = CMap $ \f ->
+exists_interval' :: Rounded a => Prec -> Interval a -> CMap (g, Interval a) Bool -> CMap g Bool
+exists_interval' p i@(Interval a b) (CMap f) = CMap $ \g ->
   let m = R.average a b in
+  let (_, frefined) = f (g, i) in
   -- traceShow p $
-  (f (I.lift m), proc f' -> do
-    t1 <- exists_interval' (p + 5) (Interval a m) -< f'
-    t2 <- exists_interval' (p + 5) (Interval m b) -< f'
+  (fst (f (g, I.lift m)), proc g -> do
+    t1 <- exists_interval' (p + 5) (Interval a m) frefined -< g
+    t2 <- exists_interval' (p + 5) (Interval m b) frefined -< g
     returnA -< t1 || t2)
 
-recurseOnIntervals :: Rounded a => (b -> b -> b) -> Prec -> Interval a -> CMap (Interval a -> b) b
+recurseOnIntervals :: Rounded a => (b -> b -> b) -> Prec -> Interval a -> CMap (g, Interval a) b -> CMap g b
 recurseOnIntervals combine = go where
-  go p i@(Interval a b) = CMap $ \f ->
+  go p i@(Interval a b) (CMap f) = CMap $ \g ->
     let m = R.average a b in
-    (f (I.lift m), proc f' -> do
-      t1 <- go (p + 5) (Interval a m) -< f'
-      t2 <- go (p + 5) (Interval m b) -< f'
+    let (y, frefined) = f (g, i) in
+    (y, proc f' -> do
+      t1 <- go (p + 5) (Interval a m) frefined -< g
+      t2 <- go (p + 5) (Interval m b) frefined -< g
       returnA -< combine t1 t2)
 
-argmaxIntervals :: Rounded a => [Interval a] -> CMap (Interval a -> Interval a) (Interval a)
-argmaxIntervals xs = CMap $ \f ->
-  let ys = [ (x, f x) | x <- xs ] in
-  let maxyl = maximum [ yl | (_, Interval yl yh) <- ys ] in
-  let potentialxs = map fst (filter (\(x, Interval yl yh) -> maxyl < yh) ys) in
-  (foldr1 I.union potentialxs, argmaxIntervals [ i | (i1, i2) <- map I.split potentialxs, i <- [i1, i2]])
+argmaxIntervals :: Rounded a => [(Interval a, CMap (g, Interval a) (Interval a))] -> CMap g (Interval a)
+argmaxIntervals xs = CMap $ \g ->
+  let ys = [ (x, f (g, x)) | (x, CMap f) <- xs ] in
+  let maxyl = maximum [ yl | (_, (Interval yl yh, _)) <- ys ] in
+  let potentialxs = filter (\(_, (Interval yl yh, _)) -> maxyl < yh) ys in
+  (foldr1 I.union (map fst potentialxs),
+  argmaxIntervals [ (i', f) | (i, (_, f)) <- potentialxs, i' <- let (i1, i2) = I.split i in [i1, i2]])
 
-argminIntervals :: Rounded a => [Interval a] -> CMap (Interval a -> Interval a) (Interval a)
-argminIntervals xs = CMap $ \f ->
-  let ys = [ (x, f x) | x <- xs ] in
-  let minyh = minimum [ yh | (_, Interval yl yh) <- ys ] in
-  let potentialxs = map fst (filter (\(x, Interval yl yh) -> yl < minyh) ys) in
-  (foldr1 I.union potentialxs, argminIntervals [ i | (i1, i2) <- map I.split potentialxs, i <- [i1, i2]])
+argminIntervals :: Rounded a => [(Interval a, CMap (g, Interval a) (Interval a))] -> CMap g (Interval a)
+argminIntervals xs = CMap $ \g ->
+  let ys = [ (x, f (g, x)) | (x, CMap f) <- xs ] in
+  let minyh = minimum [ yh | (_, (Interval yl yh, _)) <- ys ] in
+  let potentialxs = filter (\(_, (Interval yl yh, _)) -> yl < minyh) ys in
+  (foldr1 I.union (map fst potentialxs),
+  argminIntervals [ (i', f) | (i, (_, f)) <- potentialxs, i' <- let (i1, i2) = I.split i in [i1, i2]])
 
-argmax_interval' :: Rounded a => Interval a -> CMap (Interval a -> Interval a) (Interval a)
-argmax_interval' i = argmaxIntervals [i]
+argmax_interval' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
+argmax_interval' i f = argmaxIntervals [(i, f)]
 
-argmin_interval' :: Rounded a => Interval a -> CMap (Interval a -> Interval a) (Interval a)
-argmin_interval' i = argminIntervals [i]
+argmin_interval' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
+argmin_interval' i f = argminIntervals [(i, f)]
 
-forall_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Bool) Bool
+forall_interval' :: Rounded a => Prec -> Interval a -> CMap (g, Interval a) Bool -> CMap g Bool
 forall_interval' = recurseOnIntervals (&&)
 
-max_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
+max_interval' :: Rounded a => Prec -> Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 max_interval' = recurseOnIntervals I.max
 
-min_interval' :: Rounded a => Prec -> Interval a -> CMap (Interval a -> Interval a) (Interval a)
+min_interval' :: Rounded a => Prec -> Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 min_interval' = recurseOnIntervals I.min
 
 dedekind_cut' :: Rounded a => CMap (Interval a -> B) (Interval a)
@@ -399,26 +413,29 @@ firstRoot = rootAtP 1 (Interval R.zero R.one) where
                             then (head is)
                             else (removeEnd f (init is))
 
-
--- Assumption: f is monotone decreasing and has a single isolated root.
-newton_cut' :: Rounded r => CMap (Interval r -> (Interval r, Interval r)) (Interval r)
-newton_cut' = bound 1 R.one where
-  bound :: Rounded r => Word -> r -> CMap (Interval r -> (Interval r, Interval r)) (Interval r)
-  bound p b = CMap $ \f -> let negb = R.neg p R.Down b in
-    if I.lower (fst (f (I.lift negb))) > R.zero && I.upper (fst (f (I.lift b))) < R.zero
-      then let i = Interval negb b in (i, loc p i)
-      else (I.realLine, bound (p + 1) (R.mulpow2 1 p R.Down b))
-  loc p i@(Interval l u) = CMap $ \f ->
-    let (fx1, _) = f (I.lift l) in
-    let (fx2, _) = f (I.lift u) in
-    let (_, f'x) = f i in
+newton_cut' :: Rounded r => CMap (g, Interval r) (Interval r, Interval r)
+  -> CMap g (Interval r)
+newton_cut' f = bound 1 1 R.one where
+  bound n p b = CMap $ \g -> let negb = R.neg p R.Down b in
+    if I.lower (fst (fst (nsteps n f (g, I.lift negb)))) > R.zero && I.upper (fst (fst (nsteps n f (g, I.lift b)))) < R.zero
+      then let i = Interval negb b in (i, loc f p i)
+      else (I.realLine, bound (n + 1) (p + 1) (R.mulpow2 1 p R.Down b))
+  loc (CMap f) p i@(Interval l u) = CMap $ \g ->
+    let ((fx1, _), _) = f (g, I.lift l) in
+    let ((fx2, _), _) = f (g, I.lift u) in
+    let ((_, f'x), frefined) = f (g, i) in
     let i1 = I.sub p (I.lift l) (I.div p fx1 f'x) in
     let i2 = I.sub p (I.lift u) (I.div p fx2 f'x) in
     let i' = i `I.join` i1 `I.join` i2 in
     if I.lower i' > I.lower i || I.upper i' < I.upper i -- we made progress
-      then (i', loc (p + 5) i')
-      else let i' = locate p i (\x -> let Interval a b = fst (f x) in (a > R.zero, b < R.zero))
-           in (i', loc (p + 5) i')
+      then (i', loc frefined (p + 5) i')
+      else let i' = locate p i (\x -> let Interval a b = fst (fst (f (g, x))) in (a > R.zero, b < R.zero))
+           in (i', loc frefined (p + 5) i')
+
+-- Get more precision out of a continuous map by running it many times.
+nsteps :: Int -> CMap a b -> a -> (b, CMap a b)
+nsteps 1 (CMap f) x = f x
+nsteps n (CMap f) x = let (_, f') = f x in nsteps (n - 1) f' x
 
 -- Is `argmax01 f` "distinctly" at an endpoint, i.e.,
 -- argmax01 f = 0 and f'(0) < 0    OR
@@ -426,20 +443,22 @@ newton_cut' = bound 1 R.one where
 -- If so, then Just True.
 -- If clearly not, then Just False
 -- If we can't tell, then Nothing.
-argoptIntervalAtEnd :: Rounded r => (Interval r -> CMap (Interval r -> Interval r) (Interval r)) -> Interval r -> CMap (Interval r -> (Interval r, Interval r)) (Maybe Bool)
-argoptIntervalAtEnd argopt_interval' i = proc ff' -> do
-  curArgopt <- argopt_interval' i -< fst . ff'
-  returnA -< g (snd . ff') curArgopt
+argoptIntervalAtEnd :: Rounded r => (Interval r -> forall g. CMap (g, Interval r) (Interval r) -> CMap g (Interval r)) ->
+  Interval r -> CMap (g, Interval r) (Interval r, Interval r) -> CMap g (Maybe Bool)
+argoptIntervalAtEnd argopt_interval' i ff' = proc g -> do
+  curArgopt <- argopt_interval' i (fmap fst ff') -< g
+  func (fmap snd ff') -< (g, curArgopt)
   where
-  g f' curArgopt =
-    if I.lower curArgopt > I.lower i || I.upper curArgopt < I.lower i
-      then Just False
-      else let f'x = f' curArgopt in
-      if I.lower f'x > R.zero || I.upper f'x < R.zero
-        then Just True
-        else Nothing
+  func (CMap f') = CMap $ \(g, curArgopt) ->
+    let (f'x, refinedf') = f' (g, curArgopt) in
+      (if I.lower curArgopt > I.lower i || I.upper curArgopt < I.lower i
+        then Just False
+        else
+        if I.lower f'x > R.zero || I.upper f'x < R.zero
+          then Just True
+          else Nothing, func refinedf')
 
-argmaxIntervalAtEnd, argminIntervalAtEnd :: Rounded r => Interval r -> CMap (Interval r -> (Interval r, Interval r)) (Maybe Bool)
+argmaxIntervalAtEnd, argminIntervalAtEnd :: Rounded r => Interval r -> CMap (g, Interval r) (Interval r, Interval r) -> CMap g (Maybe Bool)
 argmaxIntervalAtEnd = argoptIntervalAtEnd argmax_interval'
 argminIntervalAtEnd = argoptIntervalAtEnd argmin_interval'
 

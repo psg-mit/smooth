@@ -227,6 +227,9 @@ instance PShD (K a) where
 instance Additive a => PShD (R (:~>) a) where
   dmap f (R x) = R (x @. f)
 
+instance (PShD a, PShD b) =>  PShD (a :* b) where
+  dmap wk (a :* b) = dmap wk a :* dmap wk b
+
 instance PShD (a :=> b) where
   dmap wk (ArrD f) = ArrD $ \wk' -> f (wk @. wk')
 
@@ -342,7 +345,7 @@ argmax01' f = let fwd2f = fwdSecondDer f in
   let (g, dg) = (fstD, sndD) in
   let f'' x = dap2 fwd2f (pairD g (dap1 (argmax01' f) g)) (pairD (pairD zeroD 1) x) in
   fromFwd (E.argmax_unit_interval' (getValue f))
-  (partialIfThenElse (RE.secondOrderPrim (RE.argmaxIntervalAtEnd unitInterval) ff' <<< arr fst)
+  (partialIfThenElse (RE.argmaxIntervalAtEnd unitInterval ff' <<< arr fst)
      0
      (- f'' (pairD dg 0) / f'' (pairD zeroD 1)))
   where
@@ -354,10 +357,12 @@ argmax01 f = argmax01' (f sndD)
 
 -- We could just say that max01 = f . argmax01 f, but
 -- this would be slower for the evaluation map
+-- Not sure why the optimized version is broken
 max01' :: Additive g => R.Rounded a =>
   ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
-max01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmax01' f) in
-   D ((E.max_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
+max01' f = f @. pairD dId (argmax01' f)
+  -- let D (unoptimized :# derivs) = f @. pairD dId (argmax01' f) in
+  --  D ((E.max_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
 
 max01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
@@ -369,7 +374,7 @@ argmin01' f = let fwd2f = fwdSecondDer f in
   let (g, dg) = (fstD, sndD) in
   let f'' x = dap2 fwd2f (pairD g (dap1 (argmin01' f) g)) (pairD (pairD zeroD 1) x) in
   fromFwd (E.argmin_unit_interval' (getValue f))
-  (partialIfThenElse (RE.secondOrderPrim (RE.argminIntervalAtEnd unitInterval) ff' <<< arr fst)
+  (partialIfThenElse (RE.argminIntervalAtEnd unitInterval ff' <<< arr fst)
      0
      (- f'' (pairD dg 0) / f'' (pairD zeroD 1)))
   where
@@ -384,8 +389,9 @@ argmin01 f = argmin01' (f sndD)
 -- this would be slower for the evaluation map
 min01' :: Additive g => R.Rounded a =>
   ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
-min01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmin01' f) in
-   D ((E.min_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
+min01' f = f @. pairD dId (argmin01' f)
+-- min01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmin01' f) in
+--    D ((E.min_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
 
 min01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
