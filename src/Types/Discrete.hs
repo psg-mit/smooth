@@ -29,6 +29,12 @@ cPoint = Bijection f g where
   f = from point . F.fromCPoint
   g = getValue . to point
 
+-- there is no tangent space: the tangent bundle consists only of the value
+tangent :: Tan (Box a) g :== Box a g
+tangent = Bijection f g where
+  f (Tan xdx (Box y)) = Box y
+  g (Box x) = (Tan (pairD bang bang) (Box x))
+
 -- You only need a function on values to implement the function
 fromFunction :: Additive a => Additive b => (CPoint a -> CPoint b) -> Box (R D a) g -> Box (R D b) g
 fromFunction f x = from cPoint (f (to cPoint x))
