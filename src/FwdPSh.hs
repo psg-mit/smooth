@@ -342,7 +342,11 @@ argmax01' f = let fwd2f = fwdSecondDer f in
   let (g, dg) = (fstD, sndD) in
   let f'' x = dap2 fwd2f (pairD g (dap1 (argmax01' f) g)) (pairD (pairD zeroD 1) x) in
   fromFwd (E.argmax_unit_interval' (getValue f))
-  (- f'' (pairD dg 0) / f'' (pairD zeroD 1))
+  (partialIfThenElse (RE.secondOrderPrim (RE.argmaxIntervalAtEnd unitInterval) ff' <<< arr fst)
+     0
+     (- f'' (pairD dg 0) / f'' (pairD zeroD 1)))
+  where
+  ff' = getValue (dap2 (fwdWithValue f) dId (pairD zeroD 1))
 
 argmax01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
@@ -365,7 +369,12 @@ argmin01' f = let fwd2f = fwdSecondDer f in
   let (g, dg) = (fstD, sndD) in
   let f'' x = dap2 fwd2f (pairD g (dap1 (argmin01' f) g)) (pairD (pairD zeroD 1) x) in
   fromFwd (E.argmin_unit_interval' (getValue f))
-  (- f'' (pairD dg 0) / f'' (pairD zeroD 1))
+  (partialIfThenElse (RE.secondOrderPrim (RE.argminIntervalAtEnd unitInterval) ff' <<< arr fst)
+     0
+     (- f'' (pairD dg 0) / f'' (pairD zeroD 1)))
+  where
+  ff' = getValue (dap2 (fwdWithValue f) dId (pairD zeroD 1))
+
 
 argmin01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
@@ -375,7 +384,7 @@ argmin01 f = argmin01' (f sndD)
 -- this would be slower for the evaluation map
 min01' :: Additive g => R.Rounded a =>
   ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
-min01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmax01' f) in
+min01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmin01' f) in
    D ((E.min_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
 
 min01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
@@ -398,7 +407,7 @@ testArgMax z = getDerivTower'
 
 testArgMax2 :: CPoint Real -> [CPoint Real]
 testArgMax2 z = getDerivTower'
-  (\c -> argmax01 (\x -> -x)) z
+  (\c -> argmax01 (\x -> wkn c - x)) z
 
 testFirstRootForArgmax :: CPoint Real -> [CPoint Real]
 testFirstRootForArgmax z = getDerivTower'

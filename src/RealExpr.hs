@@ -226,6 +226,19 @@ signum_deriv = arr $ \(Interval l u) ->
 max_snd_deriv :: Rounded a => CMap (Interval a, Interval a) (Interval a)
 max_snd_deriv = signum_deriv <<< sub
 
+-- Maybe wastes some computation, but okay for now.
+partialIfThenElse :: Rounded a => CMap g (Maybe Bool) -> CMap g (Interval a) -> CMap g (Interval a) -> CMap g (Interval a)
+partialIfThenElse cond t f = proc g -> do
+  c <- cond -< g
+  tx <- t -< g
+  fx <- f -< g
+  returnA -< out c tx fx
+  where
+  out Nothing tr fa = I.union tr fa
+  out (Just True) tr fa = tr
+  out (Just False) tr fa = fa
+
+
 max_deriv :: Rounded a => CMap ((Interval a, Interval a), (Interval a, Interval a)) (Interval a)
 max_deriv = arr $ \((Interval xl xu, Interval yl yu), (dx, dy)) ->
   if xu < yl
@@ -407,8 +420,28 @@ newton_cut' = bound 1 R.one where
       else let i' = locate p i (\x -> let Interval a b = fst (f x) in (a > R.zero, b < R.zero))
            in (i', loc (p + 5) i')
 
+-- Is `argmax01 f` "distinctly" at an endpoint, i.e.,
+-- argmax01 f = 0 and f'(0) < 0    OR
+-- argmax01 f = 1 and f'(1) > 0?
+-- If so, then Just True.
+-- If clearly not, then Just False
+-- If we can't tell, then Nothing.
+argoptIntervalAtEnd :: Rounded r => (Interval r -> CMap (Interval r -> Interval r) (Interval r)) -> Interval r -> CMap (Interval r -> (Interval r, Interval r)) (Maybe Bool)
+argoptIntervalAtEnd argopt_interval' i = proc ff' -> do
+  curArgopt <- argopt_interval' i -< fst . ff'
+  returnA -< g (snd . ff') curArgopt
+  where
+  g f' curArgopt =
+    if I.lower curArgopt > I.lower i || I.upper curArgopt < I.lower i
+      then Just False
+      else let f'x = f' curArgopt in
+      if I.lower f'x > R.zero || I.upper f'x < R.zero
+        then Just True
+        else Nothing
 
-
+argmaxIntervalAtEnd, argminIntervalAtEnd :: Rounded r => Interval r -> CMap (Interval r -> (Interval r, Interval r)) (Maybe Bool)
+argmaxIntervalAtEnd = argoptIntervalAtEnd argmax_interval'
+argminIntervalAtEnd = argoptIntervalAtEnd argmin_interval'
 
 -- I have no idea whether any of these are sensible
 collapse1 :: CMap a (b -> c) -> CMap (a, b) c

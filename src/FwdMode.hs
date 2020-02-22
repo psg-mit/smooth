@@ -15,7 +15,6 @@ import Prelude
 import Control.Arrow
 import qualified Control.Category as C
 import Control.Applicative (liftA2)
-import Control.Monad (join)
 import RealExpr (CMap (..), Additive (..), CPoint)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
@@ -140,6 +139,14 @@ restrictReal mustHold (f :# f') = f1 :# restrictReal mustHold f'
      y <- f -< (g, k)
      RE.restrictReal -< (b, y)
 
+-- Combine partial results from two sources
+join :: R.Rounded b => Df g a (Interval b) k -> Df g a (Interval b) k -> Df g a (Interval b) k
+join (f :# f') (g :# g') = E.ap2 RE.join f g :# join f' g'
+
+partialIfThenElse' :: R.Rounded b => CMap g (Maybe Bool) -> Df g a (Interval b) k -> Df g a (Interval b) k -> Df g a (Interval b) k
+partialIfThenElse' cond t f = join (restrictReal (fmap (== Just True) cond) t)
+                                   (restrictReal (fmap (== Just False) cond) f)
+
 dWknA :: forall a' a g b k. CMap a' a -> Df g a b k -> Df g a' b k
 dWknA fa = go (arr id) where
   go :: forall k' k. CMap k' k -> Df g a b k -> Df g a' b k'
@@ -263,6 +270,12 @@ square' :: RE.CNum a => a :~> a
 square' = D $ (\(D x) -> dMult x x) dId
 sqrt' :: RE.CFloating a => a :~> a
 sqrt' = lift1 RE.csqrt (recip' @. linearD ((2 *) (arr id)) @. sqrt')
+
+partialIfThenElse :: R.Rounded a => CMap g (Maybe Bool) -> g :~> Interval a -> g :~> Interval a -> g :~> Interval a
+partialIfThenElse cond (D (t :# t')) (D (f :# f')) = D ((RE.partialIfThenElse cond t1 f1 <<< arr (\(x, ()) -> x)) :# partialIfThenElse' cond t' f')
+  where
+  t1 = t <<< arr (\x -> (x, ()))
+  f1 = f <<< arr (\x -> (x, ()))
 
 getDerivTower :: R.Rounded a => Interval a :~> Interval a -> CMap g (Interval a) -> [CMap g (Interval a)]
 getDerivTower (D f) x = go (wknValue x f) (arr (\_ -> ())) where
