@@ -82,16 +82,37 @@ unit_square = product unit_interval unit_interval
 quarter_disk :: Additive g => KShape (DReal :* DReal) g
 quarter_disk = intersect unit_square O.unitDisk
 
+quarter_disk_variable :: Additive g => DReal g -> KShape (DReal :* DReal) g
+quarter_disk_variable r = intersect unit_square $
+  ArrD $ \wk (x :* y) -> x^2 + y^2 < (dmap wk r)^2
+
 d_R2 :: ((DReal :* DReal) :* (DReal :* DReal) :=> DReal) g
 d_R2 = ArrD $ \_ ((x :* y) :* (x' :* y')) -> (x - x')^2 + (y - y')^2
 
 d_R1 :: (DReal :* DReal :=> DReal) g
 d_R1 = ArrD $ \_ (x :* x') -> (x - x')^2
 
-exampleHausdorffDist :: Additive g => DReal g
+exampleHausdorffDist :: DReal ()
 exampleHausdorffDist = hausdorffDist d_R2 unit_square quarter_disk
 
 -- Seems to be converging, but slowly. Derivatives
 -- must not be working, because it's only progressing through bisection.
-exampleHausdorffDist2 :: Additive g => DReal g
+exampleHausdorffDist2 :: DReal ()
 exampleHausdorffDist2 = hausdorffDist d_R1 unit_interval unit_interval
+
+xPlusY :: ((DReal :* DReal) :=> DReal) g
+xPlusY = ArrD (\_ (x :* y) -> x + y)
+
+exampleMaximization :: DReal ()
+exampleMaximization = sup quarter_disk xPlusY
+
+-- Doesn't seem to converge at the moment
+exampleMaximizationDeriv :: DReal ()
+exampleMaximizationDeriv = deriv (ArrD (\_ r -> sup (quarter_disk_variable r) xPlusY)) 1
+
+simplerMaximization :: DReal ()
+simplerMaximization = supremum (intersect unit_interval (ArrD $ \wk x -> x < 0.5))
+
+-- Still not converging, but is hould
+simplerMaximizationDeriv :: DReal ()
+simplerMaximizationDeriv = deriv (ArrD (\_ r -> supremum (intersect unit_interval (ArrD $ \wk x -> x < dmap wk r)))) 0.5

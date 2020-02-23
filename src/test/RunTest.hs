@@ -7,4 +7,4 @@ import FwdMode (getValue)
 main :: IO ()
 main = mapM_ print . runPoint . getValue $ x
   where
-  R x = exampleHausdorffDist2 :: DReal ()
+  R x = exampleHausdorffDist :: DReal ()

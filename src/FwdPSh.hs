@@ -32,7 +32,7 @@ import qualified Rounded as R
 import Interval (Interval, unitInterval)
 import qualified Expr as E
 import qualified RealExpr as RE
-import Experimental.PSh
+import Experimental.PSh hiding ((#))
 import FwdMode
 import qualified MPFR as M
 import MPFR (Real)
@@ -183,6 +183,10 @@ fwd_deriv1 :: Additive g => Additive a => Additive b =>
   ((R D a :=> R D b) g) -> g :~> a -> g :~> a -> g :~> b
 fwd_deriv1 (ArrD f) = fwd_deriv' (let R b = f fstD (R sndD) in b)
 
+derivT :: VectorSpace g => PShD a => Tangential a => Tangential b =>
+  (a :=> b) g -> Tangent a g -> Tangent b g
+derivT f xdx = from tangent (fwd f (to tangent xdx))
+
 -- fwd_deriv1' :: Additive g => Additive a => Additive b =>
 
 wkn :: Additive g => Additive a => g :~> a -> (g, x) :~> a
@@ -239,6 +243,10 @@ instance PShD (a :=> b) where
 instance (PShD f) => PShD (Tan f) where
   dmap f (Tan gdd fd) = Tan (gdd @. f) fd
 
+class Tangential a where
+  type Tangent a :: * -> *
+  tangent :: VectorSpace g => Tan a g :== Tangent a g
+
 tangentValue :: Additive g => PShD f => Tan f g -> f g
 tangentValue (Tan xdx f) = dmap (fstD @. xdx) f
 
@@ -257,6 +265,10 @@ tanR = Bijection from to where
     x = fwdWithValue fd @. gdd
   to (R x :* R dx) = Tan (pairD x dx) (R dId)
 
+instance Tangential DReal where
+  type Tangent DReal = (DReal :* DReal)
+  tangent = tanR
+
 fwdGlobal :: (forall g. a g -> b g) -> Tan a g -> Tan b g
 fwdGlobal f (Tan gdd fd) = Tan gdd (f fd)
 
@@ -269,8 +281,12 @@ exponentialMapRn xdx c = addD (fstD @. xdx) (scalarMultD c (sndD @. xdx))
 -- scaleDerivTan :: Tan f g -> g :~> Real -> Tan f g
 -- scaleDerivTan (Tan xdx f) c = Tan (scaleDerivRn xdx c) f
 
-fwd :: VectorSpace g => PShD a => (a :=> b) g -> (Tan a :=> Tan b) g
-fwd (ArrD f) = ArrD $ \ext (Tan xdx ax) -> let f1 = f fstD (dmap sndD ax) in
+fwd :: VectorSpace g => PShD a => (a :=> b) g -> Tan a g -> Tan b g
+fwd (ArrD f) (Tan xdx ax) = let f1 = f fstD (dmap sndD ax) in
+  Tan (pairD (pairD dId (fstD @. xdx)) (pairD zeroD (sndD @. xdx))) f1
+
+fwd' :: VectorSpace g => PShD a => (a :=> b) g -> (Tan a :=> Tan b) g
+fwd' (ArrD f) = ArrD $ \ext (Tan xdx ax) -> let f1 = f fstD (dmap sndD ax) in
   Tan (pairD (pairD ext (fstD @. xdx)) (pairD zeroD (sndD @. xdx))) f1
 
 tanProd :: PShD a => PShD b => Tan (a :* b) g :== (Tan a :* Tan b) g

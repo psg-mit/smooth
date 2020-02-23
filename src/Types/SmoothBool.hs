@@ -56,6 +56,9 @@ infixr 8 ^
 (^) :: DReal g -> Int -> DReal g
 R x ^ k = R (pow x k)
 
+deriv :: Additive g => (DReal :=> DReal) g -> DReal g -> DReal g
+deriv f (R x) = R $ fwd_deriv1 f x 1
+
 -- Describe a real number by a predicate saying what it means
 -- to be less than it.
 -- x < dedekind_cut P  iff P x

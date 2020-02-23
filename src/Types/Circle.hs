@@ -1,8 +1,8 @@
-
+{-# LANGUAGE TypeFamilies #-}
 module Types.Circle where
 
 import Prelude hiding (Real)
-import FwdMode ((:~>), pairD, fstD, sndD, dId)
+import FwdMode ((:~>), pairD, fstD, sndD, dId, VectorSpace)
 import FwdPSh
 import MPFR (Real)
 
@@ -24,14 +24,16 @@ rotate deltaTheta (FromAngle theta) = FromAngle (theta + deltaTheta)
 
 -- The tangent bundle for the circle is just
 -- a point on the circle plus a change in angle
-tangent :: Tan Circle g :== (Circle :* DReal) g
-tangent = Bijection fromTan toTan where
-  toTan (FromAngle (R theta) :* R dtheta) =
-    Tan (pairD theta dtheta) (FromAngle (R dId))
-  fromTan (Tan udu (FromAngle f)) = FromAngle theta :* dtheta where
-    theta :* dtheta = from tanR (Tan udu f)
+instance Tangential Circle where
+  type Tangent Circle = Circle :* DReal
+  -- tangent :: Tan Circle g :== (Circle :* DReal) g
+  tangent = Bijection fromTan toTan where
+    toTan (FromAngle (R theta) :* R dtheta) =
+      Tan (pairD theta dtheta) (FromAngle (R dId))
+    fromTan (Tan udu (FromAngle f)) = FromAngle theta :* dtheta where
+      theta :* dtheta = from tanR (Tan udu f)
 
 -- The exponential map for the circle
-exponentialMap :: Tan Circle g -> Circle g
+exponentialMap :: VectorSpace g => Tan Circle g -> Circle g
 exponentialMap t = rotate dtheta (FromAngle theta) where
   FromAngle theta :* dtheta = from tangent t
