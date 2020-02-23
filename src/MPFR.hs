@@ -5,7 +5,11 @@ of various special functions.
 
 {-# LANGUAGE FlexibleInstances #-}
 
-module MPFR where
+module MPFR (
+  module MPFR,
+  module Expr,
+  module RealExpr
+) where
 
 import Control.Arrow (first)
 import Prelude hiding (Real)
@@ -98,7 +102,6 @@ antitone f = withPrec $ \p -> I.monotone (\d x -> f (roundDirMPFR d) (fromIntegr
 constant :: (M.RoundMode -> M.Precision -> M.MPFR) -> CMap g Real
 constant f = withPrec $ \p _ -> I.rounded (\d -> f (roundDirMPFR d) (fromIntegral p))
 
-
 -- Many monotone functions
 
 exp2' :: CMap Real Real
@@ -141,6 +144,15 @@ euler = constant M.euler
 
 catalan :: CMap g Real
 catalan = constant M.catalan
+
+
+-- MPFR's built-in sqrt gives NaN if you feed it negative inputs.
+-- We'll change that behavior so that it always gives an output in [0, infty]
+sqrtI :: M.Precision -> Real -> Real
+sqrtI prec i = I.Interval (fixNan ya) (fixNan yb)
+  where
+  I.Interval ya yb = I.monotone (\d -> M.sqrt (roundDirMPFR d) prec) i
+  fixNan x = if M.isNaN x then M.zero else x
 
 sinI :: M.Precision -> Real -> Real
 sinI prec i@(I.Interval a b)
@@ -200,7 +212,7 @@ instance CFloating Real where
   cpi = constant M.pi
   cexp = monotone M.exp
   clog = monotone M.log
-  csqrt = monotone M.sqrt
+  csqrt = withPrec (sqrtI . fromIntegral)
   csinh = monotone M.sinh
   ctanh = monotone M.tanh
   csin = withPrec (sinI . fromIntegral)

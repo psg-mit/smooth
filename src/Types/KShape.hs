@@ -83,13 +83,15 @@ quarter_disk :: Additive g => KShape (DReal :* DReal) g
 quarter_disk = intersect unit_square O.unitDisk
 
 d_R2 :: ((DReal :* DReal) :* (DReal :* DReal) :=> DReal) g
-d_R2 = ArrD $ \_ ((x :* y) :* (x' :* y')) -> sqrt ((x - x')^2 + (y - y')^2)
+d_R2 = ArrD $ \_ ((x :* y) :* (x' :* y')) -> (x - x')^2 + (y - y')^2
 
 d_R1 :: (DReal :* DReal :=> DReal) g
-d_R1 = ArrD $ \_ (x :* x') -> abs (x - x')
+d_R1 = ArrD $ \_ (x :* x') -> (x - x')^2
 
 exampleHausdorffDist :: Additive g => DReal g
 exampleHausdorffDist = hausdorffDist d_R2 unit_square quarter_disk
 
+-- Seems to be converging, but slowly. Derivatives
+-- must not be working, because it's only progressing through bisection.
 exampleHausdorffDist2 :: Additive g => DReal g
-exampleHausdorffDist2 = hausdorffDist d_R1 (point 0) unit_interval
+exampleHausdorffDist2 = hausdorffDist d_R1 unit_interval unit_interval

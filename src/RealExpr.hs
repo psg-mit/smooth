@@ -50,6 +50,9 @@ instance Arrow CMap where
 bang :: CMap g ()
 bang = arr (\_ -> ())
 
+infty :: Rounded a => CMap g (Interval a)
+infty = arr $ \_ -> I.lift (R.positiveInfinity)
+
 toDiscrete :: Traversable t => t (CMap a b) -> CMap a (t b)
 toDiscrete fs = CMap $ \x -> let res = fmap (\(CMap f) -> f x) fs in
   (fmap fst res, toDiscrete (fmap snd res))
@@ -289,9 +292,9 @@ integral' p i@(Interval a b) (CMap f) = CMap $ \g ->
   let m = R.average a b in
   let (y, frefined) = f (g, i) in
   -- traceShow p $
-  (I.mul p (I.sub p (I.lift b) (I.lift a)) y, proc g -> do
-     x1 <- integral' (p + 5) (Interval a m) frefined -< g
-     x2 <- integral' (p + 5) (Interval m b) frefined -< g
+  (I.mul p (I.sub p (I.lift b) (I.lift a)) y, proc g' -> do
+     x1 <- integral' (p + 5) (Interval a m) frefined -< g'
+     x2 <- integral' (p + 5) (Interval m b) frefined -< g'
      returnA -< I.add (p + 5) x1 x2)
 
 integral1' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
@@ -302,36 +305,63 @@ exists_interval' p i@(Interval a b) (CMap f) = CMap $ \g ->
   let m = R.average a b in
   let (_, frefined) = f (g, i) in
   -- traceShow p $
-  (fst (f (g, I.lift m)), proc g -> do
-    t1 <- exists_interval' (p + 5) (Interval a m) frefined -< g
-    t2 <- exists_interval' (p + 5) (Interval m b) frefined -< g
+  (fst (f (g, I.lift m)), proc g' -> do
+    t1 <- exists_interval' (p + 5) (Interval a m) frefined -< g'
+    t2 <- exists_interval' (p + 5) (Interval m b) frefined -< g'
     returnA -< t1 || t2)
 
-recurseOnIntervals :: Rounded a => (b -> b -> b) -> Prec -> Interval a -> CMap (g, Interval a) b -> CMap g b
+recurseOnIntervals :: Rounded a => (b -> b -> b) -> Interval a -> CMap (g, Interval a) b -> CMap g b
 recurseOnIntervals combine = go where
-  go p i@(Interval a b) (CMap f) = CMap $ \g ->
+  go i@(Interval a b) (CMap f) = CMap $ \g ->
     let m = R.average a b in
     let (y, frefined) = f (g, i) in
-    (y, proc f' -> do
-      t1 <- go (p + 5) (Interval a m) frefined -< g
-      t2 <- go (p + 5) (Interval m b) frefined -< g
+    (y, proc g' -> do
+      t1 <- go (Interval a m) frefined -< g'
+      t2 <- go (Interval m b) frefined -< g'
       returnA -< combine t1 t2)
 
 argmaxIntervals :: Rounded a => [(Interval a, CMap (g, Interval a) (Interval a))] -> CMap g (Interval a)
 argmaxIntervals xs = CMap $ \g ->
   let ys = [ (x, f (g, x)) | (x, CMap f) <- xs ] in
   let maxyl = maximum [ yl | (_, (Interval yl yh, _)) <- ys ] in
-  let potentialxs = filter (\(_, (Interval yl yh, _)) -> maxyl < yh) ys in
+  let potentialxs = filter (\(_, (Interval yl yh, _)) -> maxyl <= yh) ys in
   (foldr1 I.union (map fst potentialxs),
-  argmaxIntervals [ (i', f) | (i, (_, f)) <- potentialxs, i' <- let (i1, i2) = I.split i in [i1, i2]])
+  argmaxIntervals [ (i, f) | (i, (_, f)) <- splitIntervals potentialxs ])
+
+-- almost the same as argmaxIntervals, I should abstract it out
+maxIntervals :: Rounded a => [(Interval a, CMap (g, Interval a) (Interval a))] -> CMap g (Interval a)
+maxIntervals xs = CMap $ \g ->
+  let ys = [ (x, f (g, x)) | (x, CMap f) <- xs ] in
+  let maxyl = maximum [ yl | (_, (Interval yl yh, _)) <- ys ] in
+  let potentialxs = filter (\(_, (Interval yl yh, _)) -> maxyl <= yh) ys in
+  (foldr1 I.max (map (fst . snd) potentialxs),
+  maxIntervals [ (i, f) | (i, (_, f)) <- splitIntervals potentialxs ])
 
 argminIntervals :: Rounded a => [(Interval a, CMap (g, Interval a) (Interval a))] -> CMap g (Interval a)
 argminIntervals xs = CMap $ \g ->
   let ys = [ (x, f (g, x)) | (x, CMap f) <- xs ] in
   let minyh = minimum [ yh | (_, (Interval yl yh, _)) <- ys ] in
-  let potentialxs = filter (\(_, (Interval yl yh, _)) -> yl < minyh) ys in
+  let potentialxs = filter (\(_, (Interval yl yh, _)) -> yl <= minyh) ys in
   (foldr1 I.union (map fst potentialxs),
-  argminIntervals [ (i', f) | (i, (_, f)) <- potentialxs, i' <- let (i1, i2) = I.split i in [i1, i2]])
+  argminIntervals [ (i, f) | (i, (_, f)) <- splitIntervals potentialxs ])
+
+-- almost the same as argminIntervals, I should abstract it out
+minIntervals :: Rounded a => [(Interval a, CMap (g, Interval a) (Interval a))] -> CMap g (Interval a)
+minIntervals xs = CMap $ \g ->
+  let ys = [ (x, f (g, x)) | (x, CMap f) <- xs ] in
+  let minyh = minimum [ yh | (_, (Interval yl yh, _)) <- ys ] in
+  let potentialxs = filter (\(_, (Interval yl yh, _)) -> yl <= minyh) ys in
+  (foldr1 I.min (map (fst . snd) potentialxs),
+  minIntervals [ (i, f) | (i, (_, f)) <- splitIntervals potentialxs ])
+
+-- Split all of the intervals in the list into two and concatenate them all together.
+splitIntervals :: Rounded a => [(Interval a, b)] -> [(Interval a, b)]
+splitIntervals xs = [ (i', x) | (i, x) <- xs, i' <- let (i1, i2) = I.split i in [i1, i2]]
+
+forallIntervals :: Rounded a => [(Interval a, CMap (g, Interval a) Bool)] -> CMap g Bool
+forallIntervals xs = CMap $ \g ->
+  let notyetTrue = [ (x, fnew) | (x, CMap f) <- xs, let (y, fnew) = f (g, x), not y ] in
+  (null notyetTrue, forallIntervals (splitIntervals notyetTrue))
 
 argmax_interval' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 argmax_interval' i f = argmaxIntervals [(i, f)]
@@ -339,14 +369,14 @@ argmax_interval' i f = argmaxIntervals [(i, f)]
 argmin_interval' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 argmin_interval' i f = argminIntervals [(i, f)]
 
-forall_interval' :: Rounded a => Prec -> Interval a -> CMap (g, Interval a) Bool -> CMap g Bool
-forall_interval' = recurseOnIntervals (&&)
+forall_interval' :: Rounded a => Interval a -> CMap (g, Interval a) Bool -> CMap g Bool
+forall_interval' i f = forallIntervals [(i, f)]
 
-max_interval' :: Rounded a => Prec -> Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-max_interval' = recurseOnIntervals I.max
+max_interval' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
+max_interval' i f = maxIntervals [(i, f)]
 
-min_interval' :: Rounded a => Prec -> Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-min_interval' = recurseOnIntervals I.min
+min_interval' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
+min_interval' i f = minIntervals [(i, f)]
 
 dedekind_cut' :: Rounded a => CMap (Interval a -> B) (Interval a)
 dedekind_cut' = bound 1 R.one where
@@ -451,7 +481,7 @@ argoptIntervalAtEnd argopt_interval' i ff' = proc g -> do
   where
   func (CMap f') = CMap $ \(g, curArgopt) ->
     let (f'x, refinedf') = f' (g, curArgopt) in
-      (if I.lower curArgopt > I.lower i || I.upper curArgopt < I.lower i
+      (if I.lower curArgopt > I.lower i && I.upper curArgopt < I.upper i
         then Just False
         else
         if I.lower f'x > R.zero || I.upper f'x < R.zero

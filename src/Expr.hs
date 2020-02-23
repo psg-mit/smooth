@@ -102,25 +102,25 @@ newton_cut f = E.newton_cut' (f (arr snd))
 
 integral_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)
-integral_unit_interval f = (E.integral' 16 unitInterval) (f (arr snd))
+integral_unit_interval f = E.integral' 16 unitInterval (f (arr snd))
 
 forall_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) Bool)
              -> CMap g Bool
-forall_unit_interval f = E.forall_interval' 16 unitInterval (f (arr snd))
+forall_unit_interval f = E.forall_interval' unitInterval (f (arr snd))
 
 exists_unit_interval :: (Show a, Rounded a) => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) Bool)
              -> CMap g Bool
 exists_unit_interval f = E.exists_interval' 16 unitInterval (f (arr snd))
 
 max_unit_interval' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-max_unit_interval' = E.max_interval' 16 unitInterval
+max_unit_interval' = E.max_interval' unitInterval
 
 max_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)
 max_unit_interval f = max_unit_interval' (f (arr snd))
 
 min_unit_interval' :: Rounded a => CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
-min_unit_interval' = E.min_interval' 16 unitInterval
+min_unit_interval' = E.min_interval' unitInterval
 
 min_unit_interval :: Rounded a => (CMap (g, Interval a) (Interval a) -> CMap (g, Interval a) (Interval a))
              -> CMap g (Interval a)

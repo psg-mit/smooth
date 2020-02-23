@@ -360,9 +360,9 @@ argmax01 f = argmax01' (f sndD)
 -- Not sure why the optimized version is broken
 max01' :: Additive g => R.Rounded a =>
   ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
-max01' f = f @. pairD dId (argmax01' f)
-  -- let D (unoptimized :# derivs) = f @. pairD dId (argmax01' f) in
-  --  D ((E.max_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
+-- max01' f = f @. pairD dId (argmax01' f)
+max01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmax01' f) in
+   D ((E.max_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
 
 max01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
@@ -389,9 +389,9 @@ argmin01 f = argmin01' (f sndD)
 -- this would be slower for the evaluation map
 min01' :: Additive g => R.Rounded a =>
   ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
-min01' f = f @. pairD dId (argmin01' f)
--- min01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmin01' f) in
---    D ((E.min_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
+-- min01' f = f @. pairD dId (argmin01' f)
+min01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmin01' f) in
+   D ((E.min_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
 
 min01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)

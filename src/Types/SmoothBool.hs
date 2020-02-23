@@ -10,6 +10,7 @@ import Interval (Interval (..))
 import Data.List (intercalate)
 import RealExpr (runPoint)
 import qualified Rounded as R
+import qualified Expr
 
 -- SBool = quotient of the reals by the smooth equivalence relation
 -- x ~ y :=   x = y \/ (x < 0 /\ y < 0) \/ (x > 0 /\ y > 0)
@@ -73,15 +74,19 @@ testBCubert :: CPoint Real -> [CPoint Real]
 testBCubert z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^3 < R c)) in
     getDerivTower f z
 
+-- Only working via bisection, so derivatives must not be good.
 testOpt :: () :~> Real
-testOpt = FwdPSh.newton_cut (\q -> FwdPSh.min01 (\x -> x - wkn q))
+testOpt = FwdPSh.newton_cut (\q -> FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> (wkn x - y)^2 - wkn (wkn q))))
 
 testOptHelp :: CPoint Real -> [CPoint Real]
-testOptHelp = getDerivTower' (\q -> FwdPSh.argmin01 (\x -> x - wkn q) - q)
+testOptHelp = getDerivTower' (\q -> FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> (wkn x - y)^2 - wkn (wkn q))))
 
--- Not converging as it should
+-- Should be -1, but it doesn't converge
+testOptHelpExample :: CPoint Real
+testOptHelpExample = testOptHelp 0 !! 1
+
 testOpt2 :: () :~> Real
-testOpt2 = FwdPSh.argmin01 (\x -> FwdPSh.newton_cut (\q -> wkn x - q))
+testOpt2 = FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> (wkn x - y)^2))
 
 testOpt2Help :: CPoint Real -> [CPoint Real]
 testOpt2Help = getDerivTower' (\x -> FwdPSh.newton_cut (\q -> wkn x - q))
