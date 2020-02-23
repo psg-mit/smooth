@@ -1,6 +1,6 @@
 module Types.KShape where
 
-import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), product, map)
+import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), product, map, (^))
 import FwdMode ((:~>), fstD, sndD, getDerivTower, (@.))
 import FwdPSh
 import Types.SmoothBool

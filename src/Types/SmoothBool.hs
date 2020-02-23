@@ -3,7 +3,7 @@
 module Types.SmoothBool where
 
 import qualified Prelude
-import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..))
+import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), (^))
 import FwdMode ((:~>), fstD, sndD, getDerivTower, getValue)
 import FwdPSh
 import Interval (Interval (..))
@@ -51,6 +51,11 @@ infix 4 >
 (>) :: DReal g -> DReal g -> SBool g
 x > y = SBool (x - y)
 
+-- Not really the right home for this function.
+infixr 8 ^
+(^) :: DReal g -> Int -> DReal g
+R x ^ k = R (pow x k)
+
 -- Describe a real number by a predicate saying what it means
 -- to be less than it.
 -- x < dedekind_cut P  iff P x
@@ -76,17 +81,17 @@ testBCubert z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^3 < R c)) in
 
 -- Only working via bisection, so derivatives must not be good.
 testOpt :: () :~> Real
-testOpt = FwdPSh.newton_cut (\q -> FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> (wkn x - y)^2 - wkn (wkn q))))
+testOpt = FwdPSh.newton_cut (\q -> FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> pow (wkn x - y) 2 - wkn (wkn q))))
 
 testOptHelp :: CPoint Real -> [CPoint Real]
-testOptHelp = getDerivTower' (\q -> FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> (wkn x - y)^2 - wkn (wkn q))))
+testOptHelp = getDerivTower' (\q -> FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> pow (wkn x - y) 2 - wkn (wkn q))))
 
 -- Should be -1, but it doesn't converge
 testOptHelpExample :: CPoint Real
 testOptHelpExample = testOptHelp 0 !! 1
 
 testOpt2 :: () :~> Real
-testOpt2 = FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> (wkn x - y)^2))
+testOpt2 = FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> pow (wkn x - y) 2))
 
 testOpt2Help :: CPoint Real -> [CPoint Real]
 testOpt2Help = getDerivTower' (\x -> FwdPSh.newton_cut (\q -> wkn x - q))

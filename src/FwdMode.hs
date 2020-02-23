@@ -270,6 +270,8 @@ square' :: RE.CNum a => a :~> a
 square' = D $ (\(D x) -> dMult x x) dId
 sqrt' :: RE.CFloating a => a :~> a
 sqrt' = lift1 RE.csqrt (recip' @. linearD ((2 *) (arr id)) @. sqrt')
+pow' :: R.Rounded a => Int -> Interval a :~> Interval a
+pow' k = lift1 (RE.pow k) (linearD ((fromIntegral k *) (arr id)) @. (pow' (k - 1)))
 
 partialIfThenElse :: R.Rounded a => CMap g (Maybe Bool) -> g :~> Interval a -> g :~> Interval a -> g :~> Interval a
 partialIfThenElse cond (D (t :# t')) (D (f :# f')) = D ((RE.partialIfThenElse cond t1 f1 <<< arr (\(x, ()) -> x)) :# partialIfThenElse' cond t' f')

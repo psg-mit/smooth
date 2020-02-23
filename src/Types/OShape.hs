@@ -1,6 +1,6 @@
 module Types.OShape where
 
-import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), product)
+import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), product, (^))
 import FwdMode ((:~>), fstD, sndD, getDerivTower)
 import FwdPSh
 import Types.SmoothBool

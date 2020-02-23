@@ -113,6 +113,9 @@ max = dap2 max'
 min :: R.Rounded a => g :~> Interval a -> g :~> Interval a -> g :~> Interval a
 min = dap2 min'
 
+pow :: R.Rounded a => g :~> Interval a -> Int -> g :~> Interval a
+pow x k = pow' k @. x
+
 instance Floating (g :~> Real) where
   pi = D $ pi :# dZero
   log = dap1 log'
