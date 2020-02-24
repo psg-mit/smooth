@@ -8,6 +8,7 @@ import Types.OShape (OShape)
 import qualified Types.OShape as O
 
 type KShape a = (a :=> SBool) :=> SBool
+-- type Maximizer a = (a :=> DReal) :=> DReal
 
 point :: Additive g => PShD a => a g -> KShape a g
 point x = ArrD $ \wk f -> f # dmap wk x
@@ -116,3 +117,6 @@ simplerMaximization = supremum (intersect unit_interval (ArrD $ \wk x -> x < 0.5
 -- Still not converging, but it should
 simplerMaximizationDeriv :: DReal ()
 simplerMaximizationDeriv = deriv (ArrD (\_ r -> supremum (intersect unit_interval (ArrD $ \wk x -> x < dmap wk r)))) 0.5
+
+simpleDerivTest :: DReal ()
+simpleDerivTest = deriv (ArrD (\_ c -> supremum ((map (ArrD (\wk x -> dmap wk c * x))) unit_interval))) 1.0

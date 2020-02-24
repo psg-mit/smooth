@@ -82,7 +82,7 @@ testBSqrt z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^2 < R c)) in
     getDerivTower f z
 
 testBCubert :: CPoint Real -> [CPoint Real]
-testBCubert z = let R f = dedekind_cut (ArrD (\c x -> x < 0 || x^3 < R c)) in
+testBCubert z = let R f = dedekind_cut (ArrD (\c x -> x^3 < R c)) in
     getDerivTower f z
 
 -- Only working via bisection, so derivatives must not be good.
@@ -118,13 +118,46 @@ simplerMaximizationPart = getDerivTower' (\q -> FwdPSh.argmax01 (\x -> min1 (0.5
 simplerMaximizationPartExample :: CPoint Real
 simplerMaximizationPartExample = simplerMaximizationPart 0.4 !! 1
 
--- BROKEN!
+tester :: (Real, (Real, Real)) :~> Real
+tester = fwdSecondDer ((\q-> pow q 2) dId)
+
+-- Still not returning 0 when it should!
+evalTester :: () :~> Real
+evalTester = let f = ((\q-> pow q 2) dId) in
+  let f' = fwdDer f in
+  fwdDer f' @. pairD (pairD 0 1) (pairD 0 0)
+
 tester1 :: CPoint Real -> [CPoint Real]
-tester1 = let f = ((\q -> pow q 2) dId) in
-  getDerivTower' (\x -> let f' = fwdDer f in f' @. pairD x 0)
+tester1 = let f = ((\q-> pow q 2) dId) in
+  getDerivTower (fwdDer f @. pairD 0 1)
+
+-- tester1 x !! n = 2.0
+-- when n >= 1
+-- This is BROKEN!
+-- should be 0, because it is the constant 0 function.
+-- The error is in (@. dId)!
 
 tester2 :: CPoint Real -> [CPoint Real]
-tester2 = let f = ((\q -> pow q 2) dId) in getDerivTower f
+tester2 = let f = ((\q-> pow q 3) dId) in
+  getDerivTower f
 
--- tester1 0 !! 1 = 2.0
--- This is very very wrong! It should be constant 0, since the dx is 0.
+-- When I look at the derivatives for f(x) = x^3, I find that
+-- f^(3)(dx1, dx2, dx3) = 6 * dx1^3
+-- rather than 6 * dx1 * dx2 * dx3
+
+
+-- !!! (pow q 2) dId is not the same as pow' 2!!!
+-- pow q 2 = pow' 2 @. dId
+-- i.e., f @. dId =/= f
+
+tester3 :: CPoint Real -> [CPoint Real]
+tester3 = let f = (square'' @. dId) in
+  getDerivTower f
+
+bloat :: a -> [[a]] -> [[[a]]]
+bloat x  []      = [[[x]]]
+bloat x (xs:xss) = ((x:xs):xss) : map (xs:) (bloat x xss)
+
+partitions :: [a] -> [[[a]]]
+partitions  []    = [[]]
+partitions (x:xs) = concatMap (bloat x) (partitions xs)
