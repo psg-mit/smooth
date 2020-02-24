@@ -1,10 +1,11 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 
 module Types.SmoothBool where
 
 import qualified Prelude
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), (^))
-import FwdMode ((:~>), fstD, sndD, getDerivTower, getValue)
+import FwdMode ((:~>), fstD, sndD, getDerivTower, getValue, (@.), pow')
+import FwdMode
 import FwdPSh
 import Interval (Interval (..))
 import Data.List (intercalate)
@@ -34,11 +35,13 @@ not (SBool x) = SBool (- x)
 
 infixr 3 &&
 (&&) :: SBool g -> SBool g -> SBool g
-SBool (R x) && SBool (R y) = SBool (R (min x y))
+SBool x && SBool y = SBool (x + y - sqrt (x^2 + y^2))
+-- SBool (R x) && SBool (R y) = SBool (R (min x y))
 
 infixr 2 ||
 (||) :: SBool g -> SBool g -> SBool g
-SBool (R x) || SBool (R y) = SBool (R (max x y))
+SBool x || SBool y = SBool (x + y + sqrt (x^2 + y^2))
+-- SBool (R x) || SBool (R y) = SBool (R (max x y))
 
 positive :: DReal g -> SBool g
 positive = SBool
@@ -98,3 +101,30 @@ testOpt2 = FwdPSh.max01 (\x -> FwdPSh.min01 (\y -> pow (wkn x - y) 2))
 
 testOpt2Help :: CPoint Real -> [CPoint Real]
 testOpt2Help = getDerivTower' (\x -> FwdPSh.newton_cut (\q -> wkn x - q))
+
+simplerMaximization :: CPoint Real -> [CPoint Real]
+simplerMaximization = getDerivTower' (\r ->
+  FwdPSh.newton_cut (\q -> FwdPSh.max01 (\x -> min (wkn (wkn r) - x) (x - wkn q))))
+
+-- Still not converging, but it should
+simplerMaximizationExample :: CPoint Real
+simplerMaximizationExample = simplerMaximization 0.5 !! 1
+
+simplerMaximizationPart :: CPoint Real -> [CPoint Real]
+simplerMaximizationPart = getDerivTower' (\q -> FwdPSh.argmax01 (\x -> min1 (0.5 - x) (x - wkn q)))
+  where min1 x y = (x + y - sqrt (pow x 2 + pow y 2))
+
+-- Gives the wrong answer
+simplerMaximizationPartExample :: CPoint Real
+simplerMaximizationPartExample = simplerMaximizationPart 0.4 !! 1
+
+-- BROKEN!
+tester1 :: CPoint Real -> [CPoint Real]
+tester1 = let f = ((\q -> pow q 2) dId) in
+  getDerivTower' (\x -> let f' = fwdDer f in f' @. pairD x 0)
+
+tester2 :: CPoint Real -> [CPoint Real]
+tester2 = let f = ((\q -> pow q 2) dId) in getDerivTower f
+
+-- tester1 0 !! 1 = 2.0
+-- This is very very wrong! It should be constant 0, since the dx is 0.

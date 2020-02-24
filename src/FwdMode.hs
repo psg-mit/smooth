@@ -212,7 +212,7 @@ scalarMultD (D c) (D x) = D (scalarMult c x)
     `g : b -> c` and `f : a -> b` with derivative towers, their composition
     is the derivative tower
     (g . f) = g . f
-    (g . f)' = (g' . f) + (g + f')
+    (g . f)' = (g' . f) + (g . f')
 
     But there is some important "bookkeeping" and details beyond this.
 -}
@@ -271,6 +271,7 @@ square' = D $ (\(D x) -> dMult x x) dId
 sqrt' :: RE.CFloating a => a :~> a
 sqrt' = lift1 RE.csqrt (recip' @. linearD ((2 *) (arr id)) @. sqrt')
 pow' :: R.Rounded a => Int -> Interval a :~> Interval a
+pow' 0 = lift1 1 zeroD
 pow' k = lift1 (RE.pow k) (linearD ((fromIntegral k *) (arr id)) @. (pow' (k - 1)))
 
 partialIfThenElse :: R.Rounded a => CMap g (Maybe Bool) -> g :~> Interval a -> g :~> Interval a -> g :~> Interval a
@@ -332,12 +333,9 @@ fwdDerDU fext f@(f0 :# f') = f1 :#
     f0 -< (x, (du, k))
   fext' = arr fst *** fext
 
-fwdDerU :: Additive b =>
-  Df g g b (g, k) -> Df (g, g) (g, g) b k
-fwdDerU (f' :# f'') = f1 :# dWkn (arr fst *** arr id) (fwdDerU f'')
-  where
-  f1 = proc ((x, u), k) -> do
-    f' -< (x, (u, k))
+fwdDerU :: Df g g b (g, k) -> Df (g, g) (g, g) b k
+fwdDerU = dWknA (arr fst) . dWkn1' (arr (\((x, dx), dxs) -> (x, (dx, dxs))))
+
 
 fwdDerDUs :: Additive b => CMap k' k ->
   Df g g b (g, k) -> Df (g, g) (g, g) b ((g, g), k')

@@ -113,6 +113,6 @@ exampleMaximizationDeriv = deriv (ArrD (\_ r -> sup (quarter_disk_variable r) xP
 simplerMaximization :: DReal ()
 simplerMaximization = supremum (intersect unit_interval (ArrD $ \wk x -> x < 0.5))
 
--- Still not converging, but is hould
+-- Still not converging, but it should
 simplerMaximizationDeriv :: DReal ()
 simplerMaximizationDeriv = deriv (ArrD (\_ r -> supremum (intersect unit_interval (ArrD $ \wk x -> x < dmap wk r)))) 0.5
