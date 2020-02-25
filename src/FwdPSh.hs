@@ -11,6 +11,7 @@ of type `(R -> R) -> R`.
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE Arrows #-}
 
 module FwdPSh (
   module FwdPSh,
@@ -30,6 +31,7 @@ import qualified Control.Category as C
 import RealExpr (CMap (..), Additive (..), CPoint)
 import qualified Rounded as R
 import Interval (Interval, unitInterval)
+import qualified Interval as I
 import qualified Expr as E
 import qualified RealExpr as RE
 import Experimental.PSh hiding ((#))
@@ -352,6 +354,41 @@ min01' :: Additive g => R.Rounded a =>
 min01' f = let D (unoptimized :# derivs) = f @. pairD dId (argmin01' f) in
    D ((E.min_unit_interval' (getValue f) <<< arr (\(g, ()) -> g)) :# derivs)
 
+sndOrder :: Additive g => R.Rounded a => (g, Interval a) :~> Interval a -> CMap (g, Interval a) (Interval a, Interval a, Interval a)
+sndOrder (D (fv :# f'v :# f''v :# _)) = proc gx -> do
+    z <- zeroV -< ()
+    y <- fv -< (gx, ())
+    y' <- f'v -< (gx, ((z, I.lift R.one), ()))
+    y'' <- f''v -< (gx, ((z, I.lift R.one), ((z, I.lift R.one), ())))
+    returnA -< (y, y', y'')
+
+argmax01Newton' :: Additive g => R.Rounded a =>
+  ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+argmax01Newton' f = let fwd2f = fwdSecondDer f in
+  let (g, dg) = (fstD, sndD) in
+  let f'' x = dap2 fwd2f (pairD g (dap1 (argmax01Newton' f) g)) (pairD (pairD zeroD 1) x) in
+  fromFwd (RE.argmax_interval_newton' unitInterval fAndDerivs)
+  (partialIfThenElse (RE.argmaxNewtonIntervalAtEnd unitInterval fAndDerivs <<< arr fst)
+     0
+     (- f'' (pairD dg 0) / f'' (pairD zeroD 1))
+     )
+  where
+  fAndDerivs = sndOrder f
+
+argmax01Newton :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+    -> g :~> (Interval a)
+argmax01Newton f = argmax01Newton' (f sndD)
+
+max01Newton' :: Additive g => R.Rounded a =>
+  ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
+-- max01' f = f @. pairD dId (argmax01' f)
+max01Newton' f = let D (unoptimized :# derivs) = f @. pairD dId (argmax01Newton' f) in
+   D ((RE.max_interval_newton' unitInterval (sndOrder f) <<< arr (\(g, ()) -> g)) :# derivs)
+
+max01Newton :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
+    -> g :~> (Interval a)
+max01Newton f = max01Newton' (f sndD)
+
 min01 :: R.Rounded a => Additive g => ((g, Interval a) :~> Interval a -> (g, Interval a) :~> Interval a)
     -> g :~> (Interval a)
 min01 f = min01' (f sndD)
@@ -388,3 +425,10 @@ testMax z = getDerivTower'
 testMaxArgmax :: CPoint Real -> [CPoint Real]
 testMaxArgmax z = getDerivTower'
   (\c -> argmax01 (\x -> wkn c / 4 - (x - wkn c)^2 )) z
+
+-- try c's near the interval [0, 1]
+testSlowArgmax :: CPoint Real -> [CPoint Real]
+testSlowArgmax = getDerivTower' (\c -> argmax01 (\x -> - (x - wkn c)^2))
+
+testFastArgmax :: CPoint Real -> [CPoint Real]
+testFastArgmax = getDerivTower' (\c -> argmax01Newton (\x -> - (x - wkn c)^2))

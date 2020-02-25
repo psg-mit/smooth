@@ -84,5 +84,8 @@ min01 (ArrD f) = R (FwdPSh.min01' (let R b = f fstD (R sndD) in b))
 max01 :: Additive g => (DReal :=> DReal) g -> DReal g
 max01 (ArrD f) = R (FwdPSh.max01' (let R b = f fstD (R sndD) in b))
 
+max01N :: Additive g => (DReal :=> DReal) g -> DReal g
+max01N (ArrD f) = R (FwdPSh.max01Newton' (let R b = f fstD (R sndD) in b))
+
 max :: DReal g -> DReal g -> DReal g
 max (R x) (R y) = R $ FwdPSh.max x y

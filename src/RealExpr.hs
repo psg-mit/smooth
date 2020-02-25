@@ -10,6 +10,7 @@ number type.
 
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Arrows #-}
 
 module RealExpr where
@@ -320,6 +321,39 @@ recurseOnIntervals combine = go where
       t2 <- go (Interval m b) frefined -< g'
       returnA -< combine t1 t2)
 
+data Condition = Convex | Unknown | Done
+
+maxargmaxIntervalsNewton :: forall g a. Rounded a => Interval a -> Word
+  -> [(Condition, Interval a, CMap (g, Interval a) (Interval a, Interval a, Interval a))]
+  -> CMap g (Interval a, Interval a)
+maxargmaxIntervalsNewton origInterval p xs = CMap $ \g ->
+  let ys = [ (b, x, f (g, x)) | (b, x, CMap f) <- xs ] in
+  let maxyl = maximum [ yl | (_, _, ((Interval yl yh, _, _), _)) <- ys ] in
+  let potentialxs = filter (\(_,_, ((Interval yl yh, _, _), _)) -> maxyl <= yh) ys in
+  let argmaxi = foldr1 I.union [ i | (_, i, _) <- potentialxs ] in
+  let maxi = foldr1 I.max [ y | (_, _, ((y, _, _), _)) <- potentialxs ] in
+  ((argmaxi, maxi),
+  maxargmaxIntervalsNewton origInterval (p + 5) (concatMap (refineIntervals g) potentialxs))
+  where
+  refineIntervals :: Rounded a => g -> (Condition, Interval a, ((Interval a, Interval a, Interval a), CMap (g, Interval a) (Interval a, Interval a, Interval a)))
+    -> [(Condition, Interval a, CMap (g, Interval a) (Interval a, Interval a, Interval a))]
+  refineIntervals g (Done, i, (_, f)) = [(Done, i, f)]
+  refineIntervals g (Convex, i, (_, f)) = let (i', _) = newton_locate_step (fmap (\(y, y', y'') -> (y', y'')) f) p i g in
+    -- hacky fix in case Newton iteration takes us outside of the original interval that we're argmaxing over.
+    let (newstate, i'') = if I.lower i' > I.upper origInterval then (Done, I.lift (I.upper origInterval))
+        else if I.upper i' < I.lower origInterval then (Done, I.lift (I.lower origInterval))
+        else (Convex, i')
+    in [(newstate, i'', f)]
+  refineIntervals g (Unknown, i, yf@((_, _, Interval f''l f''h), f)) =
+     if f''h < R.zero then refineIntervals g (Convex, i, yf)
+                      else let (i1, i2) = I.split i in [(Unknown, i1, f), (Unknown, i2, f)]
+
+argmaxIntervalsNewton origInterval p xs =
+  fmap fst $ maxargmaxIntervalsNewton origInterval p xs
+
+maxIntervalsNewton origInterval p xs =
+  fmap snd $ maxargmaxIntervalsNewton origInterval p xs
+
 argmaxIntervals :: Rounded a => [(Interval a, CMap (g, Interval a) (Interval a))] -> CMap g (Interval a)
 argmaxIntervals xs = CMap $ \g ->
   let ys = [ (x, f (g, x)) | (x, CMap f) <- xs ] in
@@ -365,6 +399,14 @@ forallIntervals xs = CMap $ \g ->
 
 argmax_interval' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 argmax_interval' i f = argmaxIntervals [(i, f)]
+
+argmax_interval_newton' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a, Interval a, Interval a)
+  -> CMap g (Interval a)
+argmax_interval_newton' i f = argmaxIntervalsNewton i 16 [(Unknown, i, f)]
+
+max_interval_newton' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a, Interval a, Interval a)
+  -> CMap g (Interval a)
+max_interval_newton' i f = maxIntervalsNewton i 16 [(Unknown, i, f)]
 
 argmin_interval' :: Rounded a => Interval a -> CMap (g, Interval a) (Interval a) -> CMap g (Interval a)
 argmin_interval' i f = argminIntervals [(i, f)]
@@ -443,24 +485,35 @@ firstRoot = rootAtP 1 (Interval R.zero R.one) where
                             then (head is)
                             else (removeEnd f (init is))
 
-newton_cut' :: Rounded r => CMap (g, Interval r) (Interval r, Interval r)
-  -> CMap g (Interval r)
-newton_cut' f = bound 1 1 R.one where
-  bound n p b = CMap $ \g -> let negb = R.neg p R.Down b in
-    if I.lower (fst (fst (nsteps n f (g, I.lift negb)))) > R.zero && I.upper (fst (fst (nsteps n f (g, I.lift b)))) < R.zero
-      then let i = Interval negb b in (i, loc f p i)
-      else (I.realLine, bound (n + 1) (p + 1) (R.mulpow2 1 p R.Down b))
-  loc (CMap f) p i@(Interval l u) = CMap $ \g ->
+-- We already have a bounded interval where the result is known to lie.
+newton_locate :: Rounded r => CMap (g, Interval r) (Interval r, Interval r)
+  -> Word -> Interval r -> CMap g (Interval r)
+newton_locate f p i = CMap $ \g ->
+    let (i', frefined) = newton_locate_step f p i g in
+    (i', newton_locate frefined (p + 5) i')
+
+newton_locate_step ::  Rounded r => CMap (g, Interval r) (Interval r, Interval r)
+  -> Word -> Interval r -> g -> (Interval r, CMap (g, Interval r) (Interval r, Interval r))
+newton_locate_step (CMap f) p i@(Interval l u) = \g ->
     let ((fx1, _), _) = f (g, I.lift l) in
     let ((fx2, _), _) = f (g, I.lift u) in
     let ((_, f'x), frefined) = f (g, i) in
     let i1 = I.sub p (I.lift l) (I.div p fx1 f'x) in
     let i2 = I.sub p (I.lift u) (I.div p fx2 f'x) in
     let i' = i `I.join` i1 `I.join` i2 in
+    (
     if I.lower i' > I.lower i || I.upper i' < I.upper i -- we made progress
-      then (i', loc frefined (p + 5) i')
-      else let i' = locate p i (\x -> let Interval a b = fst (fst (f (g, x))) in (a > R.zero, b < R.zero))
-           in (i', loc frefined (p + 5) i')
+      then i'
+      else locate p i (\x -> let Interval a b = fst (fst (f (g, x))) in (a > R.zero, b < R.zero))
+    , frefined)
+
+newton_cut' :: Rounded r => CMap (g, Interval r) (Interval r, Interval r)
+  -> CMap g (Interval r)
+newton_cut' f = bound 1 1 R.one where
+  bound n p b = CMap $ \g -> let negb = R.neg p R.Down b in
+    if I.lower (fst (fst (nsteps n f (g, I.lift negb)))) > R.zero && I.upper (fst (fst (nsteps n f (g, I.lift b)))) < R.zero
+      then let i = Interval negb b in (i, newton_locate f p i)
+      else (I.realLine, bound (n + 1) (p + 1) (R.mulpow2 1 p R.Down b))
 
 -- Get more precision out of a continuous map by running it many times.
 nsteps :: Int -> CMap a b -> a -> (b, CMap a b)
@@ -473,11 +526,11 @@ nsteps n (CMap f) x = let (_, f') = f x in nsteps (n - 1) f' x
 -- If so, then Just True.
 -- If clearly not, then Just False
 -- If we can't tell, then Nothing.
-argoptIntervalAtEnd :: Rounded r => (Interval r -> forall g. CMap (g, Interval r) (Interval r) -> CMap g (Interval r)) ->
-  Interval r -> CMap (g, Interval r) (Interval r, Interval r) -> CMap g (Maybe Bool)
-argoptIntervalAtEnd argopt_interval' i ff' = proc g -> do
-  curArgopt <- argopt_interval' i (fmap fst ff') -< g
-  func (fmap snd ff') -< (g, curArgopt)
+argoptIntervalAtEnd :: Rounded r => (Interval r -> forall g. CMap (g, Interval r) z -> CMap g (Interval r)) ->
+  CMap z (Interval r) -> Interval r -> CMap (g, Interval r) z -> CMap g (Maybe Bool)
+argoptIntervalAtEnd argopt_interval' getDeriv i ff' = proc g -> do
+  curArgopt <- argopt_interval' i ff' -< g
+  func (getDeriv <<< ff') -< (g, curArgopt)
   where
   func (CMap f') = CMap $ \(g, curArgopt) ->
     let (f'x, refinedf') = f' (g, curArgopt) in
@@ -489,8 +542,11 @@ argoptIntervalAtEnd argopt_interval' i ff' = proc g -> do
           else Nothing, func refinedf')
 
 argmaxIntervalAtEnd, argminIntervalAtEnd :: Rounded r => Interval r -> CMap (g, Interval r) (Interval r, Interval r) -> CMap g (Maybe Bool)
-argmaxIntervalAtEnd = argoptIntervalAtEnd argmax_interval'
-argminIntervalAtEnd = argoptIntervalAtEnd argmin_interval'
+argmaxIntervalAtEnd = argoptIntervalAtEnd (\i f -> argmax_interval' i (fmap fst f)) (arr snd)
+argminIntervalAtEnd = argoptIntervalAtEnd (\i f -> argmin_interval' i (fmap fst f)) (arr snd)
+
+argmaxNewtonIntervalAtEnd :: Rounded r => Interval r -> CMap (g, Interval r) (Interval r, Interval r, Interval r) -> CMap g (Maybe Bool)
+argmaxNewtonIntervalAtEnd = argoptIntervalAtEnd argmax_interval_newton' (arr (\(y, y', y'') -> y'))
 
 -- I have no idea whether these are sensible
 collapse :: CMap a (CMap b c) -> CMap (a, b) c
