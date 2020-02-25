@@ -8,6 +8,7 @@ Admits higher-order derivatives, but not higher-order functions.
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE GADTs #-}
 
 module FwdMode where
 
@@ -158,10 +159,11 @@ dWknA fa = go (arr id) where
 dlinearWkn :: R.Rounded x => Additive b => Df g (a, Interval x) b k -> Df g a b k
 dlinearWkn = dlinearWkn' id
 
-dlinearWkn' :: R.Rounded x => Additive b => (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, Interval x) b k' -> Df g a b k
+dlinearWkn' :: forall a x b k k' g. R.Rounded x => Additive b =>
+  (forall d. CMap (d, k') b -> CMap (d, k) b) -> Df g (a, Interval x) b k' -> Df g a b k
 dlinearWkn' z (f :# f') = z f :# dlinearWkn' z' f'
   where
-  -- z' :: forall d. CMap (d, ((a, x), k')) b -> CMap (d, (a, k)) b
+  z' :: forall d. CMap (d, ((a, Interval x), k')) b -> CMap (d, (a, k)) b
   z' g = proc (d, (a, k)) -> do
     g1 -< ((d, (a, I.lift R.zero)), k)
     where
@@ -207,29 +209,59 @@ multD (D x) (D y) = D (dMult x y)
 
 {-| Composition of two smooth maps yields a smooth map -}
 (@.) :: Additive c => (b :~> c) -> (a :~> b) -> (a :~> c)
-(D g@(g0 :# g')) @. (D f@(f0 :# f')) = D $
-  (g0 <<< (f0 &&& arr snd)) :# linCompose (wknValue (f0 <<< (C.id &&& arr (\_ -> ()))) g') f'
+D g @. D f@(f0 :# _) = D (compose (wknValue (f0 <<< arr (\x -> (x, ()))) g) f)
 
-{-| Composition of linear maps and their derivative towers yields
-    a linear map with a derivative tower. Essentially, given two linear maps
-    `g : b -> c` and `f : a -> b` with derivative towers, their composition
-    is the derivative tower
-    (g . f) = g . f
-    (g . f)' = (g' . f) + (g . f')
+data App g a b k = forall k'. App (Df g a b k') (CMap k k')
 
-    But there is some important "bookkeeping" and details beyond this.
--}
-linCompose :: Additive c => Df g b c (b, ka) -> Df g a b (a, ka) -> Df g a c (a, ka)
-linCompose g@(g0 :# g') f@(f0 :# f') =
-  (g0 <<< (arr fst &&& f2)) :# dSum (linCompose (dWkn1 f0' g') (dWkn (arr snd) f))
-                      (linCompose (dWkn (C.id *** arr snd) g) f')
-  where
-  f2 = proc (g, (a, ka)) -> do
-    b <- f0 -< (g, (a, ka))
-    returnA -< (b, ka)
-  f0' = proc (g, (b1, (a, ka))) -> do
-     b'ka' <- f2 -< (g, (a, ka))
-     returnA -< (b1, b'ka')
+data CompPart' g a b c ka kb where
+  Nil :: Df g b c () -> CompPart' g a b c ka ()
+  Cons :: App g a b ka -> CompPart' g a b c ka kb -> CompPart' g a b c ka (b, kb)
+
+data CompPart g a b c ka where
+  CompPart :: CompPart' g a b c ka kb -> CompPart g a b c ka
+
+wknApp :: App g a b k -> App g a b (a, k)
+wknApp (App fk vars) = App fk (vars <<< arr snd)
+
+wknCompPart' :: CompPart' g a b c ka kb -> CompPart' g a b c (a, ka) kb
+wknCompPart' (Nil g) = Nil g
+wknCompPart' (Cons x xs) = Cons (wknApp x) (wknCompPart' xs)
+
+-- bloat :: a -> [[a]] -> [[[a]]]
+-- bloat x  []      = [[[x]]]
+-- bloat x (xs:xss) = ((x:xs):xss) : map (xs:) (bloat x xss)
+bloat :: Df g a b (a, ()) -> CompPart g a b c k -> [CompPart g a b c (a, k)]
+bloat f' (CompPart (Nil g)) = [CompPart (Cons (App f' (arr id *** arr (\_ -> ()))) (Nil g))]
+bloat f' (CompPart (Cons xs@(App fk@(_ :# fk') vars) xss)) =
+  let x1 = CompPart (Cons (App fk' (arr id *** vars)) (wknCompPart' xss)) in
+  let x2 = (bloat f' (CompPart xss)) in
+  x1 : map (\(CompPart c) -> CompPart (Cons (wknApp xs) c)) x2
+
+getG :: CompPart' g a b c ka kb -> Df g b c kb
+getG (Nil g) = g
+getG (Cons x xs) = let _ :# g' = getG xs in g'
+
+cplength :: CompPart' g a b c ka kb -> Int
+cplength (Nil g) = 0
+cplength (Cons x xs) = 1 + cplength xs
+
+evalCompPart' :: CompPart' g a b c ka kb -> CMap (g, ka) kb
+evalCompPart' (Nil _) = arr (\_ -> ())
+evalCompPart' (Cons (App f x) part) = let fx :# _ = dWkn x f in fx &&& evalCompPart' part
+
+evalCompPart'' :: CompPart' g a b c ka kb -> CMap (g, ka) c
+evalCompPart'' x = let g :# _ = dWkn1 (evalCompPart' x) (getG x) in g
+
+-- partitions :: [a] -> [[[a]]]
+-- partitions  []    = [[]]
+-- partitions (x:xs) = concatMap (bloat x) (partitions xs)
+compose :: forall g a b c. Additive c => Df g b c () -> Df g a b () -> Df g a c ()
+compose g f@(_ :# f') = go partitionsStart where
+  go :: [CompPart g a b c ka] -> Df g a c ka
+  go parts = foldr1 (E.ap2 addV) [ evalCompPart'' p | CompPart p <- parts ] :#
+    go (concatMap (bloat f') parts)
+  partitionsStart :: [CompPart g a b c ()]
+  partitionsStart = [CompPart (Nil g)]
 
 {-| Apply a smooth function of 1 variable to a smooth argument. -}
 dap1 :: Additive b => a :~> b -> g :~> a -> g :~> b
@@ -241,8 +273,8 @@ dap2 :: Additive c => (a, b) :~> c -> g :~> a -> g :~> b -> g :~> c
 dap2 f x y = f @. pairD x y
 
 -- Seems right. Could inline scalarMult if I wanted
--- lift1 :: RE.CNum a => CMap a a -> a :~> a -> a :~> a
--- lift1 f (D f') = D $ (f <<< arr fst) :# dMult (dWkn (arr snd) f') (arr (fst . snd) :# dZero)
+lift1 :: RE.CNum a => CMap a a -> a :~> a -> a :~> a
+lift1 f (D f') = D $ (f <<< arr fst) :# dMult (dWkn (arr snd) f') (arr (fst . snd) :# dZero)
 
 fromFuncs :: RE.CNum a => [CMap a a] -> a :~> a
 fromFuncs = D . go 1
@@ -260,8 +292,8 @@ toFuncs (D f) = go f (arr (\_ -> ())) where
 -- lift1 f f' = fromFwd f (multD (f' @. fstD) sndD)
 
 -- Pray this one works
-lift1 :: RE.CNum a => CMap a a -> a :~> a -> a :~> a
-lift1 f f' = fromFuncs (f : toFuncs f')
+-- lift1 :: RE.CNum a => CMap a a -> a :~> a -> a :~> a
+-- lift1 f f' = fromFuncs (f : toFuncs f')
 
 negate' :: RE.CNum a => a :~> a
 negate' = linearD RE.cnegate
@@ -300,19 +332,16 @@ pow' k = lift1 (RE.pow k) (linearD ((fromIntegral k *) (arr id)) @. (pow' (k - 1
 square'' :: R.Rounded a => Interval a :~> Interval a
 square'' = lift1 (RE.pow 2) (linearD ((2 *) (arr id)))
 
-
 partialIfThenElse :: R.Rounded a => CMap g (Maybe Bool) -> g :~> Interval a -> g :~> Interval a -> g :~> Interval a
 partialIfThenElse cond (D (t :# t')) (D (f :# f')) = D ((RE.partialIfThenElse cond t1 f1 <<< arr (\(x, ()) -> x)) :# partialIfThenElse' cond t' f')
   where
   t1 = t <<< arr (\x -> (x, ()))
   f1 = f <<< arr (\x -> (x, ()))
 
--- XXX: CHANGED IT TO TEST BROKEN lift1
--- CHANGE THE 0 back to a 1 AFTER!!!
 getDerivTower :: RE.CNum a => a :~> a -> CMap g a -> [CMap g a]
-getDerivTower (D f) x = go 2 (wknValue x f) (arr (\_ -> ())) where
+getDerivTower (D f) x = go 1 (wknValue x f) (arr (\_ -> ())) where
   go :: RE.CNum a => CMap g a ->  Df g a b k -> CMap g k -> [CMap g b]
-  go dx (g :# g') y = (g <<< (C.id &&& y)) : go 0 g' (dx &&& y)
+  go dx (g :# g') y = (g <<< (C.id &&& y)) : go 1 g' (dx &&& y)
 
 getValue :: g :~> a -> CMap g a
 getValue (D (f :# f')) = f <<< arr (\x -> (x, ()))

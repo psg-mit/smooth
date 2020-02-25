@@ -5,7 +5,7 @@ module Types.SmoothBool where
 import qualified Prelude
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), (^))
 import FwdMode ((:~>), fstD, sndD, getDerivTower, getValue, (@.), pow')
-import FwdMode
+import FwdMode (fwdSecondDer, fwdDer, dId, pairD, square'')
 import FwdPSh
 import Interval (Interval (..))
 import Data.List (intercalate)
@@ -35,13 +35,13 @@ not (SBool x) = SBool (- x)
 
 infixr 3 &&
 (&&) :: SBool g -> SBool g -> SBool g
-SBool x && SBool y = SBool (x + y - sqrt (x^2 + y^2))
--- SBool (R x) && SBool (R y) = SBool (R (min x y))
+-- SBool x && SBool y = SBool (x + y - sqrt (x^2 + y^2))
+SBool (R x) && SBool (R y) = SBool (R (min x y))
 
 infixr 2 ||
 (||) :: SBool g -> SBool g -> SBool g
-SBool x || SBool y = SBool (x + y + sqrt (x^2 + y^2))
--- SBool (R x) || SBool (R y) = SBool (R (max x y))
+-- SBool x || SBool y = SBool (x + y + sqrt (x^2 + y^2))
+SBool (R x) || SBool (R y) = SBool (R (max x y))
 
 positive :: DReal g -> SBool g
 positive = SBool
@@ -114,50 +114,6 @@ simplerMaximizationPart :: CPoint Real -> [CPoint Real]
 simplerMaximizationPart = getDerivTower' (\q -> FwdPSh.argmax01 (\x -> min1 (0.5 - x) (x - wkn q)))
   where min1 x y = (x + y - sqrt (pow x 2 + pow y 2))
 
--- Gives the wrong answer
+-- Gets the slope right!
 simplerMaximizationPartExample :: CPoint Real
 simplerMaximizationPartExample = simplerMaximizationPart 0.4 !! 1
-
-tester :: (Real, (Real, Real)) :~> Real
-tester = fwdSecondDer ((\q-> pow q 2) dId)
-
--- Still not returning 0 when it should!
-evalTester :: () :~> Real
-evalTester = let f = ((\q-> pow q 2) dId) in
-  let f' = fwdDer f in
-  fwdDer f' @. pairD (pairD 0 1) (pairD 0 0)
-
-tester1 :: CPoint Real -> [CPoint Real]
-tester1 = let f = ((\q-> pow q 2) dId) in
-  getDerivTower (fwdDer f @. pairD 0 1)
-
--- tester1 x !! n = 2.0
--- when n >= 1
--- This is BROKEN!
--- should be 0, because it is the constant 0 function.
--- The error is in (@. dId)!
-
-tester2 :: CPoint Real -> [CPoint Real]
-tester2 = let f = ((\q-> pow q 3) dId) in
-  getDerivTower f
-
--- When I look at the derivatives for f(x) = x^3, I find that
--- f^(3)(dx1, dx2, dx3) = 6 * dx1^3
--- rather than 6 * dx1 * dx2 * dx3
-
-
--- !!! (pow q 2) dId is not the same as pow' 2!!!
--- pow q 2 = pow' 2 @. dId
--- i.e., f @. dId =/= f
-
-tester3 :: CPoint Real -> [CPoint Real]
-tester3 = let f = (square'' @. dId) in
-  getDerivTower f
-
-bloat :: a -> [[a]] -> [[[a]]]
-bloat x  []      = [[[x]]]
-bloat x (xs:xss) = ((x:xs):xss) : map (xs:) (bloat x xss)
-
-partitions :: [a] -> [[[a]]]
-partitions  []    = [[]]
-partitions (x:xs) = concatMap (bloat x) (partitions xs)
