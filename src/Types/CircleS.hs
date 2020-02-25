@@ -5,7 +5,7 @@ module Types.CircleS where
 import Prelude hiding (Real)
 import FwdMode ((:~>), pairD, fstD, sndD, VectorSpace)
 import FwdPSh
-import MPFR (Real)
+import Types.Real
 
 
 -- Circle = { (x, y) : R^2 | x^2 + y^2 = 1 }

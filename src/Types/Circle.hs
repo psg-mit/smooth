@@ -4,7 +4,7 @@ module Types.Circle where
 import Prelude hiding (Real)
 import FwdMode ((:~>), pairD, fstD, sndD, dId, VectorSpace)
 import FwdPSh
-import MPFR (Real)
+import Types.Real
 
 
 -- Circle = Real quotiented by the equivalence relation

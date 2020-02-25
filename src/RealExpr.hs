@@ -492,16 +492,7 @@ argmaxIntervalAtEnd, argminIntervalAtEnd :: Rounded r => Interval r -> CMap (g, 
 argmaxIntervalAtEnd = argoptIntervalAtEnd argmax_interval'
 argminIntervalAtEnd = argoptIntervalAtEnd argmin_interval'
 
--- I have no idea whether any of these are sensible
-collapse1 :: CMap a (b -> c) -> CMap (a, b) c
-collapse1 (CMap f) = CMap $ \(a, b) ->
-  let (bc, f') = f a in
-  (bc b, collapse1 f')
-
-uncollapse1 :: CMap (a, b) c -> CMap a (b -> c)
-uncollapse1 (CMap f) = CMap $ \a ->
-  (\b -> let (c, f') = f (a, b) in c, let (_, f') = f (a, undefined) in uncollapse1 f')
-
+-- I have no idea whether these are sensible
 collapse :: CMap a (CMap b c) -> CMap (a, b) c
 collapse (CMap f) = CMap $ \(a, b) ->
   let (CMap g, f') = f a in

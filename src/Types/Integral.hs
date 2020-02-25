@@ -6,7 +6,7 @@ import FwdMode ((:~>), fstD, sndD, getDerivTower, (@.), getValue, VectorSpace)
 import qualified Control.Category as C
 import FwdPSh
 import Types.Discrete (Box (..))
-import Types.SmoothBool ((^))
+import Types.Real
 
 type Integral a = (a :=> DReal) :=> DReal
 

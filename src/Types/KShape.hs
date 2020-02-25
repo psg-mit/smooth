@@ -2,9 +2,10 @@ module Types.KShape where
 
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), product, map, (^))
 import FwdMode ((:~>), fstD, sndD, getDerivTower, (@.))
-import FwdPSh
+import FwdPSh hiding (max)
 import Types.SmoothBool
 import Types.OShape (OShape)
+import Types.Real
 import qualified Types.OShape as O
 
 type KShape a = (a :=> SBool) :=> SBool
@@ -64,10 +65,8 @@ sup k f = supremum (map f k)
 hausdorffDist :: Additive g => PShD a =>
   (a :* a :=> DReal) g -> KShape a g -> KShape a g -> DReal g
 hausdorffDist d k k' =
-  mx (sup k  (ArrD (\wk x  -> inf (dmap wk k') (ArrD (\wk' x' -> dmap (wk @. wk') d # (dmap wk' x :* x'))))))
-     (sup k' (ArrD (\wk x' -> inf (dmap wk k ) (ArrD (\wk' x  -> dmap (wk @. wk') d # (x :* dmap wk' x'))))))
-  where
-  mx (R x) (R y) = R (max x y)
+  max (sup k  (ArrD (\wk x  -> inf (dmap wk k') (ArrD (\wk' x' -> dmap (wk @. wk') d # (dmap wk' x :* x'))))))
+      (sup k' (ArrD (\wk x' -> inf (dmap wk k ) (ArrD (\wk' x  -> dmap (wk @. wk') d # (x :* dmap wk' x'))))))
 
 separationDist :: Additive g => PShD a =>
   (a :* a :=> DReal) g -> KShape a g -> KShape a g -> DReal g

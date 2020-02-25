@@ -6,12 +6,13 @@ import qualified Prelude
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), (^))
 import FwdMode ((:~>), fstD, sndD, getDerivTower, getValue, (@.), pow')
 import FwdMode (fwdSecondDer, fwdDer, dId, pairD, square'')
-import FwdPSh
+import FwdPSh hiding (max)
 import Interval (Interval (..))
 import Data.List (intercalate)
 import RealExpr (runPoint)
 import qualified Rounded as R
 import qualified Expr
+import Types.Real
 
 -- SBool = quotient of the reals by the smooth equivalence relation
 -- x ~ y :=   x = y \/ (x < 0 /\ y < 0) \/ (x > 0 /\ y > 0)
@@ -41,7 +42,7 @@ SBool (R x) && SBool (R y) = SBool (R (min x y))
 infixr 2 ||
 (||) :: SBool g -> SBool g -> SBool g
 -- SBool x || SBool y = SBool (x + y + sqrt (x^2 + y^2))
-SBool (R x) || SBool (R y) = SBool (R (max x y))
+SBool x || SBool y = SBool (max x y)
 
 positive :: DReal g -> SBool g
 positive = SBool
@@ -54,13 +55,6 @@ infix 4 >
 (>) :: DReal g -> DReal g -> SBool g
 x > y = SBool (x - y)
 
--- Not really the right home for this function.
-infixr 8 ^
-(^) :: DReal g -> Int -> DReal g
-R x ^ k = R (pow x k)
-
-deriv :: Additive g => (DReal :=> DReal) g -> DReal g -> DReal g
-deriv f (R x) = R $ fwd_deriv1 f x 1
 
 -- Describe a real number by a predicate saying what it means
 -- to be less than it.

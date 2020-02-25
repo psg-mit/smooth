@@ -46,7 +46,6 @@ instance ConCat D where
   (.) = (@.)
 
 type CReal = R CMap Real
-type DReal = R D Real
 
 newtype K a g = K a
 
@@ -57,9 +56,6 @@ fromCPoint f = D ((f <<< arr (\((), ()) -> ())) :# dZero)
 
 instance Show a => Show (() :~> a) where
   show = show Prelude.. getValue
-
-instance Show (DReal ()) where
-  show (R x) = show x
 
 infixr 2 :=>
 data (:=>) a b (g :: *) = ArrD (forall d. Additive d => d :~> g -> a d -> b d)
@@ -86,15 +82,6 @@ instance R.Rounded a => Num (g :~> Interval a) where
   fromInteger x = D $ fromInteger x :# dZero
   negate = dap1 negate'
 
-instance R.Rounded a => Num (R D (Interval a) g) where
-  R x + R y = R (x + y)
-  R x * R y = R (x * y)
-  negate (R x) = R (negate x)
-  R x - R y = R (x - y)
-  abs (R x) = R (abs x)
-  fromInteger = R Prelude.. fromInteger
-  signum (R x) = R (signum x)
-
 instance R.Rounded a => Fractional (R CMap (Interval a) g) where
   recip (R x) = R (recip x)
   fromRational = R Prelude.. fromRational
@@ -102,10 +89,6 @@ instance R.Rounded a => Fractional (R CMap (Interval a) g) where
 instance R.Rounded a => Fractional (g :~> Interval a) where
   recip = dap1 recip'
   fromRational x = D $ fromRational x :# dZero
-
-instance R.Rounded a => Fractional (R D (Interval a) g) where
-  recip (R x) = R (recip x)
-  fromRational = R Prelude.. fromRational
 
 max :: R.Rounded a => g :~> Interval a -> g :~> Interval a -> g :~> Interval a
 max = dap2 max'
@@ -133,24 +116,6 @@ instance Floating (g :~> Real) where
   -- acosh    = lift1 acosh $ \x -> recip (sqrt (join (*) x - 1))
   -- atanh    = lift1 atanh $ \x -> recip (1 - join (*) x)
   sqrt = dap1 sqrt'
-
-instance Floating (DReal g) where
-  pi = R pi
-  log (R x) = R (log x)
-  exp (R x) = R (exp x)
-  sin (R x) = R (sin x)
-  cos (R x) = R (cos x)
-  tan (R x) = R (tan x)
-  asin (R x) = R (asin x)
-  acos (R x) = R (cos x)
-  atan (R x) = R (atan x)
-  sinh (R x) = R (sinh x)
-  cosh (R x) = R (cosh x)
-  tanh (R x) = R (tanh x)
-  asinh (R x) = R (asinh x)
-  acosh (R x) = R (acosh x)
-  atanh (R x) = R (atanh x)
-  sqrt (R x) = R (sqrt x)
 
 -- Maybe this is working!!!
 integral' :: R.Rounded a => ((g, Interval a) :~> Interval a) -> (g :~> Interval a)
@@ -187,7 +152,6 @@ derivT :: VectorSpace g => PShD a => Tangential a => Tangential b =>
   (a :=> b) g -> Tangent a g -> Tangent b g
 derivT f xdx = from tangent (fwd f (to tangent xdx))
 
--- fwd_deriv1' :: Additive g => Additive a => Additive b =>
 
 wkn :: Additive g => Additive a => g :~> a -> (g, x) :~> a
 wkn f = f @. fstD
@@ -259,16 +223,6 @@ tangentZero f = Tan (pairD dId zeroD) f
 tangentScalarMult :: g :~> Real -> Tan f g -> Tan f g
 tangentScalarMult c (Tan xdx f) = Tan (pairD (fstD @. xdx) (scalarMultD c (sndD @. xdx))) f
 
-tanR :: Tan DReal g :== (DReal :* DReal) g
-tanR = Bijection from to where
-  from (Tan gdd (R fd)) = R (fstD @. x) :* R (sndD @. x) where
-    x = fwdWithValue fd @. gdd
-  to (R x :* R dx) = Tan (pairD x dx) (R dId)
-
-instance Tangential DReal where
-  type Tangent DReal = (DReal :* DReal)
-  tangent = tanR
-
 fwdGlobal :: (forall g. a g -> b g) -> Tan a g -> Tan b g
 fwdGlobal f (Tan gdd fd) = Tan gdd (f fd)
 
@@ -297,20 +251,6 @@ tanProd = Bijection from to where
     dxdy = pairD (sndD @. xdx) (sndD @. ydy)
     a' = dmap fstD a
     b' = dmap sndD b
-
-tanToR :: VectorSpace g => PShD a =>
-  Tan (a :=> DReal) g :== (a :=> (DReal :* DReal)) g
-tanToR = Bijection from to where
-  -- Haven't thought about this one too carefully,
-  -- so I should make sure it's correct
-  from (Tan xdx (ArrD f)) = ArrD $ \ext a ->
-    let R z = f fstD (dmap sndD a) in
-    let x = fwdWithValue z @. (pairD (pairD (fstD @. xdx @. ext) dId) (pairD (sndD @. xdx @. ext) zeroD)) in
-    R (fstD @. x) :* R (sndD @. x)
-  to :: VectorSpace g => PShD a => (a :=> (DReal :* DReal)) g -> Tan (a :=> DReal) g
-  to (ArrD f) = Tan (pairD (pairD dId 0) (pairD zeroD 1))
-    (ArrD $ \ext a -> let g :* dg = f (fstD @. ext) a in
-      g + (R (sndD @. ext)) * dg)
 
 arrProdIso :: (a :=> b :* c) g :== ((a :=> b) :* (a :=> c)) g
 arrProdIso = Bijection f g where

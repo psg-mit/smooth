@@ -291,10 +291,6 @@ toFuncs (D f) = go f (arr (\_ -> ())) where
 -- lift1 :: RE.CNum a => CMap a a -> a :~> a -> a :~> a
 -- lift1 f f' = fromFwd f (multD (f' @. fstD) sndD)
 
--- Pray this one works
--- lift1 :: RE.CNum a => CMap a a -> a :~> a -> a :~> a
--- lift1 f f' = fromFuncs (f : toFuncs f')
-
 negate' :: RE.CNum a => a :~> a
 negate' = linearD RE.cnegate
 
@@ -326,7 +322,7 @@ sqrt' :: RE.CFloating a => a :~> a
 sqrt' = lift1 RE.csqrt (recip' @. linearD ((2 *) (arr id)) @. sqrt')
 pow' :: R.Rounded a => Int -> Interval a :~> Interval a
 pow' 0 = lift1 1 zeroD
-pow' 2 = lift1 (RE.pow 2) (linearD ((2 *) (arr id)))
+pow' 1 = dId
 pow' k = lift1 (RE.pow k) (linearD ((fromIntegral k *) (arr id)) @. (pow' (k - 1)))
 
 square'' :: R.Rounded a => Interval a :~> Interval a
@@ -421,31 +417,12 @@ diffeoExample :: Int -> CPoint M.Real
 diffeoExample n = getDerivTower (exp' @. linearD ((*2) C.id)) (E.asMPFR 0) !! n
 
 
-
--- Below is experimental! It may be wrong! Be warned!
-
-
--- I am not sure this is correct at all!
 -- A generalization of lift1. Give a continuous map for the value,
 -- and a smooth map of the derivative for the rest.
 fromFwd :: Additive a => CMap a b -> (a, a) :~> b -> a :~> b
-fromFwd f (D f') = D $ (f <<< arr fst) :# convertFwdDerivFixed f'
+fromFwd f (D f') = D $ (f <<< arr fst) :# convertFwdDeriv f'
 
 -- the opposite of `fwdDerU`
-convertFwdDerivFixed :: Additive g => Df (g, g) (g, g) b k -> Df g g b (g, k)
-convertFwdDerivFixed = dWkn1' (arr (\(x, (v, dxs)) -> ((x, v), dxs)))
+convertFwdDeriv :: Additive g => Df (g, g) (g, g) b k -> Df g g b (g, k)
+convertFwdDeriv = dWkn1' (arr (\(x, (v, dxs)) -> ((x, v), dxs)))
   . dWknA (arr id &&& zeroV) -- make all the dv's 0s
-
-convertFwdDeriv :: Additive a => Df (a, a) (a, a) b () -> Df a a b (a, ())
-convertFwdDeriv = convertFwdDeriv' (arr id)
-
--- I am setting some derivatives to 0. Is that okay?
-convertFwdDeriv' :: Additive a => CMap k' k -> Df (a, a) (a, a) b k -> Df a a b (a, k')
-convertFwdDeriv' k'k (f :# f') = f1 :# convertFwdDeriv' k'knew f' where
-  f1 = proc (x, (dx, k')) -> do
-    k <- k'k -< k'
-    f -< ((x, dx), k)
-  k'knew = proc (a, k') -> do
-    k <- k'k -< k'
-    z <- zeroV -< ()
-    returnA -< ((a, z), k)
