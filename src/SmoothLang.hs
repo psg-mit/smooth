@@ -31,7 +31,7 @@ firstRootExample = firstRoot <<< arr (\() -> f)
 firstRootp5 :: CPoint RootResult
 firstRootp5 = firstRoot1 (arr snd < 0.5)
 
--- Undetermined to 0
+-- NoRoot
 firstRootpg5 :: CPoint RootResult
 firstRootpg5 = firstRoot1 (arr snd > 0.5)
 
@@ -63,6 +63,7 @@ firstRootAllPositive = firstRoot1 ((arr snd - asMPFR 10) > 0)
 
 -- Approaches 0 as is correct
 -- but frozen at [0,1] is also okay
+-- Everything is true remove on right.
 firstRootToZero :: CPoint RootResult
 firstRootToZero = firstRoot1 (arr snd < 0 || ((arr snd) > 0))
 
