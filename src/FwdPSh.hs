@@ -401,11 +401,9 @@ testNewtonSqrt :: CPoint Real -> [CPoint Real]
 testNewtonSqrt z = getDerivTower'
   (\c -> newton_cut (\x -> max (-x) (wkn c - x * x))) z
 
--- Should test that this is giving correct answers!
--- Hmm, seems to be giving nonzero 4th derivative, even though it shouldn't?
 testArgMax :: CPoint Real -> [CPoint Real]
 testArgMax z = getDerivTower'
-  (\c -> argmax01 (\x -> 0.5 - (x - wkn c)^2 + 0.3 * (wkn c^3) * x)) z
+  (\c -> argmax01Newton (\x -> 0.5 - (x - wkn c)^2 + 0.3 * (wkn c^3) * x)) z
 
 testArgMax2 :: CPoint Real -> [CPoint Real]
 testArgMax2 z = getDerivTower'

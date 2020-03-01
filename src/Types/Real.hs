@@ -1,12 +1,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Types.Real (
   module Types.Real,
   R (..),
 ) where
-import Prelude hiding (Real)
-import FwdMode
+import Prelude hiding (Real, (^))
+import FwdMode hiding (deriv)
 import FwdPSh
 import Rounded (Rounded)
 import Interval (Interval)
@@ -78,14 +79,27 @@ R x ^ k = R (pow x k)
 deriv :: Additive g => (DReal :=> DReal) g -> DReal g -> DReal g
 deriv f (R x) = R $ fwd_deriv1 f x 1
 
-min01 :: Additive g => (DReal :=> DReal) g -> DReal g
-min01 (ArrD f) = R (FwdPSh.min01' (let R b = f fstD (R sndD) in b))
+liftSndOrder :: Additive g =>
+     (forall g. Additive g => (g, Real) :~> Real -> g :~> Real)
+     -> (DReal :=> DReal) g -> DReal g
+liftSndOrder hof (ArrD f) = R (hof (let R b = f fstD (R sndD) in b))
 
-max01 :: Additive g => (DReal :=> DReal) g -> DReal g
-max01 (ArrD f) = R (FwdPSh.max01' (let R b = f fstD (R sndD) in b))
-
-max01N :: Additive g => (DReal :=> DReal) g -> DReal g
-max01N (ArrD f) = R (FwdPSh.max01Newton' (let R b = f fstD (R sndD) in b))
+min01, max01, max01N, integral01, cut_root ::
+  Additive g => (DReal :=> DReal) g -> DReal g
+min01 = liftSndOrder FwdPSh.min01'
+max01 = liftSndOrder FwdPSh.max01'
+max01N = liftSndOrder FwdPSh.max01Newton'
+integral01 = liftSndOrder FwdPSh.integral'
+cut_root = liftSndOrder FwdPSh.newton_cut'
 
 max :: DReal g -> DReal g -> DReal g
 max (R x) (R y) = R $ FwdPSh.max x y
+
+cuberoot :: Additive g => DReal g -> DReal g
+cuberoot x = cut_root (ArrD (\wk q -> dmap wk x - q ^ 3))
+
+second_deriv :: Additive g => (DReal :=> DReal) g -> DReal g -> DReal g
+second_deriv f = deriv (ArrD (\wk x -> deriv (dmap wk f) x))
+
+sndDerivCuberootExample :: DReal ()
+sndDerivCuberootExample = second_deriv (ArrD (\_ -> cuberoot)) 8

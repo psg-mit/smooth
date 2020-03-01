@@ -65,13 +65,34 @@ quarter_disk_variable r = compactUnion unit_interval $ ArrD (\wk z ->
   compactUnion unit_interval $ ArrD (\wk' theta ->
   let r' = dmap (wk @. wk') r in
   let z' = dmap wk' z in
-  point ((r' * z' * sin ((pi / 2) * theta)) :* (r' * z' * cos ((pi / 2) * theta)))))
+  point ((r' * z' * cos ((pi / 2) * theta)) :* (r' * z' * sin ((pi / 2) * theta)))))
 
 d_R2 :: ((DReal :* DReal) :* (DReal :* DReal) :=> DReal) g
-d_R2 = ArrD $ \_ ((x :* y) :* (x' :* y')) -> (x - x')^2 + (y - y')^2
+d_R2 = ArrD $ \_ ((x :* y) :* (x' :* y')) -> sqrt ((x - x')^2 + (y - y')^2)
 
 d_R1 :: (DReal :* DReal :=> DReal) g
 d_R1 = ArrD $ \_ (x :* x') -> (x - x')^2
+
+circle :: Additive g => DReal g -> Maximizer (DReal :* DReal) g
+circle r = map (ArrD (\wk theta -> let r' = dmap wk r in
+  (r' * cos (2 * pi * theta)) :* (r' * sin (2 * pi * theta)))) unit_interval
+
+unit_square_perim :: Additive g => Maximizer (DReal :* DReal) g
+unit_square_perim = foldr1 union [ map f unit_interval | f <- fs ]
+  where
+  fs :: Additive g => [(DReal :=> (DReal :* DReal)) g]
+  fs = [ ArrD (\_ x -> (2 * x - 1) :* (-1))
+       , ArrD (\_ x -> (2 * x - 1) :* 1)
+       , ArrD (\_ y -> (-1) :* (2 * y - 1))
+       , ArrD (\_ y -> 1 :* (2 * y - 1))]
+
+quarter_circle :: Additive g => DReal g -> Maximizer (DReal :* DReal) g
+quarter_circle r = map (ArrD (\wk theta -> let r' = dmap wk r in
+  (r' * cos (pi / 2 * theta)) :* (r' * sin (pi / 2 * theta)))) unit_interval
+
+quarter_square_perim :: Additive g => Maximizer (DReal :* DReal) g
+quarter_square_perim = union (map (ArrD (\_ x -> x :* 1)) unit_interval)
+                             (map (ArrD (\_ y -> 1 :* y)) unit_interval)
 
 exampleHausdorffDist :: DReal ()
 exampleHausdorffDist = hausdorffDist d_R2 unit_square quarter_disk
@@ -79,9 +100,15 @@ exampleHausdorffDist = hausdorffDist d_R2 unit_square quarter_disk
 exampleHausdorffDist2 :: DReal ()
 exampleHausdorffDist2 = hausdorffDist d_R1 unit_interval unit_interval
 
+exampleHausdorffDist3 :: DReal ()
+exampleHausdorffDist3 = hausdorffDist d_R2 quarter_square_perim (quarter_circle 1)
+
 -- Does this run?
 exampleHausdorffDistDeriv :: DReal ()
 exampleHausdorffDistDeriv = deriv (ArrD (\_ r -> hausdorffDist d_R2 unit_square (quarter_disk_variable r))) 1
+
+exampleHausdorffDist3Deriv :: DReal ()
+exampleHausdorffDist3Deriv = deriv (ArrD (\_ r -> hausdorffDist d_R2 quarter_square_perim (quarter_circle r))) 1
 
 xPlusY :: ((DReal :* DReal) :=> DReal) g
 xPlusY = ArrD (\_ (x :* y) -> x + y)
