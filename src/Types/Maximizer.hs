@@ -1,7 +1,7 @@
 module Types.Maximizer where
 
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), product, map, (^))
-import FwdMode ((:~>), fstD, sndD, getDerivTower, (@.))
+import FwdMode ((:~>), fstD, sndD, getDerivTower, (@.), VectorSpace)
 import FwdPSh hiding (max, max01)
 import Types.SmoothBool
 import Types.OShape (OShape)
@@ -9,58 +9,58 @@ import Types.Real
 
 type Maximizer a = (a :=> DReal) :=> DReal
 
-point :: Additive g => PShD a => a g -> Maximizer a g
+point :: VectorSpace g => PShD a => a g -> Maximizer a g
 point x = ArrD $ \wk f -> f # dmap wk x
 
-compactUnion :: Additive g => Maximizer a g -> (a :=> Maximizer b) g -> Maximizer b g
+compactUnion :: VectorSpace g => Maximizer a g -> (a :=> Maximizer b) g -> Maximizer b g
 compactUnion i f = ArrD $ \wk p ->
   dmap wk i # (ArrD $ \wk' x -> (dmap (wk @. wk') f # x) # dmap wk' p)
 
-product :: PShD a => Additive g => Maximizer a g -> Maximizer b g -> Maximizer (a :* b) g
+product :: PShD a => VectorSpace g => Maximizer a g -> Maximizer b g -> Maximizer (a :* b) g
 product ka kb = ArrD $ \wk p ->
   dmap wk          ka # (ArrD $ \wk' a ->
   dmap (wk @. wk') kb # (ArrD $ \wk'' b ->
     dmap (wk' @. wk'') p # (dmap wk'' a :* b)))
 
-union :: Additive g => Maximizer a g -> Maximizer a g -> Maximizer a g
+union :: VectorSpace g => Maximizer a g -> Maximizer a g -> Maximizer a g
 union k k' = ArrD $ \wk p -> max (dmap wk k # p) (dmap wk k' # p)
 
-map :: Additive g => (a :=> b) g -> Maximizer a g -> Maximizer b g
+map :: VectorSpace g => (a :=> b) g -> Maximizer a g -> Maximizer b g
 map f k = ArrD $ \wk p -> dmap wk k # ArrD (\wk' x -> dmap wk' p # (dmap (wk @. wk') f # x))
 
-sup :: Additive g => Maximizer a g -> (a :=> DReal) g -> DReal g
+sup :: VectorSpace g => Maximizer a g -> (a :=> DReal) g -> DReal g
 sup k p = k # p
 
-inf :: Additive g =>  Maximizer a g -> (a :=> DReal) g -> DReal g
+inf :: VectorSpace g =>  Maximizer a g -> (a :=> DReal) g -> DReal g
 inf k p = - (k # ArrD (\wk x -> - (dmap wk p # x)))
 
-infimum :: Additive g => Maximizer DReal g -> DReal g
+infimum :: VectorSpace g => Maximizer DReal g -> DReal g
 infimum k = inf k $ ArrD (\_ x -> x)
 
-supremum :: Additive g => Maximizer DReal g -> DReal g
+supremum :: VectorSpace g => Maximizer DReal g -> DReal g
 supremum k = sup k $ ArrD (\_ x -> x)
 
-hausdorffDist :: Additive g => PShD a =>
+hausdorffDist :: VectorSpace g => PShD a =>
   (a :* a :=> DReal) g -> Maximizer a g -> Maximizer a g -> DReal g
 hausdorffDist d k k' =
   max (sup k  (ArrD (\wk x  -> inf (dmap wk k') (ArrD (\wk' x' -> dmap (wk @. wk') d # (dmap wk' x :* x'))))))
      (sup k' (ArrD (\wk x' -> inf (dmap wk k ) (ArrD (\wk' x  -> dmap (wk @. wk') d # (x :* dmap wk' x'))))))
 
-separationDist :: Additive g => PShD a =>
+separationDist :: VectorSpace g => PShD a =>
   (a :* a :=> DReal) g -> Maximizer a g -> Maximizer a g -> DReal g
 separationDist d k k' =
   inf k' (ArrD (\wk x' -> inf (dmap wk k ) (ArrD (\wk' x  -> dmap (wk @. wk') d # (x :* dmap wk' x')))))
 
-unit_interval :: Additive g => Maximizer DReal g
+unit_interval :: VectorSpace g => Maximizer DReal g
 unit_interval = ArrD $ \_ -> max01
 
-unit_square :: Additive g => Maximizer (DReal :* DReal) g
+unit_square :: VectorSpace g => Maximizer (DReal :* DReal) g
 unit_square = product unit_interval unit_interval
 
-quarter_disk :: Additive g => Maximizer (DReal :* DReal) g
+quarter_disk :: VectorSpace g => Maximizer (DReal :* DReal) g
 quarter_disk = quarter_disk_variable 1
 
-quarter_disk_variable :: Additive g => DReal g -> Maximizer (DReal :* DReal) g
+quarter_disk_variable :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
 quarter_disk_variable r = compactUnion unit_interval $ ArrD (\wk z ->
   compactUnion unit_interval $ ArrD (\wk' theta ->
   let r' = dmap (wk @. wk') r in
@@ -73,24 +73,24 @@ d_R2 = ArrD $ \_ ((x :* y) :* (x' :* y')) -> sqrt ((x - x')^2 + (y - y')^2)
 d_R1 :: (DReal :* DReal :=> DReal) g
 d_R1 = ArrD $ \_ (x :* x') -> (x - x')^2
 
-circle :: Additive g => DReal g -> Maximizer (DReal :* DReal) g
+circle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
 circle r = map (ArrD (\wk theta -> let r' = dmap wk r in
   (r' * cos (2 * pi * theta)) :* (r' * sin (2 * pi * theta)))) unit_interval
 
-unit_square_perim :: Additive g => Maximizer (DReal :* DReal) g
+unit_square_perim :: VectorSpace g => Maximizer (DReal :* DReal) g
 unit_square_perim = foldr1 union [ map f unit_interval | f <- fs ]
   where
-  fs :: Additive g => [(DReal :=> (DReal :* DReal)) g]
+  fs :: VectorSpace g => [(DReal :=> (DReal :* DReal)) g]
   fs = [ ArrD (\_ x -> (2 * x - 1) :* (-1))
        , ArrD (\_ x -> (2 * x - 1) :* 1)
        , ArrD (\_ y -> (-1) :* (2 * y - 1))
        , ArrD (\_ y -> 1 :* (2 * y - 1))]
 
-quarter_circle :: Additive g => DReal g -> Maximizer (DReal :* DReal) g
+quarter_circle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
 quarter_circle r = map (ArrD (\wk theta -> let r' = dmap wk r in
   (r' * cos (pi / 2 * theta)) :* (r' * sin (pi / 2 * theta)))) unit_interval
 
-quarter_square_perim :: Additive g => Maximizer (DReal :* DReal) g
+quarter_square_perim :: VectorSpace g => Maximizer (DReal :* DReal) g
 quarter_square_perim = union (map (ArrD (\_ x -> x :* 1)) unit_interval)
                              (map (ArrD (\_ y -> 1 :* y)) unit_interval)
 
