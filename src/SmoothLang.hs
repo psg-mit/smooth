@@ -1,54 +1,67 @@
 module SmoothLang where
 
-import Prelude (snd)
-import Control.Arrow ((&&&), (<<<), arr)
-import Expr
-import RealExpr (B, runPoint, CPoint)
-import qualified RealExpr as RE
+import Prelude hiding (Real, max, min)
 import MPFR (Real)
-import Rounded (Rounded)
-import Data.Bool( Bool( True ) )
+import qualified Interval as I
+import RealExpr (runPoint)
+import FwdPSh (Additive, CPoint, R (..), (:=>) (..), max, wkn, integral, getDerivTower', (:*) (..), derivT)
+import Types.Real (DReal, cuberoot, deriv, second_deriv)
+import Types.Integral (mean, variance, uniform, change)
+import FwdMode (getValue)
+import Rounded (ofString, RoundDir( Down ))
+import Types.Maximizer (hausdorffDist, d_R2, quarter_square_perim, quarter_circle)
 
-sqrt2Example :: CPoint Real
-sqrt2Example = dedekind_cut (\x -> x < 0 || (x ^ 2) < 2)
+dRealtoReal :: DReal () -> CPoint Real
+dRealtoReal (R x) = getValue x
 
-sqrt2Example' :: CPoint Real
-sqrt2Example' = dedekind_cut1 (arr snd < 0 || (arr snd ^ 2) < 2)
+atPrec :: Double -> CPoint Real -> Real
+atPrec err real = let err' = ofString 100 Down (show err) in
+  (filter (\i -> (I.upper (I.width 100 i)) < err') (runPoint real)) !! 0
 
-quantificationExample :: CPoint Bool
-quantificationExample = exists_unit_interval (\x -> isTrue (x < asMPFR 0.5 && x > 0.3))
+-- Section 3: cuberoot 2
+cuberoot2 :: CPoint Real
+cuberoot2 = dRealtoReal (cuberoot 2)
 
-newtonSqrt2Example :: CPoint Real
-newtonSqrt2Example = newton_cut (\x -> max (-x) (2 - x^2) &&& ap1 RE.max_deriv ((-x &&& (2 - x^2)) &&& (-1 &&& -2*x)))
+-- Section 3: derivative of cuberoot 8 example
+oneTwelfth :: CPoint Real
+oneTwelfth = 1 / 12
 
--- f :: Rounded a => Interval a -> B
--- f x = (True, True)
+cuberoot8 :: CPoint Real
+cuberoot8 = dRealtoReal $ deriv (ArrD (\_ -> cuberoot)) 8
 
--- firstRootExample :: Rounded a => CPoint (Interval a)
--- firstRootExample = firstRoot <<< arr (\() -> f)
+-- Section 3.1: derivative of ReLU at 0
+reluDerivTower :: CPoint Real -> Int -> CPoint Real
+reluDerivTower x n = getDerivTower' (max 0) x !! n
 
--- Approaches 0.5 as is correct
-firstRootInTheMiddle :: CPoint Real
-firstRootInTheMiddle = firstRoot1 (arr snd < 0 || (arr snd ^ 2) < 0.25)
+reluFirstDerivAt0 :: CPoint Real
+reluFirstDerivAt0 = reluDerivTower 0 1
 
--- Should go to zero?
-firstRootOfDoublePM :: CPoint Real
-firstRootOfDoublePM = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (arr snd - asMPFR 0.7) < 0))
+-- Section 3.1: the integral from 0 to 1 of the derivative of ReLU(x - 0.2)
+-- TODO
+-- reluIntegralDerivTower :: CPoint Real
+-- reluIntegralDerivTower =
+--   integral (\x -> (getDerivTower' (\x -> max 0 (x - wkn 0.2)) x) !! 1)
 
--- Should go to 0.3
-firstRootOfDoubleMP :: CPoint Real
-firstRootOfDoubleMP = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (arr snd - asMPFR 0.7) > 0))
+-- Section 3.2: second derivative of cuberoot 8 example
+secondDerivCuberoot8 :: CPoint Real
+secondDerivCuberoot8 = dRealtoReal $ second_deriv (ArrD (\_ -> cuberoot)) 8
 
-firstRootBoundaryLeft :: CPoint Real
-firstRootBoundaryLeft = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.3) * (arr snd - asMPFR 0.5) > 0))
+-- Section 6.1: Ignoring for now because of liklihood of future changes
+-- TODO
 
-firstRootBoundaryRight :: CPoint Real
-firstRootBoundaryRight = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 0.5) * (arr snd - asMPFR 0.7) > 0))
+-- Section 7.1.3: derivative of the mean of a uniform distribution wrt. a line perturbation
+derivMeanLinearChange :: CPoint Real
+derivMeanLinearChange = let (y :* dy) = derivT mean (uniform :* change) in dRealtoReal dy
 
--- Approaches 1 as is correct
-firstRootAllNegative :: CPoint Real
-firstRootAllNegative = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 10) < 0))
+-- Section 7.1.3: derivative of the variance of a uniform distribution wrt. a line perturbation
+derivVarianceLinearChange :: CPoint Real
+derivVarianceLinearChange = let (y :* dy) = derivT variance (uniform :* change) in dRealtoReal dy
 
--- Approaches 0 as is correct
-firstRootAllPositive :: CPoint Real
-firstRootAllPositive = firstRoot1 (arr snd < 0 || ((arr snd - asMPFR 10) > 0))
+-- Section 7.4: hausdorff dist between quarter-circle and L-shape.
+hausdorffDistCircleL :: CPoint Real
+hausdorffDistCircleL = dRealtoReal $ hausdorffDist d_R2 quarter_square_perim (quarter_circle 1)
+
+-- Section 7.4: derivative of hausdorff dist between quarter-circle and L-shape wrt. radius.
+exampleHausdorffDist3Deriv :: CPoint Real
+exampleHausdorffDist3Deriv =
+  dRealtoReal $ deriv (ArrD (\_ r -> hausdorffDist d_R2 quarter_square_perim (quarter_circle r))) 1
