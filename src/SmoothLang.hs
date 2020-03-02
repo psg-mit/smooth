@@ -23,7 +23,7 @@ atPrec err real = fst (head (filter f (runPoint (dRealtoReal real &&& err))))
 cuberoot2 :: DReal ()
 cuberoot2 = cuberoot 2
 
--- Time: immediate
+-- Time: <1 second
 -- Result: [1.2596970, 1.2599339]
 runCuberoot2 :: Real
 runCuberoot2 = atPrec 0.01 cuberoot2
@@ -33,7 +33,7 @@ runCuberoot2 = atPrec 0.01 cuberoot2
 oneTwelfth ::  DReal ()
 oneTwelfth = 1 / 12
 
--- Time: immediate
+-- Time: <1 second
 -- Result: [0.083333333314, 0.083333333343]
 runOneTwelfth :: Real
 runOneTwelfth = atPrec 0.01 oneTwelfth
@@ -41,7 +41,7 @@ runOneTwelfth = atPrec 0.01 oneTwelfth
 derivCuberoot8 ::  DReal ()
 derivCuberoot8 = deriv (ArrD (\_ -> cuberoot)) 8
 
--- Time: immediate
+-- Time: <1 second
 -- Result: [0.08207671663416818358555, 0.09196111422526140110103]
 runDerivCuberoot8 :: Real
 runDerivCuberoot8 = atPrec 0.01 derivCuberoot8
@@ -51,7 +51,7 @@ runDerivCuberoot8 = atPrec 0.01 derivCuberoot8
 reluFirstDerivAt0 :: DReal ()
 reluFirstDerivAt0 = deriv (ArrD (\_ x -> max 0 x)) 0
 
--- Time: immediate
+-- Time: <1 second
 -- Result: [0.00000000000, 1.0000000000]
 runReluFirstDerivAt0 :: Real
 runReluFirstDerivAt0 = atPrec 2 reluFirstDerivAt0
@@ -62,7 +62,7 @@ reluIntegralDeriv :: DReal ()
 reluIntegralDeriv =
   integral01 (ArrD (\_ -> deriv (ArrD (\_ x -> max 0 (x - 0.2)))))
 
--- Time: immediate
+-- Time: <1 second
 -- Result: [0.79687500, 0.80468750]
 runReluIntegralDeriv :: Real
 runReluIntegralDeriv = atPrec 0.01 reluIntegralDeriv
@@ -72,7 +72,7 @@ runReluIntegralDeriv = atPrec 0.01 reluIntegralDeriv
 secondDerivCuberoot8 ::  DReal ()
 secondDerivCuberoot8 = second_deriv (ArrD (\_ -> cuberoot)) 8
 
--- Time: immediate
+-- Time: <1 second
 -- Result: [-0.0069805319281614268773525, -0.0069361180547353969938394]
 runSecondDerivCuberoot8 :: Real
 runSecondDerivCuberoot8 = atPrec 0.001 secondDerivCuberoot8
