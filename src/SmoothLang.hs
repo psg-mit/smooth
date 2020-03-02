@@ -1,5 +1,6 @@
 module SmoothLang where
 
+import Control.Arrow ((&&&))
 import Prelude hiding (Real, max, min)
 import MPFR (Real)
 import qualified Interval as I
@@ -14,9 +15,9 @@ import Types.Maximizer (hausdorffDist, d_R2, quarter_square_perim, quarter_circl
 dRealtoReal :: DReal () -> CPoint Real
 dRealtoReal (R x) = getValue x
 
-atPrec :: Double -> CPoint Real -> Real
-atPrec err real = let err' = ofString 100 Down (show err) in
-  (filter (\i -> (I.upper (I.width 100 i)) < err') (runPoint real)) !! 0
+atPrec :: CPoint Real -> DReal () -> Real
+atPrec err real = fst (head (filter f (runPoint (dRealtoReal real &&& err))))
+  where f (i, erri) = I.upper (I.width 100 i) < I.lower erri
 
 -- Section 3: cuberoot 2
 cuberoot2 :: DReal ()
