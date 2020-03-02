@@ -24,9 +24,9 @@ cuberoot2 :: DReal ()
 cuberoot2 = cuberoot 2
 
 -- Time: <1 second
--- Result: [1.2596970, 1.2599339]
+-- Result: [1.259921044, 1.259921059]
 runCuberoot2 :: Real
-runCuberoot2 = atPrec 0.01 cuberoot2
+runCuberoot2 = atPrec 0.00001 cuberoot2
 
 
 -- Section 3: derivative of cuberoot 8 example
@@ -36,15 +36,15 @@ oneTwelfth = 1 / 12
 -- Time: <1 second
 -- Result: [0.083333333314, 0.083333333343]
 runOneTwelfth :: Real
-runOneTwelfth = atPrec 0.01 oneTwelfth
+runOneTwelfth = atPrec 0.00001 oneTwelfth
 
 derivCuberoot8 ::  DReal ()
 derivCuberoot8 = deriv (ArrD (\_ -> cuberoot)) 8
 
 -- Time: <1 second
--- Result: [0.08207671663416818358555, 0.09196111422526140110103]
+-- Result: [0.08333333275125672724797760, 0.08333335031057036046674712]
 runDerivCuberoot8 :: Real
-runDerivCuberoot8 = atPrec 0.01 derivCuberoot8
+runDerivCuberoot8 = atPrec 0.00001 derivCuberoot8
 
 
 -- Section 3.1: derivative of ReLU at 0
@@ -56,16 +56,20 @@ reluFirstDerivAt0 = deriv (ArrD (\_ x -> max 0 x)) 0
 runReluFirstDerivAt0 :: Real
 runReluFirstDerivAt0 = atPrec 2 reluFirstDerivAt0
 
+-- Time: <1 second
+-- Result: [0.00000000000, 1.0000000000]
+runReluFirstDerivAt0HigherPrec :: Real
+runReluFirstDerivAt0HigherPrec = atPrec 1.5 reluFirstDerivAt0
 
 -- Section 3.1: the integral from 0 to 1 of the derivative of ReLU(x - 0.2)
 reluIntegralDeriv :: DReal ()
 reluIntegralDeriv =
   integral01 (ArrD (\_ -> deriv (ArrD (\_ x -> max 0 (x - 0.2)))))
 
--- Time: <1 second
--- Result: [0.79687500, 0.80468750]
+-- Time: 90 second
+-- Result: [0.79999542, 0.80000305]
 runReluIntegralDeriv :: Real
-runReluIntegralDeriv = atPrec 0.01 reluIntegralDeriv
+runReluIntegralDeriv = atPrec 0.00001 reluIntegralDeriv
 
 
 -- Section 3.2: second derivative of cuberoot 8 example
@@ -73,9 +77,9 @@ secondDerivCuberoot8 ::  DReal ()
 secondDerivCuberoot8 = second_deriv (ArrD (\_ -> cuberoot)) 8
 
 -- Time: <1 second
--- Result: [-0.0069805319281614268773525, -0.0069361180547353969938394]
+-- Result: [-0.006944448713007772777947928, -0.006944443591540540717010462]
 runSecondDerivCuberoot8 :: Real
-runSecondDerivCuberoot8 = atPrec 0.001 secondDerivCuberoot8
+runSecondDerivCuberoot8 = atPrec 0.00001 secondDerivCuberoot8
 
 -- Section 6.1: Ignoring for now because of liklihood of future changes
 -- TODO
@@ -98,10 +102,10 @@ runDerivMeanLinearChange = atPrec 0.001 derivMeanLinearChange
 derivVarianceLinearChange ::  DReal ()
 derivVarianceLinearChange = let y :* dy = derivT variance (uniform :* change) in dy
 
--- Time: 1 second
--- Result: [-0.035369873046875000, 0.035369873046875000]
+-- Time: 2 minutes
+-- Result: [-0.004394948482513427734375, 0.004394948482513427734375]
 runDerivVarianceLinearChange :: Real
-runDerivVarianceLinearChange = atPrec 0.1 derivVarianceLinearChange
+runDerivVarianceLinearChange = atPrec 0.01 derivVarianceLinearChange
 
 
 -- Section 7.4: hausdorff dist between quarter-circle and L-shape.
