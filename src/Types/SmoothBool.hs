@@ -4,7 +4,7 @@ module Types.SmoothBool where
 
 import qualified Prelude
 import Prelude hiding (Real, (&&), (||), not, max, min, Ord (..), (^))
-import FwdMode ((:~>), fstD, sndD, getDerivTower, getValue, (@.), pow')
+import FwdMode ((:~>), fstD, sndD, getDerivTower, getValue, (@.), pow', VectorSpace)
 import FwdMode (fwdSecondDer, fwdDer, dId, pairD, square'')
 import FwdPSh hiding (max)
 import Interval (Interval (..))
@@ -59,16 +59,16 @@ x > y = SBool (x - y)
 -- Describe a real number by a predicate saying what it means
 -- to be less than it.
 -- x < dedekind_cut P  iff P x
-dedekind_cut :: Additive g => (DReal :=> SBool) g -> DReal g
+dedekind_cut :: VectorSpace g => (DReal :=> SBool) g -> DReal g
 dedekind_cut (ArrD f) = R (FwdPSh.newton_cut' (let SBool (R b) = f fstD (R sndD) in b))
 
-forall01 :: Additive g => (DReal :=> SBool) g -> SBool g
+forall01 :: VectorSpace g => (DReal :=> SBool) g -> SBool g
 forall01 (ArrD f) = positive (R (FwdPSh.min01' (let SBool (R b) = f fstD (R sndD) in b)))
 
-exists01 :: Additive g => (DReal :=> SBool) g -> SBool g
+exists01 :: VectorSpace g => (DReal :=> SBool) g -> SBool g
 exists01 (ArrD f) = positive (R (FwdPSh.max01' (let SBool (R b) = f fstD (R sndD) in b)))
 
-dedekind_cubert :: Additive g => DReal g -> DReal g
+dedekind_cubert :: VectorSpace g => DReal g -> DReal g
 dedekind_cubert z = dedekind_cut (ArrD (\wk x -> x < 0 || x^3 < dmap wk z))
 
 testBSqrt :: CPoint Real -> [CPoint Real]

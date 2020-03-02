@@ -3,7 +3,7 @@
 module Types.Discrete where
 
 import Prelude hiding (Real)
-import FwdMode ((:~>), pairD, fstD, sndD, dId, (@.), bang, getValue)
+import FwdMode ((:~>), pairD, fstD, sndD, dId, (@.), bang, getValue, VectorSpace)
 import FwdPSh hiding (fromCPoint)
 import qualified FwdPSh as F
 import qualified Control.Category as C
@@ -11,7 +11,7 @@ import RealExpr (CMap)
 
 newtype Box a g = Box (a ())
 
-flat :: PShD a => Additive g => Box a g -> a g
+flat :: PShD a => VectorSpace g => Box a g -> a g
 flat (Box x) = dmap bang x
 
 boxbox :: Box (Box a) g :== Box a g

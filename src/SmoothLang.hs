@@ -103,6 +103,11 @@ derivVarianceLinearChange = let y :* dy = derivT variance (uniform :* change) in
 runDerivVarianceLinearChange :: Real
 runDerivVarianceLinearChange = atPrec 0.1 derivVarianceLinearChange
 
+secondDerivVarianceLinearChange ::  DReal ()
+secondDerivVarianceLinearChange =
+  let ((y :* _) :* (_ :* dy2)) = derivT (ArrD (\_ -> derivT variance)) ((uniform :* change) :* (change :* (ArrD (\_ _ -> 0))))
+  in dy2
+
 
 -- Section 7.4: hausdorff dist between quarter-circle and L-shape.
 hausdorffDistCircleL ::  DReal ()

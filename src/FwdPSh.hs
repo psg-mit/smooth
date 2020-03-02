@@ -60,10 +60,10 @@ instance Show a => Show (() :~> a) where
   show = show Prelude.. getValue
 
 infixr 2 :=>
-data (:=>) a b (g :: *) = ArrD (forall d. Additive d => d :~> g -> a d -> b d)
+data (:=>) a b (g :: *) = ArrD (forall d. VectorSpace d => d :~> g -> a d -> b d)
 
 infixl 8 #
-(#) :: Additive g => (a :=> b) g -> a g -> b g
+(#) :: VectorSpace g => (a :=> b) g -> a g -> b g
 ArrD f # x = f dId x
 
 instance RE.CNum a => Num (R CMap a g) where
@@ -146,7 +146,7 @@ fwd_deriv :: Additive g => Additive a => Additive b =>
   ((g, a) :~> a -> (g, a) :~> b) -> g :~> a -> g :~> a -> g :~> b
 fwd_deriv f = fwd_deriv' (f sndD)
 
-fwd_deriv1 :: Additive g => Additive a => Additive b =>
+fwd_deriv1 :: VectorSpace g => VectorSpace a => VectorSpace b =>
   ((R D a :=> R D b) g) -> g :~> a -> g :~> a -> g :~> b
 fwd_deriv1 (ArrD f) = fwd_deriv' (let R b = f fstD (R sndD) in b)
 
@@ -192,7 +192,7 @@ data Tan f g where
    Tan :: VectorSpace d => g :~> (d, d) -> f d -> Tan f g
 
 class PShD f where
-  dmap :: Additive d => Additive g => d :~> g -> f g -> f d
+  dmap :: VectorSpace d => VectorSpace g => d :~> g -> f g -> f d
 
 instance PShD (K a) where
   dmap _ (K x) = K x
@@ -213,7 +213,7 @@ class Tangential a where
   type Tangent a :: * -> *
   tangent :: VectorSpace g => Tan a g :== Tangent a g
 
-tangentValue :: Additive g => PShD f => Tan f g -> f g
+tangentValue :: VectorSpace g => PShD f => Tan f g -> f g
 tangentValue (Tan xdx f) = dmap (fstD @. xdx) f
 
 tangentZero :: VectorSpace g => f g -> Tan f g
