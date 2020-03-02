@@ -88,12 +88,3 @@ mean = ArrD $ \_ mu -> mu # (ArrD (\_ x -> x))
 
 variance :: (Integral DReal :=> DReal) g
 variance = ArrD $ \_ mu -> mu # (ArrD (\wk x -> (x - mean # dmap wk mu) ^ 2))
-
-change :: Integral DReal g
-change = ArrD $ \_ f -> uniform # (ArrD (\wk x -> (x - 1/2) * dmap wk f # x))
-
-derMeanChange :: DReal ()
-derMeanChange = let (y :* dy) = derivT mean (uniform :* change) in dy
-
-derVarianceChange :: DReal ()
-derVarianceChange = let (y :* dy) = derivT variance (uniform :* change) in dy

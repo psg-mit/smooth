@@ -1,13 +1,13 @@
 module SmoothLang where
 
 import Control.Arrow ((&&&))
-import Prelude hiding (Real, max, min)
+import Prelude hiding (Real, max, min, Integral)
 import MPFR (Real)
 import qualified Interval as I
 import RealExpr (runPoint)
-import FwdPSh (Additive, CPoint, R (..), (:=>) (..), (:*) (..), derivT)
+import FwdPSh (Additive, CPoint, R (..), (:=>) (..), (:*) (..), derivT, (#), dmap)
 import Types.Real
-import Types.Integral (mean, variance, uniform, change)
+import Types.Integral (Integral, mean, variance, uniform)
 import FwdMode (getValue)
 import Rounded (ofString, RoundDir( Down ))
 import Types.Maximizer (hausdorffDist, d_R2, quarter_square_perim, quarter_circle)
@@ -47,12 +47,15 @@ secondDerivCuberoot8 = second_deriv (ArrD (\_ -> cuberoot)) 8
 -- TODO
 
 -- Section 7.1.3: derivative of the mean of a uniform distribution wrt. a line perturbation
+change :: Integral DReal g
+change = ArrD $ \_ f -> uniform # (ArrD (\wk x -> (x - 1/2) * dmap wk f # x))
+
 derivMeanLinearChange ::  DReal ()
-derivMeanLinearChange = let (y :* dy) = derivT mean (uniform :* change) in dy
+derivMeanLinearChange = let y :* dy = derivT mean (uniform :* change) in dy
 
 -- Section 7.1.3: derivative of the variance of a uniform distribution wrt. a line perturbation
 derivVarianceLinearChange ::  DReal ()
-derivVarianceLinearChange = let (y :* dy) = derivT variance (uniform :* change) in dy
+derivVarianceLinearChange = let y :* dy = derivT variance (uniform :* change) in dy
 
 -- Section 7.4: hausdorff dist between quarter-circle and L-shape.
 hausdorffDistCircleL ::  DReal ()
