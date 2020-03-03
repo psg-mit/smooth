@@ -1,14 +1,14 @@
 module SmoothLang where
 
 import Control.Arrow ((&&&))
-import Prelude hiding (Real, max, min, Integral)
+import Prelude hiding (Real, max, min, Integral, (^))
 import MPFR (Real)
 import qualified Interval as I
 import RealExpr (runPoint)
 import FwdPSh (Additive, CPoint, R (..), (:=>) (..), (:*) (..), derivT, (#), dmap)
 import Types.Real
 import Types.Integral (Integral, mean, variance, uniform)
-import FwdMode (getValue)
+import FwdMode (getValue, VectorSpace)
 import Rounded (ofString, RoundDir( Down ))
 import Types.Maximizer (hausdorffDist, d_R2, quarter_square_perim, quarter_circle)
 
@@ -111,6 +111,30 @@ secondDerivVarianceLinearChange ::  DReal ()
 secondDerivVarianceLinearChange =
   let ((y :* _) :* (_ :* dy2)) = derivT (ArrD (\_ -> derivT variance)) ((uniform :* change) :* (change :* (ArrD (\_ _ -> 0))))
   in dy2
+
+
+--  Section 7.3: raytracing
+dot :: VectorSpace g => (DReal :* DReal) g -> (DReal :* DReal) g -> DReal g
+dot (x0 :* x1) (y0 :* y1) = x0 * y0 + x1 * y1
+
+scale :: VectorSpace g => DReal g -> (DReal :* DReal) g -> (DReal :* DReal) g
+scale c (x0 :* x1) = (c * x0) :* (c * x1)
+
+normalize :: VectorSpace g => (DReal :* DReal) g -> (DReal :* DReal) g
+normalize x@(x0 :* x1) = scale (sqrt (x0^2 + x1^2)) x
+
+-- gradient :: VectorSpace g => (DReal :* DReal :=> DReal) g -> (DReal :* DReal) g -> (DReal :* DReal) g
+-- gradient f (x0 :* x1) =
+--   (deriv (ArrD $ \_ z -> (f (z :* x0))) x0) :* (deriv (ArrD $ \_ z -> (f (x1 :* z))) x0)
+
+-- raytrace :: VectorSpace g => (DReal :* DReal :* DReal) g ->
+--                              (DReal :* DReal :* DReal) g ->
+--                              (DReal :* DReal :* DReal) g -> DReal g
+-- raytrace s lightPos u =
+--   let t = firstRoot (\t -> s (scale t u)) in
+--   let y = scale t u in
+--   let normal = gradient s y in
+--   max 0 (dot (normalize normal) (normalize (y - lightPos)))
 
 
 -- Section 7.4: hausdorff dist between quarter-circle and L-shape.
