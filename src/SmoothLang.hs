@@ -123,18 +123,20 @@ scale c (x0 :* x1) = (c * x0) :* (c * x1)
 normalize :: VectorSpace g => (DReal :* DReal) g -> (DReal :* DReal) g
 normalize x@(x0 :* x1) = scale (sqrt (x0^2 + x1^2)) x
 
--- gradient :: VectorSpace g => (DReal :* DReal :=> DReal) g -> (DReal :* DReal) g -> (DReal :* DReal) g
--- gradient f (x0 :* x1) =
---   (deriv (ArrD $ \_ z -> (f (z :* x0))) x0) :* (deriv (ArrD $ \_ z -> (f (x1 :* z))) x0)
+gradient :: VectorSpace g => (DReal :* DReal :=> DReal) g -> (DReal :* DReal) g -> (DReal :* DReal) g
+gradient f (x0 :* x1) =
+  (deriv (ArrD $ \wk z -> dmap wk f # (z :* dmap wk x0)) x0) :* (deriv (ArrD $ \wk z -> dmap wk f # (dmap wk x1 :* z)) x0)
 
--- raytrace :: VectorSpace g => (DReal :* DReal :* DReal) g ->
---                              (DReal :* DReal :* DReal) g ->
---                              (DReal :* DReal :* DReal) g -> DReal g
--- raytrace s lightPos u =
---   let t = firstRoot (\t -> s (scale t u)) in
---   let y = scale t u in
---   let normal = gradient s y in
---   max 0 (dot (normalize normal) (normalize (y - lightPos)))
+raytrace :: VectorSpace g => ((DReal :* DReal) :=> DReal) g ->
+                             (DReal :* DReal) g ->
+                             (DReal :* DReal) g -> DReal g
+raytrace s lightPos u =
+  let t = firstRoot (ArrD (\wk t -> dmap wk s # (scale t (dmap wk u)))) in
+  let y = scale t u in
+  let normal = gradient s y in
+  max 0 (dot (normalize normal) (normalize (y `sub` lightPos)))
+  where
+  (x0 :* x1) `sub` (y0 :* y1) = (x0 - y0) :* (x1 - y1)
 
 
 -- Section 7.4: hausdorff dist between quarter-circle and L-shape.

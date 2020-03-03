@@ -90,13 +90,14 @@ liftSndOrder :: VectorSpace g =>
      -> (DReal :=> DReal) g -> DReal g
 liftSndOrder hof (ArrD f) = R (hof (let R b = f fstD (R sndD) in b))
 
-min01, max01, max01N, integral01, cut_root ::
+min01, max01, max01N, integral01, cut_root, firstRoot ::
   VectorSpace g => (DReal :=> DReal) g -> DReal g
 min01 = liftSndOrder FwdPSh.min01'
 max01 = liftSndOrder FwdPSh.max01'
 max01N = liftSndOrder FwdPSh.max01Newton'
 integral01 = liftSndOrder FwdPSh.integral'
 cut_root = liftSndOrder FwdPSh.newton_cut'
+firstRoot = liftSndOrder FwdPSh.firstRoot'
 
 max :: DReal g -> DReal g -> DReal g
 max (R x) (R y) = R $ FwdPSh.max x y
