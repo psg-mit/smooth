@@ -82,6 +82,9 @@ secondDerivCuberoot8 = second_deriv (ArrD (\_ -> cuberoot)) 8
 runSecondDerivCuberoot8 :: Real
 runSecondDerivCuberoot8 = atPrec 0.00001 secondDerivCuberoot8
 
+mixedPartial :: DReal ()
+mixedPartial = deriv (ArrD (\_ x -> deriv (ArrD (\wk y -> dmap wk x * y)) 0)) 1
+
 -- Section 6.1: Ignoring for now because of liklihood of future changes
 -- TODO
 
