@@ -86,29 +86,15 @@ unit_square_perim = foldr1 union [ map f unit_interval | f <- fs ]
        , ArrD (\_ y -> (-1) :* (2 * y - 1))
        , ArrD (\_ y -> 1 :* (2 * y - 1))]
 
-quarter_circle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
-quarter_circle r = map (ArrD (\wk theta -> let r' = dmap wk r in
-  (r' * cos (pi / 2 * theta)) :* (r' * sin (pi / 2 * theta)))) unit_interval
-
-quarter_square_perim :: VectorSpace g => Maximizer (DReal :* DReal) g
-quarter_square_perim = union (map (ArrD (\_ x -> x :* 1)) unit_interval)
-                             (map (ArrD (\_ y -> 1 :* y)) unit_interval)
-
 exampleHausdorffDist :: DReal ()
 exampleHausdorffDist = hausdorffDist d_R2 unit_square quarter_disk
 
 exampleHausdorffDist2 :: DReal ()
 exampleHausdorffDist2 = hausdorffDist d_R1 unit_interval unit_interval
 
-exampleHausdorffDist3 :: DReal ()
-exampleHausdorffDist3 = hausdorffDist d_R2 quarter_square_perim (quarter_circle 1)
-
 -- Does this run?
 exampleHausdorffDistDeriv :: DReal ()
 exampleHausdorffDistDeriv = deriv (ArrD (\_ r -> hausdorffDist d_R2 unit_square (quarter_disk_variable r))) 1
-
-exampleHausdorffDist3Deriv :: DReal ()
-exampleHausdorffDist3Deriv = deriv (ArrD (\_ r -> hausdorffDist d_R2 quarter_square_perim (quarter_circle r))) 1
 
 xPlusY :: ((DReal :* DReal) :=> DReal) g
 xPlusY = ArrD (\_ (x :* y) -> x + y)

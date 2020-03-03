@@ -10,7 +10,8 @@ import Types.Real
 import Types.Integral (Integral, mean, variance, uniform)
 import FwdMode (getValue, VectorSpace)
 import Rounded (ofString, RoundDir( Down ))
-import Types.Maximizer (hausdorffDist, d_R2, quarter_square_perim, quarter_circle)
+import Types.Maximizer (hausdorffDist, d_R2, Maximizer)
+import qualified Types.Maximizer as M
 
 dRealtoReal :: DReal () -> CPoint Real
 dRealtoReal (R x) = getValue x
@@ -138,10 +139,27 @@ raytrace s lightPos u =
   where
   (x0 :* x1) `sub` (y0 :* y1) = (x0 - y0) :* (x1 - y1)
 
+circle :: VectorSpace g => DReal g -> ((DReal :* DReal) :=> DReal) g
+circle y0 = ArrD $ \wk (x :* y) -> (x - 1)^2 + (y - dmap wk y0)^2 - 1
+
+testRayTrace :: DReal ()
+testRayTrace = raytrace (circle (1/2)) (0 :* 1) (1 :* 0)
+
+testRayTraceDeriv :: DReal ()
+testRayTraceDeriv = deriv (ArrD (\_ y0 -> raytrace (circle y0) (0 :* 1) (1 :* 0))) (1/2)
+
+
+quarter_circle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
+quarter_circle y0 = M.map (ArrD (\wk theta -> let y0' = dmap wk y0 in
+  (cos (pi / 2 * theta)) :* (y0' + sin (pi / 2 * theta)))) M.unit_interval
+
+quarter_square_perim :: VectorSpace g => Maximizer (DReal :* DReal) g
+quarter_square_perim = M.union (M.map (ArrD (\_ x -> x :* 1)) M.unit_interval)
+                               (M.map (ArrD (\_ y -> 1 :* y)) M.unit_interval)
 
 -- Section 7.4: hausdorff dist between quarter-circle and L-shape.
 hausdorffDistCircleL ::  DReal ()
-hausdorffDistCircleL = hausdorffDist d_R2 quarter_square_perim (quarter_circle 1)
+hausdorffDistCircleL = hausdorffDist d_R2 quarter_square_perim (quarter_circle 0)
 
 -- Time: 7 seconds
 -- Result: [0.41384921849465670653300003702, 0.41440539111235744884709353399]
@@ -152,4 +170,4 @@ runHausdorffDistCircleL = atPrec 0.001 hausdorffDistCircleL
 -- Section 7.4: derivative of hausdorff dist between quarter-circle and L-shape wrt. radius.
 exampleHausdorffDist3Deriv :: DReal ()
 exampleHausdorffDist3Deriv =
-  deriv (ArrD (\_ r -> hausdorffDist d_R2 quarter_square_perim (quarter_circle r))) 1
+  deriv (ArrD (\_ y -> hausdorffDist d_R2 quarter_square_perim (quarter_circle y))) 0
