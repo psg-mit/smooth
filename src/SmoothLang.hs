@@ -121,8 +121,11 @@ dot (x0 :* x1) (y0 :* y1) = x0 * y0 + x1 * y1
 scale :: VectorSpace g => DReal g -> (DReal :* DReal) g -> (DReal :* DReal) g
 scale c (x0 :* x1) = (c * x0) :* (c * x1)
 
+norm2 :: (DReal :* DReal) g -> DReal g
+norm2 (x :* y) = x^2 + y^2
+
 normalize :: VectorSpace g => (DReal :* DReal) g -> (DReal :* DReal) g
-normalize x@(x0 :* x1) = scale (1 / sqrt (x0^2 + x1^2)) x
+normalize x = scale (1 / norm2 x) x
 
 gradient :: VectorSpace g => (DReal :* DReal :=> DReal) g -> (DReal :* DReal) g -> (DReal :* DReal) g
 gradient f (x0 :* x1) =
@@ -135,12 +138,14 @@ raytrace s lightPos u =
   let t = firstRoot (ArrD (\wk t -> dmap wk s # (scale t (dmap wk u)))) in
   let y = scale t u in
   let normal = gradient s y in
-  max 0 (dot (normalize normal) (normalize (lightPos `sub` y)))
+  let lightVector = lightPos `sub` y in
+  max 0 (dot (normalize normal) (normalize lightVector))
+  / (norm2 y * norm2 lightVector)
   where
   (x0 :* x1) `sub` (y0 :* y1) = (x0 - y0) :* (x1 - y1)
 
 circle :: VectorSpace g => DReal g -> ((DReal :* DReal) :=> DReal) g
-circle y0 = ArrD $ \wk (x :* y) -> 1 - ((x - 1)^2 + (y - dmap wk y0)^2)
+circle y0 = ArrD $ \wk (x :* y) -> ((x - 1)^2 + (y - dmap wk y0)^2) - 1
 
 testRayTrace :: DReal ()
 testRayTrace = raytrace (circle (-3/4)) (1 :* 1) (1 :* 0)
