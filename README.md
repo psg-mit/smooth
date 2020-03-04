@@ -1,13 +1,16 @@
 # smooth
 
+Examples from the paper are located in the file `src/SmoothLang.hs`.
+Each example is annotated with its approximate runtime.
+
+For example, the paper (section 3.1) shows the computation of the the derivative of (ReLU(x))^2, which corresponds to the definition `runDerivReluSquared` in `src/SmoothLang.hs`.
+
 ## Docker instructions
 
-On my machine, to set up the environment for Docker:
+If necessary, set up the environment for Docker:
 ```
 eval $(docker-machine env default)
 ```
-
-#### Docker image:
 
 The Dockerfile is at the base of the source code directory. To build a docker image from the Dockerfile, run from the base of the source directory the command
 ```
@@ -26,7 +29,7 @@ with `vim SmoothLang.hs` and can run the examples with `stack ghci SmoothLang.hs
 launch a repl with all of the examples loaded.
 
 For example, the paper (section 3.1) shows the computation of the the derivative of (ReLU(x))^2.
-This can be reproduced by running `runDerivReluSquared`. It should compute immediately and return
+This can be reproduced by running `runDerivReluSquared`. It should compute almost immediately and return
 the interval [0,0].
 
 Computations of type `Real` return a single interval which corresponds to the interval refined to
