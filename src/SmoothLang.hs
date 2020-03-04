@@ -159,7 +159,7 @@ norm2 :: (DReal :* DReal) g -> DReal g
 norm2 (x :* y) = x^2 + y^2
 
 normalize :: VectorSpace g => (DReal :* DReal) g -> (DReal :* DReal) g
-normalize x = scale (1 / norm2 x) x
+normalize x = scale (1 / sqrt (norm2 x)) x
 
 gradient :: VectorSpace g => (DReal :* DReal :=> DReal) g -> (DReal :* DReal) g -> (DReal :* DReal) g
 gradient f (x0 :* x1) =
@@ -187,13 +187,13 @@ rayTrace = raytrace (circle (-3/4)) (1 :* 1) (1 :* 0)
 rayTraceDeriv :: DReal ()
 rayTraceDeriv = deriv (ArrD (\_ y0 -> raytrace (circle y0) (1 :* 1) (1 :* 0))) (-3/4)
 
--- Time: <1 second
--- Result: [0.14141667894924812184427172108378768467, 0.14142297467777446020890677629582431684]
+-- Time: 1 second
+-- Result: [2.587289929104514485486379588564089986615867, 2.587298566457847103838396428782456969483227]
 runRayTrace :: Real
 runRayTrace = atPrec 0.00001 rayTrace
 
--- Time: 20 seconds
--- Result: [1.836082661248419481260195175334, 1.836741944317042477214026217507]
+-- Time: 12 seconds
+-- Result: [1.347739015144645601713439374053190179150, 1.348337596821412823551715548182238961320]
 runRayTraceDeriv :: Real
 runRayTraceDeriv = atPrec 0.001 rayTraceDeriv
 
@@ -221,7 +221,7 @@ hausdorffDistTranslatedQuarterCircle :: DReal ()
 hausdorffDistTranslatedQuarterCircle =
   deriv (ArrD (\_ y -> hausdorffDist d_R2 quarter_square_perim (quarter_circle y))) 0
 
--- Time: 10 minutes
+-- Time: 52 seconds
 -- Result: [-0.752, -0.664]
 runHausdorffDistTranslatedQuarterCircle :: Real
 runHausdorffDistTranslatedQuarterCircle = atPrec 0.1 hausdorffDistTranslatedQuarterCircle
