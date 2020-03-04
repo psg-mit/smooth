@@ -108,8 +108,16 @@ runMixedPartialXY :: Real
 runMixedPartialXY = atPrec 0.00001 mixedPartialXY
 
 
--- Section 6.1: Ignoring for now because of liklihood of future changes
--- TODO
+-- Section 6.1:
+-- call derivCuberoot8 implemented as part of section 3
+oneTwelfth :: DReal ()
+oneTwelfth = 1 / 12
+
+sqrt2 :: DReal ()
+sqrt2 = sqrt 2
+
+sqrt2squared :: DReal ()
+sqrt2squared = (sqrt 2)^2
 
 
 -- Section 7.1.3: derivative of the mean of a uniform distribution wrt. a line perturbation
