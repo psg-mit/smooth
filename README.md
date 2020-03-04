@@ -28,3 +28,8 @@ launch a repl with all of the examples loaded.
 For example, the paper (section 3.1) shows the computation of the the derivative of (ReLU(x))^2.
 This can be reproduced by running `runDerivReluSquared`. It should compute immediately and return
 the interval [0,0].
+
+Computations of type `Real` return a single interval which corresponds to the interval refined to
+the precision specified with the `atPrec` function. On the other hand, computations of type
+`DReal ()` produce and infinite stream of finer and finer results. This stream may be truncated
+at any time with Ctrl+C.
