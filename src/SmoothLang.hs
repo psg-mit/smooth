@@ -71,18 +71,22 @@ runReluFirstDerivAt0 = atPrec 2 reluFirstDerivAt0
 runReluFirstDerivAt0nonterminating :: Real
 runReluFirstDerivAt0nonterminating = atPrec 0.1 reluFirstDerivAt0
 
-reluSquared :: DReal ()
-reluSquared = deriv (ArrD (\_ x -> (max 0 x) * (max 0 x))) 0
+derivReluSquared :: DReal ()
+derivReluSquared = deriv (ArrD (\_ x -> (max 0 x) * (max 0 x))) 0
 
 -- Time: <1 second
 -- Result: [0.00000000000, 0.00000000000]
-runReluSquared :: Real
-runReluSquared = atPrec 0.00001 reluSquared
+runDerivReluSquared :: Real
+runDerivReluSquared = atPrec 0.00001 derivReluSquared
 
 reluIntegralDeriv :: DReal ()
 reluIntegralDeriv =
   integral01 (ArrD (\_ -> deriv (ArrD (\_ x -> max 0 (x - 0.2)))))
 
+-- Time: 1 minute
+-- Result: [0.79999542, 0.80000305]
+runReluIntegralDeriv :: Real
+runReluIntegralDeriv = atPrec 0.00001 reluIntegralDeriv
 
 -- Section 3.2: second derivative of cuberoot 8 example
 secondDerivCuberoot8 ::  DReal ()
