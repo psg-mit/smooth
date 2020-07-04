@@ -36,119 +36,7 @@ reluIntegral :: DReal ()
 reluIntegral =
   deriv (ArrD (\_ c -> (integral01 (ArrD (\wk x -> max 0 (x - (dmap wk c))))))) 0.6
 
-
--- Section 3: cuberoot 2
-cuberoot2 :: DReal ()
-cuberoot2 = cuberoot 2
-
--- Time: <1 second
--- Result: [1.259921044, 1.259921059]
-runCuberoot2 :: Real
-runCuberoot2 = atPrec 0.00001 cuberoot2
-
-
--- Section 3: derivative of cuberoot 8 example
-derivCuberoot8 ::  DReal ()
-derivCuberoot8 = deriv (ArrD (\_ -> cuberoot)) 8
-
--- Time: <1 second
--- Result: [0.08333333275125672724797760, 0.08333335031057036046674712]
-runDerivCuberoot8 :: Real
-runDerivCuberoot8 = atPrec 0.00001 derivCuberoot8
-
-
--- Section 3.1: derivative of ReLU at 0
-reluFirstDerivAt0 :: DReal ()
-reluFirstDerivAt0 = deriv (ArrD (\_ x -> max 0 x)) 0
-
--- Time: <1 second
--- Result: [0.00000000000, 1.0000000000]
-runReluFirstDerivAt0 :: Real
-runReluFirstDerivAt0 = atPrec 2 reluFirstDerivAt0
-
--- Time: infinite (non-terminating)
--- Result: [0.00000000000, 1.0000000000]
-runReluFirstDerivAt0nonterminating :: Real
-runReluFirstDerivAt0nonterminating = atPrec 0.1 reluFirstDerivAt0
-
-derivReluSquared :: DReal ()
-derivReluSquared = deriv (ArrD (\_ x -> (max 0 x) * (max 0 x))) 0
-
--- Time: <1 second
--- Result: [0.00000000000, 0.00000000000]
-runDerivReluSquared :: Real
-runDerivReluSquared = atPrec 0.00001 derivReluSquared
-
-reluIntegralDeriv :: DReal ()
-reluIntegralDeriv =
-  integral01 (ArrD (\_ -> deriv (ArrD (\_ x -> max 0 (x - 0.2)))))
-
--- Time: 1 minute
--- Result: [0.79999542, 0.80000305]
-runReluIntegralDeriv :: Real
-runReluIntegralDeriv = atPrec 0.00001 reluIntegralDeriv
-
--- Section 3.2: second derivative of cuberoot 8 example
-secondDerivCuberoot8 ::  DReal ()
-secondDerivCuberoot8 = second_deriv (ArrD (\_ -> cuberoot)) 8
-
--- Time: <1 second
--- Result: [-0.006944448713007772777947928, -0.006944443591540540717010462]
-runSecondDerivCuberoot8 :: Real
-runSecondDerivCuberoot8 = atPrec 0.00001 secondDerivCuberoot8
-
-
--- Section 3.2: derivative of f(x,y) = xy wrt x and y at (1,0)
-mixedPartialXY ::  DReal ()
-mixedPartialXY = deriv (ArrD (\_ x -> (deriv (ArrD (\wk y -> y * (dmap wk x))) 0))) 1
-
--- Time: <1 second
--- Result: [1.0000000000, 1.0000000000]
-runMixedPartialXY :: Real
-runMixedPartialXY = atPrec 0.00001 mixedPartialXY
-
-
--- Section 6.1:
--- call derivCuberoot8 implemented as part of section 3
-oneTwelfth :: DReal ()
-oneTwelfth = 1 / 12
-
-sqrt2 :: DReal ()
-sqrt2 = sqrt 2
-
-sqrt2squared :: DReal ()
-sqrt2squared = (sqrt 2)^2
-
-
--- Section 7.1.3: derivative of the mean of a uniform distribution wrt. a line perturbation
-change :: Integral DReal g
-change = ArrD $ \_ f -> uniform # (ArrD (\wk x -> (x - 1/2) * dmap wk f # x))
-
-derivMeanLinearChange ::  DReal ()
-derivMeanLinearChange = let y :* dy = derivT mean (uniform :* change) in dy
-
--- Time: 2 seconds
--- Result: [0.082967042922973632812500000, 0.083699464797973632812500000]
-runDerivMeanLinearChange :: Real
-runDerivMeanLinearChange = atPrec 0.001 derivMeanLinearChange
-
-
--- Section 7.1.3: derivative of the variance of a uniform distribution wrt. a line perturbation
-derivVarianceLinearChange ::  DReal ()
-derivVarianceLinearChange = let y :* dy = derivT variance (uniform :* change) in dy
-
--- Time: 2 minutes
--- Result: [-0.004394948482513427734375, 0.004394948482513427734375]
-runDerivVarianceLinearChange :: Real
-runDerivVarianceLinearChange = atPrec 0.01 derivVarianceLinearChange
-
-secondDerivVarianceLinearChange ::  DReal ()
-secondDerivVarianceLinearChange =
-  let ((y :* _) :* (_ :* dy2)) = derivT (ArrD (\_ -> derivT variance)) ((uniform :* change) :* (change :* (ArrD (\_ _ -> 0))))
-  in dy2
-
-
---  Section 7.3: raytracing
+-- Section 2: raytracing
 dot :: VectorSpace g => (DReal :* DReal) g -> (DReal :* DReal) g -> DReal g
 dot (x0 :* x1) (y0 :* y1) = x0 * y0 + x1 * y1
 
@@ -190,15 +78,78 @@ rayTraceDeriv = deriv (ArrD (\_ y0 -> raytrace (circle y0) (1 :* 1) (1 :* 0))) (
 -- Time: 1 second
 -- Result: [2.587289929104514485486379588564089986615867, 2.587298566457847103838396428782456969483227]
 runRayTrace :: Real
-runRayTrace = atPrec 0.00001 rayTrace
+runRayTrace = atPrec 1e-5 rayTrace
 
 -- Time: 12 seconds
 -- Result: [1.347739015144645601713439374053190179150, 1.348337596821412823551715548182238961320]
 runRayTraceDeriv :: Real
-runRayTraceDeriv = atPrec 0.001 rayTraceDeriv
+runRayTraceDeriv = atPrec 1e-3 rayTraceDeriv
+
+-- Section 2.3: derivative of ReLU at 0
+reluFirstDerivAt0 :: DReal ()
+reluFirstDerivAt0 = deriv (ArrD (\_ x -> max 0 x)) 0
+
+-- Time: <1 second
+-- Result: [0.00000000000, 1.0000000000]
+runReluFirstDerivAt0 :: Real
+runReluFirstDerivAt0 = atPrec 2 reluFirstDerivAt0
+
+-- Time: infinite (non-terminating)
+-- Result: [0.00000000000, 1.0000000000]
+runReluFirstDerivAt0nonterminating :: Real
+runReluFirstDerivAt0nonterminating = atPrec 0.1 reluFirstDerivAt0
+
+brightness :: VectorSpace g => DReal g -> DReal g
+brightness y = integral01 (ArrD (\wk y0 -> max 0 ((y0 - dmap wk y) / sqrt (1 + (y0 - dmap wk y)^2))))
+
+-- Time: ~4 seconds
+-- Result: [-0.44750046730041503906250000000, -0.44692683219909667968750000000]
+runDerivBrightness :: Real
+runDerivBrightness = atPrec 1e-3 (deriv (ArrD (\_ -> brightness)) (1/2))
 
 
--- Section 7.4: Hausdorff distance between quarter-circle and L-shape.
+-- Section 6.1:
+-- call derivCuberoot8 implemented as part of section 3
+oneTwelfth :: DReal ()
+oneTwelfth = 1 / 12
+
+sqrt2 :: DReal ()
+sqrt2 = sqrt 2
+
+sqrt2squared :: DReal ()
+sqrt2squared = (sqrt 2)^2
+
+
+-- Section 6.1: derivative of the mean of a uniform distribution wrt. a line perturbation
+change :: Integral DReal g
+change = ArrD $ \_ f -> uniform # (ArrD (\wk x -> (x - 1/2) * dmap wk f # x))
+
+derivMeanLinearChange ::  DReal ()
+derivMeanLinearChange = let y :* dy = derivT mean (uniform :* change) in dy
+
+-- Time: 2 seconds
+-- Result: [0.082967042922973632812500000, 0.083699464797973632812500000]
+runDerivMeanLinearChange :: Real
+runDerivMeanLinearChange = atPrec 0.001 derivMeanLinearChange
+
+
+-- Section 6.1: derivative of the variance of a uniform distribution wrt. a line perturbation
+derivVarianceLinearChange ::  DReal ()
+derivVarianceLinearChange = let y :* dy = derivT variance (uniform :* change) in dy
+
+-- Time: 2 minutes
+-- Result: [-0.004394948482513427734375, 0.004394948482513427734375]
+runDerivVarianceLinearChange :: Real
+runDerivVarianceLinearChange = atPrec 0.01 derivVarianceLinearChange
+
+secondDerivVarianceLinearChange ::  DReal ()
+secondDerivVarianceLinearChange =
+  let ((y :* _) :* (_ :* dy2)) = derivT (ArrD (\_ -> derivT variance)) ((uniform :* change) :* (change :* (ArrD (\_ _ -> 0))))
+  in dy2
+
+
+
+-- Section 6.3: Hausdorff distance between quarter-circle and L-shape.
 quarter_circle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
 quarter_circle y0 = M.map (ArrD (\wk theta -> let y0' = dmap wk y0 in
   (cos (pi / 2 * theta)) :* (y0' + sin (pi / 2 * theta)))) M.unit_interval
@@ -216,7 +167,7 @@ runHausdorffDistCircleL :: Real
 runHausdorffDistCircleL = atPrec 0.001 hausdorffDistCircleL
 
 
--- Section 7.4: derivative of Hausdorff distance between quarter-circle and L-shape wrt. translation.
+-- Section 6.3: derivative of Hausdorff distance between quarter-circle and L-shape wrt. translation.
 hausdorffDistTranslatedQuarterCircle :: DReal ()
 hausdorffDistTranslatedQuarterCircle =
   deriv (ArrD (\_ y -> hausdorffDist d_R2 quarter_square_perim (quarter_circle y))) 0

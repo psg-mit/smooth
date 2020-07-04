@@ -110,3 +110,68 @@ simplerMaximization = supremum (map (ArrD (\_ x -> 0.5 * x)) unit_interval)
 
 simpleDerivTest :: DReal ()
 simpleDerivTest = deriv (ArrD (\_ c -> supremum ((map (ArrD (\wk x -> dmap wk c * x))) unit_interval))) 1.0
+
+
+car :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
+car y = map (ArrD (\wk theta -> (cos (pi * theta) :* (sin (pi * theta) + dmap wk y)))) unit_interval
+
+obstacle :: VectorSpace g => Maximizer (DReal :* DReal) g
+obstacle = union
+  (map (ArrD (\_ x -> ((2 + x) :* 2))) unit_interval)
+  (map (ArrD (\_ y -> (2 :* (2 + y)))) unit_interval)
+
+carClearance :: VectorSpace g => DReal g
+carClearance = separationDist d_R2 (car 0) obstacle
+
+derivCarClearance :: VectorSpace g => DReal g
+derivCarClearance = deriv (ArrD (\_ y -> separationDist d_R2 (car y) obstacle)) 0
+
+cvx2 :: DReal g -> (DReal :* DReal) g -> (DReal :* DReal) g -> (DReal :* DReal) g
+cvx2 c (x0 :* x1) (y0 :* y1) =
+     (c * x0 + (1 - c) * y0)
+  :* (c * x1 + (1 - c) * y1)
+
+triangleR2 :: VectorSpace g => (DReal :* DReal) g -> (DReal :* DReal) g -> (DReal :* DReal) g -> Maximizer (DReal :* DReal) g
+triangleR2 x y z =
+  compactUnion unit_interval (ArrD (\wk a ->
+  compactUnion unit_interval (ArrD (\wk' b ->
+  let wk'' = wk @. wk' in
+  point (cvx2 (dmap wk' a) (dmap wk'' x) (cvx2 b (dmap wk'' y) (dmap wk'' z)))))
+  ))
+
+convexHullR2 :: VectorSpace g => Maximizer (DReal :* DReal) g -> Maximizer (DReal :* DReal) g
+convexHullR2 k =
+  compactUnion k (ArrD (\wk1 x ->
+  compactUnion (dmap wk1 k) (ArrD (\wk y ->
+  compactUnion (dmap (wk1 @. wk) k) (ArrD (\wk' z ->
+  triangleR2 (dmap (wk @. wk') x) (dmap wk' y) z
+  ))))))
+
+obstacleCvx :: VectorSpace g => Maximizer (DReal :* DReal) g
+obstacleCvx = convexHullR2 (point (2 :* 2) `union` point (2 :* 4) `union` point (4 :* 2))
+
+carCvx :: VectorSpace g => Maximizer (DReal :* DReal) g
+carCvx =
+  compactUnion unit_interval (ArrD (\_ r ->
+  map (ArrD (\wk theta -> (dmap wk r * cos (pi * theta)) :* (dmap wk r * sin (pi * theta)))) unit_interval
+  ))
+  `union`
+  compactUnion unit_interval (ArrD (\_ x ->
+  compactUnion unit_interval (ArrD (\wk y ->
+  point ((-dmap wk x) :* (-3 * y))
+  ))
+  ))
+
+carClearanceCvx :: VectorSpace g => DReal g
+carClearanceCvx = separationDist d_R2 (car 0) obstacleCvx
+
+simpleObstacle :: VectorSpace g => Maximizer (DReal :* DReal) g
+simpleObstacle = union
+  (map (ArrD (\_ x -> ((1 + x) :* 1))) unit_interval)
+  (map (ArrD (\_ y -> (1 :* (1 + y)))) unit_interval)
+
+d_R2_squared :: ((DReal :* DReal) :* (DReal :* DReal) :=> DReal) g
+d_R2_squared = ArrD $ \_ ((x :* y) :* (x' :* y')) -> (x - x')^2 + (y - y')^2
+
+simplef :: (DReal :=> DReal) g
+simplef = ArrD $ \_ y0 -> separationDist d_R2_squared (point (0 :* y0)) simpleObstacle

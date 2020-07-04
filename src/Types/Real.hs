@@ -90,10 +90,12 @@ liftSndOrder :: VectorSpace g =>
      -> (DReal :=> DReal) g -> DReal g
 liftSndOrder hof (ArrD f) = R (hof (let R b = f fstD (R sndD) in b))
 
-min01, max01, max01N, integral01, cut_root, firstRoot ::
+min01, argmin01, max01, argmax01, max01N, integral01, cut_root, firstRoot ::
   VectorSpace g => (DReal :=> DReal) g -> DReal g
 min01 = liftSndOrder FwdPSh.min01'
+argmin01 = liftSndOrder FwdPSh.argmin01'
 max01 = liftSndOrder FwdPSh.max01'
+argmax01 = liftSndOrder FwdPSh.argmax01'
 max01N = liftSndOrder FwdPSh.max01Newton'
 integral01 = liftSndOrder FwdPSh.integral'
 cut_root = liftSndOrder FwdPSh.newton_cut'
@@ -110,3 +112,6 @@ second_deriv f = deriv (ArrD (\wk x -> deriv (dmap wk f) x))
 
 sndDerivCuberootExample :: DReal ()
 sndDerivCuberootExample = second_deriv (ArrD (\_ -> cuberoot)) 8
+
+test :: DReal ()
+test = deriv (ArrD (\_ c -> Types.Real.min01 (ArrD (\wk x -> (Types.Real.max 0 (x - dmap wk c))^2 + (x - 1)^2)))) 0.3
