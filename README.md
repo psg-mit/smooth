@@ -3,7 +3,7 @@
 Examples from the paper are located in the file `src/SmoothLang.hs`.
 Each example is annotated with its approximate runtime.
 
-For example, the paper (section 3.1) shows the computation of the the derivative of (ReLU(x))^2, which corresponds to the definition `runDerivReluSquared` in `src/SmoothLang.hs`.
+For example, the paper (section 2) shows the computation of the the derivative of the `brightness` function which corresponds to the definition `runDerivBrightness` in `src/SmoothLang.hs`.
 
 ## Docker instructions
 
