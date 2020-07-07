@@ -20,21 +20,15 @@ atPrec :: CPoint Real -> DReal () -> Real
 atPrec err real = fst (head (filter f (runPoint (dRealtoReal real &&& err))))
   where f (i, erri) = I.upper (I.width 100 i) < I.lower erri
 
--- Section 1.1: the integral from 0 to 1 of the derivative of ReLU(x - 0.2)
--- Time: A stream that can be stopped with Ctrl + c
--- it takes <1 second to generate the results in the paper
--- Result:
--- [-1.0000000000, 0.00000000000]
--- [-0.5000000000000, 0.0000000000000]
--- [-0.50000000000000, -0.25000000000000]
--- [-0.5000000000000000, -0.3750000000000000]
--- [-0.43750000000000000, -0.37500000000000000]
--- [-0.4062500000000000000, -0.3750000000000000000]
--- [-0.40625000000000000000, -0.39062500000000000000]
--- [-0.4062500000000000000000, -0.3984375000000000000000]
-reluIntegral :: DReal ()
-reluIntegral =
+-- Section 1: the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6
+derivIntegralRelu :: DReal ()
+derivIntegralRelu =
   deriv (ArrD (\_ c -> (integral01 (ArrD (\wk x -> max 0 (x - (dmap wk c))))))) 0.6
+
+-- Time: <1 second
+-- Result: [-0.4062500000000000000000, -0.3984375000000000000000]
+runDerivIntegralRelu :: Real
+runDerivIntegralRelu = atPrec 1e-2 derivIntegralRelu
 
 -- Section 2: raytracing
 dot :: VectorSpace g => (DReal :* DReal) g -> (DReal :* DReal) g -> DReal g
@@ -69,21 +63,41 @@ raytrace s lightPos u =
 circle :: VectorSpace g => DReal g -> ((DReal :* DReal) :=> DReal) g
 circle y0 = ArrD $ \wk (x :* y) -> ((x - 1)^2 + (y - dmap wk y0)^2) - 1
 
-rayTrace :: DReal ()
-rayTrace = raytrace (circle (-3/4)) (1 :* 1) (1 :* 0)
+raytraceExample :: DReal ()
+raytraceExample = raytrace (circle (-3/4)) (1 :* 1) (1 :* 0)
 
-rayTraceDeriv :: DReal ()
-rayTraceDeriv = deriv (ArrD (\_ y0 -> raytrace (circle y0) (1 :* 1) (1 :* 0))) (-3/4)
+raytraceExampleDeriv :: DReal ()
+raytraceExampleDeriv = deriv (ArrD (\_ y0 -> raytrace (circle y0) (1 :* 1) (1 :* 0))) (-3/4)
 
 -- Time: 1 second
 -- Result: [2.587289929104514485486379588564089986615867, 2.587298566457847103838396428782456969483227]
-runRayTrace :: Real
-runRayTrace = atPrec 1e-5 rayTrace
+runRaytraceExample :: Real
+runRaytraceExample = atPrec 1e-5 raytraceExample
 
 -- Time: 12 seconds
 -- Result: [1.347739015144645601713439374053190179150, 1.348337596821412823551715548182238961320]
-runRayTraceDeriv :: Real
-runRayTraceDeriv = atPrec 1e-3 rayTraceDeriv
+runRaytraceExampleDeriv :: Real
+runRaytraceExampleDeriv = atPrec 1e-3 raytraceExampleDeriv
+
+-- Section 2.1
+tStar :: VectorSpace g => DReal g -> DReal g
+tStar y = firstRoot (ArrD (\wk t -> - (1 - dmap wk y^2 - (t - 1)^2)))
+
+derivTStar :: VectorSpace g => DReal g -> DReal g
+derivTStar y = deriv (ArrD (\_ -> tStar)) y
+
+derivTStarAnalytic :: VectorSpace g => DReal g -> DReal g
+derivTStarAnalytic y = - y / (tStar y - 1)
+
+-- Time: <1 second
+-- Result: [-1.133899683374569614339844628613941903, -1.133893143859001568699824674725477525]
+runDerivTStar :: Real
+runDerivTStar = atPrec 1e-5 (derivTStar (-3/4))
+
+-- Time: <1 second
+-- Result: [-1.133899683374569614339844628613941903, -1.133893143859001568699824674725477525]
+runDerivTStarAnalytic :: Real
+runDerivTStarAnalytic = atPrec 1e-5 (derivTStarAnalytic (-3/4))
 
 -- Section 2.3: derivative of ReLU at 0
 reluFirstDerivAt0 :: DReal ()
@@ -108,16 +122,15 @@ runDerivBrightness :: Real
 runDerivBrightness = atPrec 1e-3 (deriv (ArrD (\_ -> brightness)) (1/2))
 
 
--- Section 6.1:
--- call derivCuberoot8 implemented as part of section 3
-oneTwelfth :: DReal ()
-oneTwelfth = 1 / 12
-
+-- Section 6:
 sqrt2 :: DReal ()
 sqrt2 = sqrt 2
 
-sqrt2squared :: DReal ()
-sqrt2squared = (sqrt 2)^2
+sqrt2Squared ::  DReal ()
+sqrt2Squared = (sqrt 2)^2
+
+two :: DReal ()
+two = 2
 
 
 -- Section 6.1: derivative of the mean of a uniform distribution wrt. a line perturbation
