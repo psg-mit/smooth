@@ -28,9 +28,9 @@ To run examples from the paper, first navigate to `/src/` then you can view the 
 with `vim SmoothLang.hs` and can run the examples with `stack ghci SmoothLang.hs`, which will
 launch a repl with all of the examples loaded.
 
-For example, the paper (section 3.1) shows the computation of the the derivative of (ReLU(x))^2.
-This can be reproduced by running `runDerivReluSquared`. It should compute almost immediately and return
-the interval [0,0].
+For example, the paper (section 1) shows the computation of the the derivative of the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6.
+This can be reproduced by running `runDerivIntegralRelu`. It should compute almost immediately and return
+the interval [-0.4062500000000000000000, -0.3984375000000000000000].
 
 Computations of type `Real` return a single interval which corresponds to the interval refined to
 the precision specified with the `atPrec` function. On the other hand, computations of type
