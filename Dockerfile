@@ -3,7 +3,7 @@ FROM ubuntu:18.04
 RUN apt-get update
 RUN apt-get install -y \
         build-essential=12.4ubuntu1 \
-        curl=7.58.0-2ubuntu3.8 \
+        curl=7.58.0-2ubuntu3.10 \
         libmpfr-dev=4.0.1-1 \
         ghc=8.0.2-11 \
         vim
