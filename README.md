@@ -9,7 +9,53 @@ For example, the paper (section 2) shows the computation of the the derivative o
 
 This repository contains the implementation of <img src="https://render.githubusercontent.com/render/math?math=\lambda_S"> as an embedded language within Haskell. Because <img src="https://render.githubusercontent.com/render/math?math=\mathbb{R}^n"> and <img src="https://render.githubusercontent.com/render/math?math=\mathcal{R}^n"> are representable within **CTop**, we actually implement **AD** directly using **CTop** within Haskell, rather than working internally to <img src="https://render.githubusercontent.com/render/math?math=\lambda_C">. We implement **CTop** using an interval-arithmetic library that in turn uses MPFR [Fousse et al. 2007], a library for multi-precision floating-point arithmetic. All the code examples from the paper are provided in this repository (in `src/SmoothLang.hs`).
 
-We will now list out every code example in the paper with the corresponding implementation from `src/SmoothLang.hs`:
+In the paper, we claim to implement **AD** directly using **CTop**. We will now give a high-level overview of the types used in our implementation. [[TODO]]
+
+
+## Installation instructions
+Begin by cloning this repository, which contains
+
+### Virtual machine image 
+
+We also provide a virtual machine with all of the dependencies prelaoded [[TODO]].
+
+### Docker instructions
+
+If necessary, set up the environment for Docker:
+```
+eval $(docker-machine env default)
+```
+
+The Dockerfile is at the base of the source code directory. To build a docker image from the Dockerfile, run from the base of the source directory the command
+```
+docker build --tag=smooth .
+```
+
+To run the Docker image, run (from the base directory)
+```
+docker load < docker-image.tar.gz    #load docker image (if saved)
+docker run -it smooth             #run docker image
+```
+The entire source directory is located at `/source/`.
+
+To run examples from the paper, first navigate to `/src/` then you can view the examples file
+with `vim SmoothLang.hs` and can run the examples with `stack ghci SmoothLang.hs`, which will
+launch a repl with all of the examples loaded.
+
+## Evaluation Instructions
+
+Our primary claim of this artifact is that it contains implementations of all of the code in the language presented in the paper. We provide every code example in the paper with the corresponding implementation in `src/SmoothLang.hs`. Running any of these starts by loading all of the dependencies, running `stack repl` to enter the Haskell repl, then `:l SmoothLang` to load the SmoothLang file. 
+
+For example, the paper (section 1) shows the computation of the the derivative of the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6.
+This can be reproduced by running `runDerivIntegralRelu`. It should compute almost immediately and return
+the interval [-0.4062500000000000000000, -0.3984375000000000000000].
+
+Computations of type `Real` return a single interval which corresponds to the interval refined to
+the precision specified with the `atPrec` function. On the other hand, computations of type
+`DReal ()` produce and infinite stream of finer and finer results. This stream may be truncated
+at any time with Ctrl+C.
+
+Each of the code snippets from the paper and corresponding Haskell commands are listed below. 
 
 ### Section 1
 Code in <img src="https://render.githubusercontent.com/render/math?math=\lambda_S">:
@@ -41,7 +87,7 @@ let scale (c : ℜ) (x : ℜ^2) : ℜ^2 = (c * x[0], c * x[1])
 let norm2 (x : ℜ^2) : ℜ = x[0]^2 + x[1]^2
 let normalize (x : ℜ^2) : ℜ^2 = scale (1 / sqrt (norm2 x)) x
 deriv : (ℜ → ℜ) → (ℜ → ℜ) ! library function
-let gradient (f : ℜ^2 → ℜ) (x : ℜ2) : ℜ2 =
+let gradient (f : ℜ^2 → ℜ) (x : ℜ^2) : ℜ^2 =
     (deriv (λ z : ℜ ⇒ f (z, x[1])) x[0],
      deriv (λ z : ℜ ⇒ f (x[0], z)) x[1])
 ```
@@ -162,9 +208,6 @@ eps=2> deriv relu 0
 ```
 let brightness (y : ℜ) : ℜ =
     integral01 (λ y0 : ℜ⇒ max 0 ((y0 - y) / sqrt (1 + (y0 - y)2)))
-```
-```
-deriv (λ y : ℜ ⇒ max 0 ((1/2 - y) / sqrt (1 + (1/2 - y)^2)))) (1/2) = [-1, 0]:
 ```
 ```
 eps=1e-3> deriv brightness (1/2)
@@ -324,37 +367,5 @@ runHausdorffDistTranslatedQuarterCircle :: Real
 runHausdorffDistTranslatedQuarterCircle = atPrec 0.1 hausdorffDistTranslatedQuarterCircle
 ```
 
-## Installation Instructions
-
-### Docker instructions
-
-If necessary, set up the environment for Docker:
-```
-eval $(docker-machine env default)
-```
-
-The Dockerfile is at the base of the source code directory. To build a docker image from the Dockerfile, run from the base of the source directory the command
-```
-docker build --tag=smooth .
-```
-
-To run the Docker image, run (from the base directory)
-```
-docker load < docker-image.tar.gz    #load docker image (if saved)
-docker run -it smooth             #run docker image
-```
-The entire source directory is located at `/source/`.
-
-To run examples from the paper, first navigate to `/src/` then you can view the examples file
-with `vim SmoothLang.hs` and can run the examples with `stack ghci SmoothLang.hs`, which will
-launch a repl with all of the examples loaded.
-
-For example, the paper (section 1) shows the computation of the the derivative of the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6.
-This can be reproduced by running `runDerivIntegralRelu`. It should compute almost immediately and return
-the interval [-0.4062500000000000000000, -0.3984375000000000000000].
-
-Computations of type `Real` return a single interval which corresponds to the interval refined to
-the precision specified with the `atPrec` function. On the other hand, computations of type
-`DReal ()` produce and infinite stream of finer and finer results. This stream may be truncated
-at any time with Ctrl+C.
-
+## Additional artifact description
+[[TODO]]
