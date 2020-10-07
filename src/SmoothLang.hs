@@ -122,7 +122,7 @@ runDerivBrightness :: Real
 runDerivBrightness = atPrec 1e-3 (deriv (ArrD (\_ -> brightness)) (1/2))
 
 
--- Section 6:
+-- Section 7.1:
 sqrt2 :: DReal ()
 sqrt2 = sqrt 2
 
@@ -133,7 +133,7 @@ two :: DReal ()
 two = 2
 
 
--- Section 6.1: derivative of the mean of a uniform distribution wrt. a line perturbation
+-- Section 7.1: derivative of the mean of a uniform distribution wrt. a line perturbation
 change :: Integral DReal g
 change = ArrD $ \_ f -> uniform # (ArrD (\wk x -> (x - 1/2) * dmap wk f # x))
 
@@ -146,7 +146,7 @@ runDerivMeanLinearChange :: Real
 runDerivMeanLinearChange = atPrec 0.001 derivMeanLinearChange
 
 
--- Section 6.1: derivative of the variance of a uniform distribution wrt. a line perturbation
+-- Section 7.1: derivative of the variance of a uniform distribution wrt. a line perturbation
 derivVarianceLinearChange ::  DReal ()
 derivVarianceLinearChange = let y :* dy = derivT variance (uniform :* change) in dy
 
@@ -162,7 +162,7 @@ secondDerivVarianceLinearChange =
 
 
 
--- Section 6.3: Hausdorff distance between quarter-circle and L-shape.
+-- Section 7.3: Hausdorff distance between quarter-circle and L-shape.
 quarter_circle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
 quarter_circle y0 = M.map (ArrD (\wk theta -> let y0' = dmap wk y0 in
   (cos (pi / 2 * theta)) :* (y0' + sin (pi / 2 * theta)))) M.unit_interval
@@ -180,7 +180,7 @@ runHausdorffDistCircleL :: Real
 runHausdorffDistCircleL = atPrec 0.001 hausdorffDistCircleL
 
 
--- Section 6.3: derivative of Hausdorff distance between quarter-circle and L-shape wrt. translation.
+-- Section 7.3: derivative of Hausdorff distance between quarter-circle and L-shape wrt. translation.
 hausdorffDistTranslatedQuarterCircle :: DReal ()
 hausdorffDistTranslatedQuarterCircle =
   deriv (ArrD (\_ y -> hausdorffDist d_R2 quarter_square_perim (quarter_circle y))) 0
