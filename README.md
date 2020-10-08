@@ -13,11 +13,15 @@ In the paper, we claim to implement **AD** directly using **CTop**. We will now 
 
 
 ## Installation instructions
-Begin by cloning this repository, which contains
+We provide both a virtual machine image that can be directly downloaded and run as well as a Dockerfile to load the dependencies in a docker image.
 
 ### Virtual machine image 
 
-We also provide a virtual machine with all of the dependencies prelaoded [[TODO]].
+We provide a virtual machine image with Ubuntu 20.04 with all of the dependencies preloaded, which can be downloaded [here](https://www.dropbox.com/s/r0c8ejfvj9ecjfk/SmoothVM.ova?dl=0). You can import the .ova file into hypervisor software (e.g., virtualbox). 
+
+Once the virtual machine is loaded, you can sign in to the user `lambda-s` with the password `lambda-s`. Open a terminal and use the command `cd smooth` to access the repository. View the examples from the paper with `vim src/SmoothLang.hs`.
+
+To run the examples from the paper, run `stack repl` to launch the Haskell repl and run `:l SmoothLang` in the repl to load the library. 
 
 ### Docker instructions
 
