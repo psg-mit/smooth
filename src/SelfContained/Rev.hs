@@ -15,9 +15,9 @@ import Control.Arrow
 import Data.MemoTrie
 
 infixr :#
-data Df g a b k = ((g, b) -> ((a, k) :->: Double)) :# Df g a b (a, k)
+data Df gb a k = (gb -> ((a, k) :->: Double)) :# Df gb a (a, k)
 data a :~> b where
-  D  :: ((a :->: Double) -> b) -> Df (a :->: Double) a b () -> a :~> b
+  D  :: ((a :->: Double) -> b) -> Df (a :->: Double, b) a () -> a :~> b
 
 class Additive v where
   zeroV  :: v         -- the zero vector
@@ -35,14 +35,14 @@ instance Additive Double where
   zeroV = 0
   (+^) = (+)
 
-dZero :: HasTrie a => HasTrie k => Df g a b k
+dZero :: HasTrie a => HasTrie k => Df gb a k
 dZero = const zeroV :# dZero
 
-dShift :: Df g a b (c :->: k) -> Df g a (b, c) k
+dShift :: Df (g, b) a (c :->: k) -> Df (g, (b, c)) a k
 dShift (f :# f') = undefined
 
 dSum :: HasTrie k => HasTrie a' =>
-  Df a a' b k -> Df a a' b k -> Df a a' b k
+  Df ab a' k -> Df ab a' k -> Df ab a' k
 dSum (f :# f') (g :# g') = fplusg :# dSum f' g' where
   fplusg x = f x +^ g x
 
@@ -55,7 +55,7 @@ unitTrie f = trie $ \(i, ()) -> untrie f i
 dId :: HasTrie i => i :~> (i :->: Double)
 dId = D id (arr (unitTrie . snd) :# dZero)
 
-wknValue :: (g' -> g) -> Df g a b k -> Df g' a b k
+wknValue :: (g' -> g) -> Df (g, b) a k -> Df (g', b) a k
 wknValue g (f :# f') = fg :# wknValue g f' where
   fg = proc (d', b) -> do
     d <- g -< d'
@@ -83,7 +83,7 @@ sndD = linearD (arr (\f -> trie (\i -> untrie f (Right i))))
   (arr (\f -> trie (\i -> case i of { Right i' -> untrie f i' ; Left _ -> 0 })))
 
 pairD' :: HasTrie k => HasTrie a =>
-  Df d a b k -> Df d a c k -> Df d a (b, c) k
+  Df (d, b) a k -> Df (d, c) a k -> Df (d, (b, c)) a k
 pairD' (f :# f') (g :# g') = fg :# (pairD' f' g') where
   fg (d, (b, c)) = fi +^ gi where
     fi = f (d, b)
@@ -99,7 +99,7 @@ pairToEither (l, r) = trie (either (untrie l) (untrie r))
 eitherToPair :: HasTrie a => HasTrie b => (Either a b :->: f) -> (a :->: f, b :->: f)
 eitherToPair f = let f' = untrie f in (trie (f' . Left) , trie (f' . Right))
 
-transformOut :: (->) b' b -> Df g a b k -> Df g a b' k
+transformOut :: (->) b' b -> Df (g, b) a k -> Df (g, b') a k
 transformOut b'b (f :# f') = f1 :# transformOut b'b f'
   where
   f1 = proc (g, b') -> do
@@ -126,20 +126,20 @@ dap2 f x y = f @. pairD x y
 
 transformK :: HasTrie a =>
   (->) (g, (a, k) :->: Double) ((a, k') :->: Double)
-  -> Df g a b k -> Df g a b k'
+  -> Df (g, b) a k -> Df (g, b) a k'
 transformK kf (f :# f') = kff :# undefined -- transformK (RE.parallelmtg (const kf)) f'
   where
   kff = proc (g, b) -> do
     a <- f -< (g, b)
     kf -< (g, a)
 
-dWkn :: Df g a (b :->: Double) (a :->: ka)
-     -> Df g a (b :->: Double) (a :->: (a :->: ka))
+dWkn :: Df (g, b :->: Double) a (a :->: ka)
+     -> Df (g, b :->: Double) a (a :->: (a :->: ka))
 dWkn = undefined
 
 dWkn1 :: HasTrie b => (->) (g, k') k
-     -> Df g b c (b, k')
-     -> Df g b c (b, k)
+     -> Df (g, c) b (b, k')
+     -> Df (g, c) b (b, k)
 dWkn1 e f = undefined --transformK (RE.parallelmtg (const e)) f
 
 -- dWkn1' :: HasTrie b => (->) (g, (b :->: k')) (a :->: k')
@@ -147,13 +147,37 @@ dWkn1 e f = undefined --transformK (RE.parallelmtg (const e)) f
 --      -> Df g b c (b :->: (a :->: k'))
 -- dWkn1' e f = transformK (RE.parallelmtg (const e)) f
 
-dWkn2 :: Df g a b k -> Df g' a' b' k'
+dWkn2 :: Df gb a k -> Df gb' a' k'
 dWkn2 = undefined
 
 
+-- (c -> R) -> (b -> R)
+-- (c -> R) -> ((b, b) -> R)
+-- (c -> R) -> ((b, b, b) -> R)
+
+-- (b -> R) -> (a -> R)
+-- (b -> R) -> ((a, a) -> R)
+-- (b -> R) -> ((a, a, a) -> R)
+
+-- =============================
+-- (c -> R) -> (a -> R)
+-- (c -> R) -> ((a, a) -> R)
+-- (c -> R) -> ((a, a, a) -> R)
+
+-- (c -> R) -> ((b, k) -> R)
+-- (b -> R) -> (a -> R)
+-- =====================
+-- (c -> R) -> ((a, k) -> R)
+
+-- (gb -> ((a, k) :->: Double))
+
+-- dWkn11 :: ((g, k') -> (k :->: Double)) -> Df (g, b) a k -> Df (g, b) a k'
+-- dWkn11 = undefined
+
+
 linCompose :: HasTrie a => HasTrie b => Additive ka =>
-  Df g b c ka
-  -> Df g a (b :->: Double) ka -> Df g a c ka
+  Df (g, c) b ka
+  -> Df (g, (b :->: Double)) a  ka -> Df (g, c) a ka
 linCompose f@(f0 :# f') g@(g0 :# g') = undefined -- g0f0 :# dSum gf' g'f
   where
   g0f0 = proc (g, c) -> do
