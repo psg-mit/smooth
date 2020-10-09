@@ -1,74 +1,28 @@
 # smooth
 
-Examples from the paper are located in the file `src/SmoothLang.hs`.
-Each example is annotated with its approximate runtime.
+This is the artifact for the paper "λS: Computable semantics for differentiable programming with higher-order functions and datatypes".
 
-For example, the paper (section 2) shows the computation of the the derivative of the `brightness` function which corresponds to the definition `runDerivBrightness` in `src/SmoothLang.hs`.
+This repository contains the implementation of <img src="https://render.githubusercontent.com/render/math?math=\lambda_S"> as an embedded language within Haskell.
+We name this library _smooth_.
 
-## Claims
+## List of claims
 
-This repository contains the implementation of <img src="https://render.githubusercontent.com/render/math?math=\lambda_S"> as an embedded language within Haskell. Because <img src="https://render.githubusercontent.com/render/math?math=\mathbb{R}^n"> and <img src="https://render.githubusercontent.com/render/math?math=\mathcal{R}^n"> are representable within **CTop**, we actually implement **AD** directly using **CTop** within Haskell, rather than working internally to <img src="https://render.githubusercontent.com/render/math?math=\lambda_C">. We implement **CTop** using an interval-arithmetic library that in turn uses MPFR [Fousse et al. 2007], a library for multi-precision floating-point arithmetic. All the code examples from the paper are provided in this repository (in `src/SmoothLang.hs`).
+Our primary claim of this artifact is that it contains implementations of all of the code in the language presented in the paper.
+Accordingly, our list of claims is a list of code examples from the paper and their corresponding implementation in this library.
+All of the implementations for examples from the paper are located in the file `src/SmoothLang.hs`.
+Each example is annotated in that file with its approximate runtime.
+These runtimes came from running natively, rather than in a VM, so runtimes may be larger when running in a VM.
+We now provide every code example in the paper.
 
-In the paper, we claim to implement **AD** directly using **CTop**. We will now give a high-level overview of the types used in our implementation. [[TODO]]
-
-
-## Installation instructions
-We provide both a virtual machine image that can be directly downloaded and run as well as a Dockerfile to load the dependencies in a docker image.
-
-### Virtual machine image 
-
-We provide a virtual machine image with Ubuntu 20.04 with all of the dependencies preloaded, which can be downloaded [here](https://www.dropbox.com/s/r0c8ejfvj9ecjfk/SmoothVM.ova?dl=0). You can import the .ova file into hypervisor software (e.g., virtualbox). 
-
-Once the virtual machine is loaded, you can sign in to the user `lambda-s` with the password `lambda-s`. Open a terminal and use the command `cd smooth` to access the repository. View the examples from the paper with `vim src/SmoothLang.hs`.
-
-To run the examples from the paper, run `stack repl` to launch the Haskell repl and run `:l SmoothLang` in the repl to load the library. 
-
-### Docker instructions
-
-If necessary, set up the environment for Docker:
-```
-eval $(docker-machine env default)
-```
-
-The Dockerfile is at the base of the source code directory. To build a docker image from the Dockerfile, run from the base of the source directory the command
-```
-docker build --tag=smooth .
-```
-
-To run the Docker image, run (from the base directory)
-```
-docker load < docker-image.tar.gz    #load docker image (if saved)
-docker run -it smooth             #run docker image
-```
-The entire source directory is located at `/source/`.
-
-To run examples from the paper, first navigate to `/src/` then you can view the examples file
-with `vim SmoothLang.hs` and can run the examples with `stack ghci SmoothLang.hs`, which will
-launch a repl with all of the examples loaded.
-
-## Evaluation Instructions
-
-Our primary claim of this artifact is that it contains implementations of all of the code in the language presented in the paper. We provide every code example in the paper with the corresponding implementation in `src/SmoothLang.hs`. Running any of these starts by loading all of the dependencies, running `stack repl` to enter the Haskell repl, then `:l SmoothLang` to load the SmoothLang file. 
-
-For example, the paper (section 1) shows the computation of the the derivative of the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6.
-This can be reproduced by running `runDerivIntegralRelu`. It should compute almost immediately and return
-the interval [-0.4062500000000000000000, -0.3984375000000000000000].
-
-Computations of type `Real` return a single interval which corresponds to the interval refined to
-the precision specified with the `atPrec` function. On the other hand, computations of type
-`DReal ()` produce and infinite stream of finer and finer results. This stream may be truncated
-at any time with Ctrl+C.
-
-Each of the code snippets from the paper and corresponding Haskell commands are listed below. 
 
 ### Section 1
 Code in <img src="https://render.githubusercontent.com/render/math?math=\lambda_S">:
 ```
-eps=1e-2> deriv (\lambda c ⇒ integral01 (λ x ⇒ relu (x - c))) 0.6
+eps=1e-2> deriv (λ c ⇒ integral01 (λ x ⇒ relu (x - c))) 0.6
 [-0.407, -0.398]
 ```
 
-Implementation in smooth:
+Implementation in _smooth_:
 ```haskell
 -- Section 1: the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6
 derivIntegralRelu :: DReal ()
@@ -113,7 +67,7 @@ eps=1e-3> deriv (λ y : ℜ ⇒ raytrace (circle (0, y) 1) (1, 1) (1, 0)) (-3/4)
 [1.3477, 1.3484]
 ```
 
-Implementation in smooth:
+Implementation in _smooth_:
 ```haskell
 -- Section 2: raytracing
 dot :: VectorSpace g => (DReal :* DReal) g -> (DReal :* DReal) g -> DReal g
@@ -177,7 +131,7 @@ deriv t_star y = - deriv (λ y0 : ℜ ⇒ f (t_star y) y0) y /
 ```
 deriv t_star y = - y / (t_star y - 1):
 ```
-Implementation in smooth:
+Implementation in _smooth_:
 ```haskell
 -- Section 2.1
 tStar :: VectorSpace g => DReal g -> DReal g
@@ -218,7 +172,7 @@ eps=1e-3> deriv brightness (1/2)
 [-0.4476, -0.4469]
 ```
 
-Implementation in smooth:
+Implementation in _smooth_:
 ```haskell
 reluFirstDerivAt0 :: DReal ()
 reluFirstDerivAt0 = deriv (ArrD (\_ x -> max 0 x)) 0
@@ -273,7 +227,7 @@ Code in <img src="https://render.githubusercontent.com/render/math?math=\lambda_
 …
 ```
 
-Implementation in smooth:
+Implementation in _smooth_:
 ```haskell
 sqrt2 :: DReal ()
 sqrt2 = sqrt 2
@@ -298,7 +252,7 @@ eps=1e-2> der variance uniform change
 [-0.005, 0.004]
 ```
 
-Implementation in smooth:
+Implementation in _smooth_:
 ```haskell
 -- Section 7.1: derivative of the mean of a uniform distribution wrt. a line perturbation
 change :: Integral DReal g
@@ -340,7 +294,7 @@ eps=1e-1> deriv (λ y : ℜ ⇒ hausdorffDist d_R2 l_shape (quarterCircle y)) 0
 [-0.752, -0.664]
 ```
 
-Implementation in smooth:
+Implementation in _smooth_:
 ```haskell
 -- Section 7.3: Hausdorff distance between quarter-circle and L-shape.
 quarter_circle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
@@ -371,5 +325,72 @@ runHausdorffDistTranslatedQuarterCircle :: Real
 runHausdorffDistTranslatedQuarterCircle = atPrec 0.1 hausdorffDistTranslatedQuarterCircle
 ```
 
+
+## Download, installation, and sanity testing
+We provide both a virtual machine image that can be directly downloaded and run as well as a Dockerfile to load the dependencies in a docker image.
+
+### Virtual machine image
+
+We provide a virtual machine image with Ubuntu 20.04 with all of the dependencies preloaded, which can be downloaded [here](https://www.dropbox.com/s/r0c8ejfvj9ecjfk/SmoothVM.ova?dl=0). You can import the .ova file into hypervisor software (e.g., virtualbox).
+
+Once the virtual machine is loaded, you can sign in to the user `lambda-s` with the password `lambda-s`. Open a terminal and use the command `cd smooth` to access the repository. View the examples from the paper with `vim src/SmoothLang.hs`.
+
+To run the examples from the paper, run `stack repl` to launch the Haskell repl and run `:l SmoothLang` in the repl to load the library.
+
+### Docker instructions
+
+If necessary, set up the environment for Docker:
+```
+eval $(docker-machine env default)
+```
+
+The Dockerfile is at the base of the source code directory. To build a docker image from the Dockerfile, run from the base of the source directory the command
+```
+docker build --tag=smooth .
+```
+
+To run the Docker image, run (from the base directory)
+```
+docker load < docker-image.tar.gz    #load docker image (if saved)
+docker run -it smooth             #run docker image
+```
+The entire source directory is located at `/source/`.
+
+### Sanity testing
+
+To run examples from the paper, first navigate to `/src/` then you can view the examples file
+with `vim SmoothLang.hs` and can run the examples with `stack ghci SmoothLang.hs`, which will
+launch a repl with all of the examples loaded.
+For instance, running `runDerivIntegralRelu` at the REPL should return the result `[-0.4062500000000000000000, -0.3984375000000000000000]` in less than 1 second.
+
+## Evaluation Instructions
+
+Our primary claim of this artifact is that it contains implementations of all of the code in the language presented in the paper. We provide every code example in the paper with the corresponding implementation in `src/SmoothLang.hs`. Running any of these starts by loading all of the dependencies, running `stack repl` to enter the Haskell repl, then `:l SmoothLang` to load the SmoothLang file.
+
+For example, the paper (section 1) shows the computation of the the derivative of the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6.
+This can be reproduced by running `runDerivIntegralRelu`. It should compute almost immediately and return
+the interval [-0.4062500000000000000000, -0.3984375000000000000000].
+
+Computations of type `Real` return a single interval which corresponds to the interval refined to
+the precision specified with the `atPrec` function. On the other hand, computations of type
+`DReal ()` produce and infinite stream of finer and finer results. This stream may be truncated
+at any time with Ctrl+C.
+
+Timing measurements for each computation shown in the paper are listed in `src/SmoothLang.hs`.
+These are approximate measurements of the time taken using `stack repl` as shown above.
+
+We note that the syntax for the code within the Haskell library is not identical to that shown in the paper.
+A mechanical translation (using Template Haskell or a preprocessing stage) would be possible.
+However, we did not implement any such translation.
+
+
 ## Additional artifact description
-[[TODO]]
+
+Here is a high-level overview of the types used in our implementation.
+The category **CTop** in the paper corresponds to the type family `CMap` defined in `src/RealExpr.hs`.
+The category **AD** in the paper corresponds to the type family `(:~>)` defined in `src/FwdMode.hs`.
+Objects of the category **HAD** in the paper directly correspond to Haskell functors satisfying the typeclass `PShD`, defined in `src/FwdPSh.hs`.
+The real type is the type family `DReal` defined in `src/Real.hs`.
+Products are defined by the type family `:*` in `src/Experimental/PSh.hs`.
+Exponentials are defined by the type family `:=>` in `src/FwdPSh.hs`.
+Various derived types with **HAD** are defined in files in the directory `src/Types/`.
