@@ -5,7 +5,7 @@ import Prelude hiding (Real, max, min, Integral, (^))
 import MPFR (Real)
 import qualified Interval as I
 import RealExpr (runPoint)
-import FwdPSh (Additive, CPoint, R (..), (:=>) (..), (:*) (..), derivT, (#), dmap, (@.))
+import FwdPSh (Additive, CPoint, R (..), (:=>) (..), (:*) (..), derivT, (#), dmap)
 import Types.Real
 import Types.Integral (Integral, mean, variance, uniform)
 import FwdMode (getValue, VectorSpace)
