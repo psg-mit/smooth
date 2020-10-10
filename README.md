@@ -325,6 +325,10 @@ runHausdorffDistTranslatedQuarterCircle :: Real
 runHausdorffDistTranslatedQuarterCircle = atPrec 0.1 hausdorffDistTranslatedQuarterCircle
 ```
 
+These code examples use some libraries that are also described in the paper.
+ The library for integrals in Fig. 8 corresponds to the source file `src/Types/Integral.hs`.
+ The library for implicit surfaces in Fig. 9 corresponds to the source file `src/Types/OShape.hs`.
+ The library for generalized parametric surfaces in Fig. 10 corresponds to the source file `src/Types/KShape.hs`.
 
 ## Download, installation, and sanity testing
 We provide both a virtual machine image that can be directly downloaded and run as well as a Dockerfile to load the dependencies in a docker image.
