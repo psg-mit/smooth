@@ -351,7 +351,7 @@ eval $(docker-machine env default)
 ```
 
 In order to run all of the examples, it's necessary to allocate the docker image with at least 8GB of RAM. If you use Virtualbox (the default) for virtualization, you can set this with:
-``` 
+```
 docker-machine stop
 VBoxManage modifyvm default --memory 8192
 docker-machine start
@@ -378,20 +378,27 @@ For instance, running `runDerivIntegralRelu` at the REPL should return the resul
 
 ## Evaluation Instructions
 
-Our primary claim of this artifact is that it contains implementations of all of the code in the language presented in the paper. We provide every code example in the paper with the corresponding implementation in `src/SmoothLang.hs`. Running any of these starts by building the project by running `stack build` and then `stack exec runexamples` to execute the compiled code (note that execution requires 8GB or more of RAM).
+Our primary claim of this artifact is that it contains implementations of all of the code in the language presented in the paper. We provide every code example in the paper with the corresponding implementation in `src/SmoothLang.hs`.
 
-If you'd like to test For example, the paper (section 1) shows the computation of the the derivative of the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6.
+There are two ways to run these code examples: interactively at the REPL, and as a compiled program that executes the programs that terminate with results in sequence.
+
+To run code examples at the REPL, run `stack repl` to enter the Haskell REPL, then execute `:l SmoothLang` to load the SmoothLang file.
+Then enter any expression within `src/SmoothLang.hs` at the command line.
+For example, the paper (section 1) shows the computation of the the derivative of the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6.
 This can be reproduced by running `runDerivIntegralRelu`. It should compute almost immediately and return
 the interval [-0.4062500000000000000000, -0.3984375000000000000000].
+Note that `runHausdorffDistTranslatedQuarterCircle` may not work at the REPL due to excessive memory consumption (all the others should); however, it will work with the second method, as a compiled program.
+
+To run all of the examples together as a compiled program, first build the project by running `stack build`, and then run `stack exec runexamples` to execute the compiled code (note that execution requires 8GB or more of RAM).
 
 Computations of type `Real` return a single interval which corresponds to the interval refined to
 the precision specified with the `atPrec` function. On the other hand, computations of type
 `DReal ()` produce and infinite stream of finer and finer results. This stream may be truncated
-at any time with Ctrl+C.
+at any time at the Haskell REPL with Ctrl+C.
 
 Timing measurements for each computation shown in the paper are listed in `src/SmoothLang.hs`.
 These are approximate measurements of the time taken using `stack repl` as shown above.
-The building and then executing with `stack build` and `stack exec runexamples` takes 1 minute to run all of the examples.
+The compiled program `stack exec runexamples` takes roughly 1 minute to run all of the examples.
 
 We note that the syntax for the code within the Haskell library is not identical to that shown in the paper.
 A mechanical translation (using Template Haskell or a preprocessing stage) would be possible.
