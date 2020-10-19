@@ -350,6 +350,13 @@ If necessary, set up the environment for Docker:
 eval $(docker-machine env default)
 ```
 
+In order to run all of the examples, it's necessary to allocate the docker image with at least 8GB of RAM. If you use Virtualbox (the default) for virtualization, you can set this with:
+``` 
+docker-machine stop
+VBoxManage modifyvm default --memory 8192
+docker-machine start
+```
+
 The Dockerfile is at the base of the source code directory. To build a docker image from the Dockerfile, run from the base of the source directory the command
 ```
 docker build --tag=smooth .
@@ -371,9 +378,9 @@ For instance, running `runDerivIntegralRelu` at the REPL should return the resul
 
 ## Evaluation Instructions
 
-Our primary claim of this artifact is that it contains implementations of all of the code in the language presented in the paper. We provide every code example in the paper with the corresponding implementation in `src/SmoothLang.hs`. Running any of these starts by loading all of the dependencies, running `stack repl` to enter the Haskell repl, then `:l SmoothLang` to load the SmoothLang file.
+Our primary claim of this artifact is that it contains implementations of all of the code in the language presented in the paper. We provide every code example in the paper with the corresponding implementation in `src/SmoothLang.hs`. Running any of these starts by building the project by running `stack build` and then `stack exec runexamples` to execute the compiled code (note that execution requires 8GB or more of RAM).
 
-For example, the paper (section 1) shows the computation of the the derivative of the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6.
+If you'd like to test For example, the paper (section 1) shows the computation of the the derivative of the integral from 0 to 1 of the derivative of ReLU(x - c) at c=0.6.
 This can be reproduced by running `runDerivIntegralRelu`. It should compute almost immediately and return
 the interval [-0.4062500000000000000000, -0.3984375000000000000000].
 
@@ -384,6 +391,7 @@ at any time with Ctrl+C.
 
 Timing measurements for each computation shown in the paper are listed in `src/SmoothLang.hs`.
 These are approximate measurements of the time taken using `stack repl` as shown above.
+The building and then executing with `stack build` and `stack exec runexamples` takes 1 minute to run all of the examples.
 
 We note that the syntax for the code within the Haskell library is not identical to that shown in the paper.
 A mechanical translation (using Template Haskell or a preprocessing stage) would be possible.
