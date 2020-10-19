@@ -32,8 +32,8 @@ library:
   source-dirs: src
 
 executables:
-  runtest:
-    main:             test/RunTest.hs
+  runexamples:
+    main:             test/RunExamples.hs
     source-dirs:      src
 
 ghc-options:      -O
