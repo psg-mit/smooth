@@ -336,7 +336,7 @@ We provide both a virtual machine image that can be directly downloaded and run 
 
 ### Virtual machine image
 
-We provide a virtual machine image with Ubuntu 20.04 with all of the dependencies preloaded, packaged together with this README file as SmoothVM.ova. You can import the .ova file into hypervisor software (e.g., virtualbox).
+We provide a [virtual machine image](https://drive.google.com/file/d/1xx30qckdGbW1Sukn8G_f1_tJZEKKoorq/view?usp=sharing) with Ubuntu 20.04 with all of the dependencies preloaded, packaged together with this README file as SmoothVM.ova. You can import the .ova file into hypervisor software (e.g., virtualbox).
 Note that the README file in the source code within that VM is out of date; please prefer using this README for evaluation.
 
 Once the virtual machine is loaded, you can sign in to the user `lambda-s` with the password `lambda-s`. Open a terminal and use the command `cd smooth` to access the repository. View the examples from the paper with `vim src/SmoothLang.hs`.
