@@ -1,6 +1,6 @@
 # smooth
 
-This is the artifact for the paper "λS: Computable semantics for differentiable programming with higher-order functions and datatypes".
+This is the artifact for the paper "<img src="https://render.githubusercontent.com/render/math?math=\lambda_S">: Computable semantics for differentiable programming with higher-order functions and datatypes".
 
 This repository contains the implementation of <img src="https://render.githubusercontent.com/render/math?math=\lambda_S"> as an embedded language within Haskell.
 We name this library _smooth_.
