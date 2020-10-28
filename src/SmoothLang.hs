@@ -10,7 +10,7 @@ import Types.Real
 import Types.Integral (Integral, mean, variance, uniform)
 import FwdMode (getValue, VectorSpace)
 import Rounded (ofString, RoundDir( Down ))
-import Types.Maximizer (hausdorffDist, d_R2, Maximizer)
+import Types.Maximizer (hausdorffDist, distR2, Maximizer)
 import qualified Types.Maximizer as M
 
 dRealtoReal :: DReal () -> CPoint Real
@@ -51,12 +51,12 @@ raytrace :: VectorSpace g => ((DReal :* DReal) :=> DReal) g ->
                              (DReal :* DReal) g ->
                              (DReal :* DReal) g -> DReal g
 raytrace s lightPos u =
-  let t = firstRoot (ArrD (\wk t -> dmap wk s # (scale t (dmap wk u)))) in
-  let y = scale t u in
+  let tStar = firstRoot (ArrD (\wk t -> dmap wk s # (scale t (dmap wk u)))) in
+  let y = scale tStar u in
   let normal = gradient s y in
-  let lightVector = lightPos `sub` y in
-  max 0 (dot (normalize normal) (normalize lightVector))
-  / (norm2 y * norm2 lightVector)
+  let lightToSurf = lightPos `sub` y in
+  max 0 (dot (normalize normal) (normalize lightToSurf))
+  / (norm2 y * norm2 lightToSurf)
   where
   (x0 :* x1) `sub` (y0 :* y1) = (x0 - y0) :* (x1 - y1)
 
@@ -163,16 +163,16 @@ secondDerivVarianceLinearChange =
 
 
 -- Section 7.3: Hausdorff distance between quarter-circle and L-shape.
-quarter_circle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
-quarter_circle y0 = M.map (ArrD (\wk theta -> let y0' = dmap wk y0 in
-  (cos (pi / 2 * theta)) :* (y0' + sin (pi / 2 * theta)))) M.unit_interval
+quarterCircle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
+quarterCircle y0 = M.map (ArrD (\wk theta -> let y0' = dmap wk y0 in
+  (cos (pi / 2 * theta)) :* (y0' + sin (pi / 2 * theta)))) M.unitInterval
 
-quarter_square_perim :: VectorSpace g => Maximizer (DReal :* DReal) g
-quarter_square_perim = M.union (M.map (ArrD (\_ x -> x :* 1)) M.unit_interval)
-                               (M.map (ArrD (\_ y -> 1 :* y)) M.unit_interval)
+lShape :: VectorSpace g => Maximizer (DReal :* DReal) g
+lShape = M.union (M.map (ArrD (\_ x -> x :* 1)) M.unitInterval)
+                               (M.map (ArrD (\_ y -> 1 :* y)) M.unitInterval)
 
 hausdorffDistCircleL ::  DReal ()
-hausdorffDistCircleL = hausdorffDist d_R2 quarter_square_perim (quarter_circle 0)
+hausdorffDistCircleL = hausdorffDist distR2 lShape (quarterCircle 0)
 
 -- Time: 7 seconds
 -- Result: [0.41384921849465670653300003702, 0.41440539111235744884709353399]
@@ -183,9 +183,9 @@ runHausdorffDistCircleL = atPrec 0.001 hausdorffDistCircleL
 -- Section 7.3: derivative of Hausdorff distance between quarter-circle and L-shape wrt. translation.
 hausdorffDistTranslatedQuarterCircle :: DReal ()
 hausdorffDistTranslatedQuarterCircle =
-  deriv (ArrD (\_ y -> hausdorffDist d_R2 quarter_square_perim (quarter_circle y))) 0
+  deriv (ArrD (\_ y -> hausdorffDist distR2 lShape (quarterCircle y))) 0
 
 -- Time: 52 seconds
--- Result: [-0.752, -0.664]
+-- Result: [-0.7515973045396820224886373089321421844, -0.6641561255883687886832219076605117364]
 runHausdorffDistTranslatedQuarterCircle :: Real
 runHausdorffDistTranslatedQuarterCircle = atPrec 0.1 hausdorffDistTranslatedQuarterCircle

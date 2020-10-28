@@ -52,8 +52,8 @@ let gradient (f : ℜ^2 → ℜ) (x : ℜ^2) : ℜ^2 =
 ```
 ! camera assumed to be at the origin
 let raytrace (s : Surface (ℜ^2)) (lightPos : ℜ^2) (rayDirection : ℜ^2) : ℜ =
-    let t_star = firstRoot (λ t : ℜ ⇒ s (scale t rayDirection)) in
-    let y = scale t_star rayDirection in let normal : ℜ^2 = - gradient s y in
+    let tStar = firstRoot (λ t : ℜ ⇒ s (scale t rayDirection)) in
+    let y = scale tStar rayDirection in let normal : ℜ^2 = - gradient s y in
     let lightToSurf = y - lightPos in
     max 0 (dot (normalize normal) (normalize lightToSurf))
     / (norm2 y * norm2 lightToSurf)
@@ -90,12 +90,12 @@ raytrace :: VectorSpace g => ((DReal :* DReal) :=> DReal) g ->
                              (DReal :* DReal) g ->
                              (DReal :* DReal) g -> DReal g
 raytrace s lightPos u =
-  let t = firstRoot (ArrD (\wk t -> dmap wk s # (scale t (dmap wk u)))) in
-  let y = scale t u in
+  let tStar = firstRoot (ArrD (\wk t -> dmap wk s # (scale t (dmap wk u)))) in
+  let y = scale tStar u in
   let normal = gradient s y in
-  let lightVector = lightPos `sub` y in
-  max 0 (dot (normalize normal) (normalize lightVector))
-  / (norm2 y * norm2 lightVector)
+  let lightToSurf = lightPos `sub` y in
+  max 0 (dot (normalize normal) (normalize lightToSurf))
+  / (norm2 y * norm2 lightToSurf)
   where
   (x0 :* x1) `sub` (y0 :* y1) = (x0 - y0) :* (x1 - y1)
 
@@ -122,14 +122,14 @@ runRaytraceExampleDeriv = atPrec 1e-3 raytraceExampleDeriv
 #### Section 2.1
 Code in <img src="https://render.githubusercontent.com/render/math?math=\lambda_S">:
 ```
-let t_star y = firstRoot (λ t : ℜ ⇒ 1 - y^2 - (t - 1)^2)
+let tStar y = firstRoot (λ t : ℜ ⇒ 1 - y^2 - (t - 1)^2)
 ```
 ```
-deriv t_star y = - deriv (λ y0 : ℜ ⇒ f (t_star y) y0) y /
-    deriv (λ t : ℜ ⇒ f t y) (t_star y)
+deriv tStar y = - deriv (λ y0 : ℜ ⇒ f (tStar y) y0) y /
+    deriv (λ t : ℜ ⇒ f t y) (tStar y)
 ```
 ```
-deriv t_star y = - y / (t_star y - 1):
+deriv tStar y = - y / (tStar y - 1):
 ```
 Implementation in _smooth_:
 ```haskell
@@ -286,27 +286,27 @@ secondDerivVarianceLinearChange =
 Code in <img src="https://render.githubusercontent.com/render/math?math=\lambda_S">:
 
 ```
-eps=1e-3> hausdorffDist d_R2 l_shape (quarterCircle 0)
+eps=1e-3> hausdorffDist distR2 lShape (quarterCircle 0)
 [0.4138, 0.4145]
 ```
 ```
-eps=1e-1> deriv (λ y : ℜ ⇒ hausdorffDist d_R2 l_shape (quarterCircle y)) 0
+eps=1e-1> deriv (λ y : ℜ ⇒ hausdorffDist distR2 lShape (quarterCircle y)) 0
 [-0.752, -0.664]
 ```
 
 Implementation in _smooth_:
 ```haskell
 -- Section 7.3: Hausdorff distance between quarter-circle and L-shape.
-quarter_circle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
-quarter_circle y0 = M.map (ArrD (\wk theta -> let y0' = dmap wk y0 in
-  (cos (pi / 2 * theta)) :* (y0' + sin (pi / 2 * theta)))) M.unit_interval
+quarterCircle :: VectorSpace g => DReal g -> Maximizer (DReal :* DReal) g
+quarterCircle y0 = M.map (ArrD (\wk theta -> let y0' = dmap wk y0 in
+  (cos (pi / 2 * theta)) :* (y0' + sin (pi / 2 * theta)))) M.unitInterval
 
-quarter_square_perim :: VectorSpace g => Maximizer (DReal :* DReal) g
-quarter_square_perim = M.union (M.map (ArrD (\_ x -> x :* 1)) M.unit_interval)
-                               (M.map (ArrD (\_ y -> 1 :* y)) M.unit_interval)
+lShape :: VectorSpace g => Maximizer (DReal :* DReal) g
+lShape = M.union (M.map (ArrD (\_ x -> x :* 1)) M.unitInterval)
+                               (M.map (ArrD (\_ y -> 1 :* y)) M.unitInterval)
 
 hausdorffDistCircleL ::  DReal ()
-hausdorffDistCircleL = hausdorffDist d_R2 quarter_square_perim (quarter_circle 0)
+hausdorffDistCircleL = hausdorffDist distR2 lShape (quarterCircle 0)
 
 -- Time: 7 seconds
 -- Result: [0.41384921849465670653300003702, 0.41440539111235744884709353399]
@@ -317,10 +317,10 @@ runHausdorffDistCircleL = atPrec 0.001 hausdorffDistCircleL
 -- Section 7.3: derivative of Hausdorff distance between quarter-circle and L-shape wrt. translation.
 hausdorffDistTranslatedQuarterCircle :: DReal ()
 hausdorffDistTranslatedQuarterCircle =
-  deriv (ArrD (\_ y -> hausdorffDist d_R2 quarter_square_perim (quarter_circle y))) 0
+  deriv (ArrD (\_ y -> hausdorffDist distR2 lShape (quarterCircle y))) 0
 
 -- Time: 52 seconds
--- Result: [-0.752, -0.664]
+-- Result: [-0.7515973045396820224886373089321421844, -0.6641561255883687886832219076605117364]
 runHausdorffDistTranslatedQuarterCircle :: Real
 runHausdorffDistTranslatedQuarterCircle = atPrec 0.1 hausdorffDistTranslatedQuarterCircle
 ```

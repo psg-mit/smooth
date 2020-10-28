@@ -86,19 +86,19 @@ quarter_disk_variable :: VectorSpace g => DReal g -> KShape (DReal :* DReal) g
 quarter_disk_variable r = intersect unit_square $
   ArrD $ \wk (x :* y) -> x^2 + y^2 < (dmap wk r)^2
 
-d_R2 :: ((DReal :* DReal) :* (DReal :* DReal) :=> DReal) g
-d_R2 = ArrD $ \_ ((x :* y) :* (x' :* y')) -> (x - x')^2 + (y - y')^2
+distR2 :: ((DReal :* DReal) :* (DReal :* DReal) :=> DReal) g
+distR2 = ArrD $ \_ ((x :* y) :* (x' :* y')) -> (x - x')^2 + (y - y')^2
 
-d_R1 :: (DReal :* DReal :=> DReal) g
-d_R1 = ArrD $ \_ (x :* x') -> (x - x')^2
+distR1 :: (DReal :* DReal :=> DReal) g
+distR1 = ArrD $ \_ (x :* x') -> (x - x')^2
 
 exampleHausdorffDist :: DReal ()
-exampleHausdorffDist = hausdorffDist d_R2 unit_square quarter_disk
+exampleHausdorffDist = hausdorffDist distR2 unit_square quarter_disk
 
 -- Seems to be converging, but slowly. Derivatives
 -- must not be working, because it's only progressing through bisection.
 exampleHausdorffDist2 :: DReal ()
-exampleHausdorffDist2 = hausdorffDist d_R1 unit_interval unit_interval
+exampleHausdorffDist2 = hausdorffDist distR1 unit_interval unit_interval
 
 xPlusY :: ((DReal :* DReal) :=> DReal) g
 xPlusY = ArrD (\_ (x :* y) -> x + y)
