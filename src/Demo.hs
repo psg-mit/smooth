@@ -125,5 +125,5 @@ it9 = 1e-2 @> Types.Real.argmax01 (ArrD (\_ x -> 4 * x * (1 - x)))
 -- $$\frac{\partial}{\partial c} \mid_{c = 0.6} \int_0^1 \sin(\cos(c \log(x + 1))) dx $$
 -- https://www.wolframalpha.com/input/?i=derivative+wrt+c+of+%28integral+of+sin%28cos%28c+*+log%28x%2B1%29%29%29+from+x+%3D+0+to+1%29+at+c+%3D+1
 it10 :: FwdPSh.Real
-it10 = 1e-2 @> deriv (ArrD (\_ c -> integral01 (ArrD (\wk x -> sin (cos (dmap wk c * log (x + 1))))))) 1
+it10 = 1e-2 @> deriv (ArrD (\_ c -> integral01 (ArrD (\wk x -> sin (cos (dmap wk c * log (x + 1))))))) 0.6
 
