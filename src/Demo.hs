@@ -50,7 +50,7 @@ it2 = 1e-200 @> sqrt 2
 -- so we can have a primitive `cut_root_with_bounds` that uses Newton's method, starting
 -- with an interval [0, x] to search from and refine.
 my_sqrt :: VectorSpace g => DReal g -> DReal g
-my_sqrt x = cut_root_with_bounds 0 x (ArrD (\wk y -> dmap wk x - Types.Real.max 0 (y Types.Real.^ 2)))
+my_sqrt x = cut_root_with_bounds 0 x (ArrD (\wk y -> dmap wk x - y Types.Real.^ 2))
 
 -- And now we can get the same answer again, to 200 digits of precision!
 -- So we can define square root in the language just from having the squaring function available.
@@ -119,4 +119,11 @@ it8 = 1e-2 @> Types.Real.max01 (ArrD (\_ x -> 4 * x * (1 - x)))
 -- And we can find the argmax, too:
 it9 :: FwdPSh.Real
 it9 = 1e-2 @> Types.Real.argmax01 (ArrD (\_ x -> 4 * x * (1 - x)))
+
+-- Here's an example of a calculation where Wolfram Alpha
+-- has no useful answer!
+-- $$\frac{\partial}{\partial c} \mid_{c = 0.6} \int_0^1 \sin(\cos(c \log(x + 1))) dx $$
+-- https://www.wolframalpha.com/input/?i=derivative+wrt+c+of+%28integral+of+sin%28cos%28c+*+log%28x%2B1%29%29%29+from+x+%3D+0+to+1%29+at+c+%3D+1
+it10 :: FwdPSh.Real
+it10 = 1e-2 @> deriv (ArrD (\_ c -> integral01 (ArrD (\wk x -> sin (cos (dmap wk c * log (x + 1))))))) 1
 
