@@ -35,5 +35,8 @@ executables:
   runexamples:
     main:             test/RunExamples.hs
     source-dirs:      src
+  demo:
+    main:             test/Demo.hs
+    source-dirs:      src
 
 ghc-options:      -O

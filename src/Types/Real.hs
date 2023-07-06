@@ -101,6 +101,9 @@ integral01 = liftSndOrder FwdPSh.integral'
 cut_root = liftSndOrder FwdPSh.newton_cut'
 firstRoot = liftSndOrder FwdPSh.firstRoot'
 
+cut_root_with_bounds :: VectorSpace g => DReal g -> DReal g -> (DReal :=> DReal) g -> DReal g
+cut_root_with_bounds (R l) (R u) (ArrD f) = R ((FwdPSh.newton_cut'_with_bounds l u) (let R b = f fstD (R sndD) in b))
+
 max :: DReal g -> DReal g -> DReal g
 max (R x) (R y) = R $ FwdPSh.max x y
 

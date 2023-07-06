@@ -515,6 +515,19 @@ newton_cut' f = bound 1 1 R.one where
       then let i = Interval negb b in (i, newton_locate f p i)
       else (I.realLine, bound (n + 1) (p + 1) (R.mulpow2 1 p R.Down b))
 
+newton_cut'_with_bounds :: Rounded r =>
+     CMap g (Interval r)
+  -> CMap g (Interval r)
+  -> CMap (g, Interval r) (Interval r, Interval r)
+  -> CMap g (Interval r)
+newton_cut'_with_bounds lowerf upperf f = newton_locate' lowerf upperf f 1 I.realLine
+  where
+  newton_locate' (CMap lower) (CMap upper) f p (Interval a b) = CMap $ \g ->
+    let (Interval l _, lower') = lower g in
+    let (Interval _ u, upper') = upper g in
+    let (i', frefined) = newton_locate_step f p (Interval (Prelude.max l a) (Prelude.min u b)) g in
+    (i', newton_locate' lower' upper' frefined (p + 5) i')
+
 -- Get more precision out of a continuous map by running it many times.
 nsteps :: Int -> CMap a b -> a -> (b, CMap a b)
 nsteps 1 (CMap f) x = f x
